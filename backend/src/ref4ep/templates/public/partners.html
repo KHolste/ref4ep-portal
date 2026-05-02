@@ -1,0 +1,36 @@
+{% extends "_base.html" %}
+
+{% block title %}Partner{% endblock %}
+
+{% block content %}
+  <article>
+    <h1>Konsortialpartner</h1>
+    <p>Das Ref4EP-Konsortium besteht aus den folgenden fünf Einrichtungen:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Kürzel</th>
+          <th>Name</th>
+          <th>Land</th>
+          <th>Website</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in partners %}
+          <tr>
+            <td>{{ p.short_name }}</td>
+            <td>{{ p.name }}</td>
+            <td>{{ p.country }}</td>
+            <td>
+              {% if p.website %}
+                <a href="{{ p.website }}" rel="noopener noreferrer">{{ p.website }}</a>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </article>
+{% endblock %}

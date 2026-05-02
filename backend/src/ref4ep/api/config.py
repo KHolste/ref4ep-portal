@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     # ``../data`` ist damit das Repo-Wurzel-Verzeichnis ``data/``.
     database_url: str = "sqlite:///../data/ref4ep.db"
     session_secret: str = ""
+    session_max_age: int = 7 * 24 * 60 * 60  # 7 Tage in Sekunden
+    cookie_secure: bool = False
     storage_dir: str = "../data/storage"
     max_upload_mb: int = 100
     public_base_url: str = "http://localhost:8000"

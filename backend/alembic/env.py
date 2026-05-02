@@ -14,6 +14,7 @@ from sqlalchemy import engine_from_config, pool
 
 from ref4ep.api.config import get_settings
 from ref4ep.domain.base import Base
+from ref4ep.domain import models  # noqa: F401 — registriert Modelle bei Base.metadata
 
 config = context.config
 

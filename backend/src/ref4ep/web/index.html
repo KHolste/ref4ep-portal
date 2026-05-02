@@ -8,19 +8,18 @@
     <link rel="icon" href="/static/favicon.ico" />
   </head>
   <body>
-    <header>
-      <h1>Ref4EP-Portal</h1>
-      <p>Interner Bereich</p>
+    <header class="portal-header">
+      <a href="/portal/" class="brand">Ref4EP-Portal</a>
+      <nav id="nav-main">
+        <a href="/portal/" data-route="cockpit">Cockpit</a>
+        <a href="/portal/workpackages" data-route="workpackages">Arbeitspakete</a>
+        <a href="/portal/account" data-route="account">Konto</a>
+      </nav>
+      <div class="user" id="nav-user"></div>
     </header>
-    <main>
-      <div id="app">
-        <p>Sprint-0-Skelett. Login und Cockpit folgen ab Sprint 1.</p>
-      </div>
+    <main id="app">
+      <p>Lade …</p>
     </main>
-    <!--
-      Diese Datei ist die SPA-Shell für /portal und /admin.
-      In Sprint 1 wird sie zur echten Login/Cockpit-Shell ausgebaut.
-    -->
     <script type="module" src="/portal/app.js"></script>
   </body>
 </html>

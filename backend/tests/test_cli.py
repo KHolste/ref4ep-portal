@@ -28,12 +28,7 @@ def test_version_prints_version_string() -> None:
     assert "python" in result.stdout.lower()
 
 
-def test_seed_from_antrag_is_a_stub_returning_zero() -> None:
-    result = _run("seed", "--from", "antrag")
-    assert result.returncode == 0
-    assert "Sprint-0-Stub" in result.stdout
-
-
 def test_seed_from_unknown_value_fails() -> None:
+    """argparse soll ungültige Quellen ablehnen, ohne die DB zu berühren."""
     result = _run("seed", "--from", "unbekannt")
     assert result.returncode != 0

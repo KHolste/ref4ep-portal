@@ -1,0 +1,142 @@
+# Initial-Seed für das Ref4EP-Portal — Quelle: Antrag/Gantt.
+# Inhalte verbindlich gemäß docs/mvp_specification.md §13.
+# Lead-Vererbung: Sub-WPs ohne 'lead' erben den Lead des Parent-WP.
+
+partners:
+  - short_name: JLU
+    name: Justus-Liebig-Universität Gießen
+    country: DE
+  - short_name: IOM
+    name: Leibniz-Institut für Oberflächenmodifizierung e. V., Leipzig
+    country: DE
+  - short_name: CAU
+    name: Christian-Albrechts-Universität zu Kiel
+    country: DE
+  - short_name: THM
+    name: Technische Hochschule Mittelhessen
+    country: DE
+  - short_name: TUD
+    name: Technische Universität Dresden
+    country: DE
+
+workpackages:
+  # ---------- WP1 — JLU ----------
+  - code: WP1
+    title: "Projektmanagement, Daten und Dissemination"
+    lead: JLU
+  - code: WP1.1
+    title: "Projektmanagement"
+    parent: WP1
+  - code: WP1.2
+    title: "Standardisierung & Formate"
+    parent: WP1
+
+  # ---------- WP2 — IOM ----------
+  - code: WP2
+    title: "Referenz-Gitterionenquelle"
+    lead: IOM
+  - code: WP2.1
+    title: "RefGIQ Langzeitcharakterisierung"
+    parent: WP2
+  - code: WP2.2
+    title: "Quellenbau"
+    parent: WP2
+
+  # ---------- WP3 — TUD ----------
+  - code: WP3
+    title: "Referenz-Halltriebwerk"
+    lead: TUD
+  - code: WP3.1
+    title: "Konstruktion Ref-HT"
+    parent: WP3
+  - code: WP3.2
+    title: "Basischarakterisierung Referenz-HT"
+    parent: WP3
+  - code: WP3.3
+    title: "Erweiterte Diagnostik Referenz-HT"
+    parent: WP3
+
+  # ---------- WP4 — CAU ----------
+  - code: WP4
+    title: "Plume-Diagnostiksysteme"
+    lead: CAU
+  - code: WP4.1
+    title: "FS-Langzeittest"
+    parent: WP4
+  - code: WP4.2
+    title: "FS-Systembau"
+    parent: WP4
+  - code: WP4.3
+    title: "E×B-Sonde"
+    parent: WP4
+  - code: WP4.4
+    title: "Energieanalysatoren"
+    parent: WP4
+  - code: WP4.5
+    title: "Teilchenfluss-Sonde"
+    parent: WP4
+  - code: WP4.6
+    title: "Plasmasonden"
+    parent: WP4
+
+  # ---------- WP5 — THM ----------
+  - code: WP5
+    title: "Elektronikentwicklung"
+    lead: THM
+  - code: WP5.1
+    title: "Plasmasondenelektronik für Treibstrahl"
+    parent: WP5
+  - code: WP5.2
+    title: "Plasmasondenelektronik für Strompfadanalyse"
+    parent: WP5
+  - code: WP5.3
+    title: "E×B-Sondenelektronik"
+    parent: WP5
+  - code: WP5.4
+    title: "Validierung Diagnostik/Elektronik"
+    parent: WP5
+
+  # ---------- WP6 — IOM ----------
+  - code: WP6
+    title: "Spezialdiagnostik"
+    lead: IOM
+  - code: WP6.1
+    title: "TALIF-Systemaufbau und Anwendung"
+    parent: WP6
+  - code: WP6.2
+    title: "TALIF-gestützte Validierung"
+    parent: WP6
+  - code: WP6.3
+    title: "LIF-Diagnostik und Anwendung am HT"
+    parent: WP6
+  - code: WP6.4
+    title: "ESMS-Messungen und Validierung der E×B-Sonde"
+    parent: WP6
+
+  # ---------- WP7 — JLU ----------
+  - code: WP7
+    title: "Plume-Wechselwirkungen und facility-induzierte Strompfade"
+    lead: JLU
+  - code: WP7.1
+    title: "Sensorik-Konzeption"
+    parent: WP7
+  - code: WP7.2
+    title: "SPIS-Modellierung"
+    parent: WP7
+  - code: WP7.3
+    title: "Wechselwirkung Facility/Triebwerk"
+    parent: WP7
+
+  # ---------- WP8 — JLU ----------
+  - code: WP8
+    title: "Ringvergleiche und Facility-Effekte"
+    lead: JLU
+  - code: WP8.1
+    title: "Ringvergleiche Planung"
+    parent: WP8
+  - code: WP8.2
+    title: "Ringvergleiche Durchführung"
+    parent: WP8
+  - code: WP8.3
+    title: "Energiekalibrierung"
+    parent: WP8
