@@ -1,0 +1,62 @@
+/* Ref4EP — Public-Zone. Schlichte, lesbare Typografie. */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1.6;
+  color: #1a1a1a;
+  background: #fafafa;
+}
+
+header {
+  border-bottom: 1px solid #ddd;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: baseline;
+  gap: 2rem;
+  background: #fff;
+}
+
+header .brand {
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: #1c2c4c;
+  text-decoration: none;
+}
+
+header nav a {
+  margin-right: 1rem;
+  color: #1c2c4c;
+  text-decoration: none;
+}
+
+header nav a:hover {
+  text-decoration: underline;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+article h1 {
+  font-size: 1.75rem;
+  margin-top: 0;
+}
+
+article p {
+  margin: 0 0 1rem 0;
+}
+
+footer {
+  border-top: 1px solid #ddd;
+  padding: 1rem 1.5rem;
+  text-align: center;
+  color: #666;
+  background: #fff;
+}

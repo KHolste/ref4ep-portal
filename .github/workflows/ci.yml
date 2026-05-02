@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend-sqlite:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install package (dev)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Lint (ruff)
+        run: ruff check src tests
+      - name: Format check (ruff)
+        run: ruff format --check src tests
+      - name: Alembic upgrade head (SQLite)
+        run: |
+          mkdir -p ../data
+          alembic upgrade head
+      - name: Pytest
+        run: pytest
+
+  backend-postgres:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: ref4ep
+          POSTGRES_PASSWORD: ref4ep
+          POSTGRES_DB: ref4ep
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      REF4EP_DATABASE_URL: postgresql+psycopg://ref4ep:ref4ep@localhost:5432/ref4ep
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install package (dev + postgres)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,postgres]"
+      - name: Alembic upgrade head (PostgreSQL)
+        run: alembic upgrade head
+      - name: Pytest
+        run: pytest

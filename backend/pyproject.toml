@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ref4ep"
+version = "0.0.1"
+description = "Ref4EP-Projektportal — Backend"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Ref4EP-Konsortium" }]
+license = { text = "Proprietär (Konsortium)" }
+
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
+  "sqlalchemy>=2.0",
+  "alembic>=1.13",
+  "pydantic>=2.6",
+  "pydantic-settings>=2.2",
+  "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-cov>=4.1",
+  "httpx>=0.27",
+  "ruff>=0.4",
+]
+postgres = [
+  "psycopg[binary]>=3.1",
+]
+
+[project.scripts]
+ref4ep-admin = "ref4ep.cli.admin:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ref4ep = [
+  "web/**/*",
+  "templates/**/*",
+  "static/**/*",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"

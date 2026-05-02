@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}{{ title }}{% endblock %} — Ref4EP</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="icon" href="/static/favicon.ico" />
+  </head>
+  <body>
+    <header>
+      <a href="/" class="brand">Ref4EP</a>
+      <nav>
+        <a href="/">Projekt</a>
+        <a href="/portal/">Portal</a>
+        <a href="/legal/imprint">Impressum</a>
+        <a href="/legal/privacy">Datenschutz</a>
+      </nav>
+    </header>
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+    <footer>
+      <small>Ref4EP — Referenzdiagnostik für elektrische Raumfahrtantriebe.
+      Gefördert durch das DLR.</small>
+    </footer>
+  </body>
+</html>
