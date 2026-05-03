@@ -94,7 +94,6 @@ class AdminPartnerOut(BaseModel):
     name: str
     country: str
     website: str | None = None
-    general_email: str | None = None
     address_line: str | None = None
     postal_code: str | None = None
     city: str | None = None
@@ -115,7 +114,6 @@ class AdminPartnerCreateRequest(BaseModel):
     name: str = Field(min_length=1)
     country: str = Field(min_length=2, max_length=2)
     website: str | None = None
-    general_email: str | None = None
     address_line: str | None = None
     postal_code: str | None = None
     city: str | None = None
@@ -133,7 +131,6 @@ class AdminPartnerPatchRequest(BaseModel):
     name: str | None = Field(default=None, min_length=1)
     country: str | None = Field(default=None, min_length=2, max_length=2)
     website: str | None = None
-    general_email: str | None = None
     address_line: str | None = None
     postal_code: str | None = None
     city: str | None = None

@@ -1,3 +1,8 @@
+// Admin-Partnerverwaltung — Liste + Anlegen.
+//
+// Bearbeitung läuft über die Detailseite (Klick auf den Namen).
+// Hier auf der Liste nur noch: Soft-Delete und Anlegen.
+
 import { api, h } from "/portal/common.js";
 
 function isAdmin(me) {
@@ -12,103 +17,34 @@ function fieldsetGroup(legend, ...rows) {
   return h("fieldset", { class: "form-group" }, h("legend", {}, legend), ...rows);
 }
 
-function renderForm(initial, onSaved) {
-  const isEdit = !!initial?.id;
+function nullIfBlank(value) {
+  const v = (value || "").trim();
+  return v === "" ? null : v;
+}
 
-  // Identitätsfelder — beim Edit teilweise gesperrt (siehe MVP-Berechtigungen).
-  const shortInput = h("input", {
-    type: "text",
-    value: initial?.short_name || "",
-    required: true,
-  });
-  const nameInput = h("input", {
-    type: "text",
-    value: initial?.name || "",
-    required: true,
-  });
+function renderCreateForm(onSaved, onCancel) {
+  const shortInput = h("input", { type: "text", required: true });
+  const nameInput = h("input", { type: "text", required: true });
   const countryInput = h("input", {
     type: "text",
-    value: initial?.country || "",
     required: true,
     minlength: "2",
     maxlength: "2",
     placeholder: "z. B. DE",
   });
-  const websiteInput = h("input", {
-    type: "url",
-    value: initial?.website || "",
-    placeholder: "https://…",
-  });
-  const generalEmailInput = h("input", {
-    type: "email",
-    value: initial?.general_email || "",
-    placeholder: "info@…",
-  });
-
-  const addressLineInput = h("input", { type: "text", value: initial?.address_line || "" });
-  const postalCodeInput = h("input", { type: "text", value: initial?.postal_code || "" });
-  const cityInput = h("input", { type: "text", value: initial?.city || "" });
-  const addressCountryInput = h("input", {
-    type: "text",
-    value: initial?.address_country || "",
-    minlength: "2",
-    maxlength: "2",
-    placeholder: "z. B. DE",
-  });
-
-  const primaryContactInput = h("input", {
-    type: "text",
-    value: initial?.primary_contact_name || "",
-  });
-  const contactEmailInput = h("input", {
-    type: "email",
-    value: initial?.contact_email || "",
-  });
-  const contactPhoneInput = h("input", {
-    type: "text",
-    value: initial?.contact_phone || "",
-  });
-  const projectRoleInput = h("textarea", { rows: "3" }, initial?.project_role_note || "");
-
-  const isActiveCheckbox = h("input", {
-    type: "checkbox",
-    ...(initial?.is_active !== false ? { checked: true } : {}),
-  });
-  const internalNoteInput = h("textarea", { rows: "3" }, initial?.internal_note || "");
-
+  const websiteInput = h("input", { type: "url", placeholder: "https://…" });
   const errorBox = h("p", { class: "error", style: "display:none" }, "");
-
-  function nullIfBlank(value) {
-    const v = (value || "").trim();
-    return v === "" ? null : v;
-  }
 
   async function onSubmit(ev) {
     ev.preventDefault();
     errorBox.style.display = "none";
-    const payload = {
-      short_name: shortInput.value,
-      name: nameInput.value,
-      country: countryInput.value.toUpperCase(),
-      website: nullIfBlank(websiteInput.value),
-      general_email: nullIfBlank(generalEmailInput.value),
-      address_line: nullIfBlank(addressLineInput.value),
-      postal_code: nullIfBlank(postalCodeInput.value),
-      city: nullIfBlank(cityInput.value),
-      address_country: nullIfBlank(addressCountryInput.value)?.toUpperCase() ?? null,
-      primary_contact_name: nullIfBlank(primaryContactInput.value),
-      contact_email: nullIfBlank(contactEmailInput.value),
-      contact_phone: nullIfBlank(contactPhoneInput.value),
-      project_role_note: nullIfBlank(projectRoleInput.value),
-      is_active: isActiveCheckbox.checked,
-      internal_note: nullIfBlank(internalNoteInput.value),
-    };
     try {
-      if (isEdit) {
-        await api("PATCH", `/api/admin/partners/${initial.id}`, payload);
-      } else {
-        await api("POST", "/api/admin/partners", payload);
-      }
+      await api("POST", "/api/admin/partners", {
+        short_name: shortInput.value,
+        name: nameInput.value,
+        country: countryInput.value.toUpperCase(),
+        website: nullIfBlank(websiteInput.value),
+      });
       onSaved();
     } catch (err) {
       errorBox.textContent = err.message;
@@ -125,33 +61,23 @@ function renderForm(initial, onSaved) {
       h("label", {}, "Name", nameInput),
       h("label", {}, "Land (ISO-3166-1 Alpha-2)", countryInput),
       h("label", {}, "Website (optional)", websiteInput),
-      h("label", {}, "Allgemeine E-Mail (optional)", generalEmailInput),
     ),
-    fieldsetGroup(
-      "Postanschrift",
-      h("label", {}, "Straße / Hausnr.", addressLineInput),
-      h("label", {}, "PLZ", postalCodeInput),
-      h("label", {}, "Ort", cityInput),
-      h("label", {}, "Land (ISO-3166-1 Alpha-2)", addressCountryInput),
-    ),
-    fieldsetGroup(
-      "Projektkontakt",
-      h("label", {}, "Name", primaryContactInput),
-      h("label", {}, "E-Mail", contactEmailInput),
-      h("label", {}, "Telefon", contactPhoneInput),
-      h("label", {}, "Rolle / Aufgabe im Projekt", projectRoleInput),
-    ),
-    fieldsetGroup(
-      "Verwaltung (nur Admin)",
-      h("label", { class: "checkbox" }, isActiveCheckbox, " Im Projekt aktiv"),
-      h("label", {}, "Interne Notiz", internalNoteInput),
+    h(
+      "p",
+      { class: "muted" },
+      "Adresse, Kontakt und Kontaktpersonen werden anschließend auf der Detailseite gepflegt.",
     ),
     errorBox,
-    h("button", { type: "submit" }, isEdit ? "Speichern" : "Anlegen"),
+    h(
+      "div",
+      { class: "form-actions" },
+      h("button", { type: "submit" }, "Anlegen"),
+      h("button", { type: "button", class: "secondary", onclick: onCancel }, "Abbrechen"),
+    ),
   );
 }
 
-function rowFor(partner, onEdit, onDelete) {
+function rowFor(partner, onDelete) {
   const cls = partner.is_deleted ? "muted" : "";
   let statusBadge;
   if (partner.is_deleted) {
@@ -164,8 +90,12 @@ function rowFor(partner, onEdit, onDelete) {
   return h(
     "tr",
     { class: cls },
+    h(
+      "td",
+      {},
+      h("a", { href: `/portal/partners/${partner.id}` }, partner.name),
+    ),
     h("td", {}, partner.short_name),
-    h("td", {}, partner.name),
     h("td", {}, partner.country),
     h(
       "td",
@@ -178,9 +108,6 @@ function rowFor(partner, onEdit, onDelete) {
     h(
       "td",
       {},
-      h("a", { href: `/portal/partners/${partner.id}` }, "Detail"),
-      " · ",
-      h("button", { type: "button", onclick: () => onEdit(partner) }, "Bearbeiten …"),
       partner.is_deleted
         ? null
         : h(
@@ -201,12 +128,12 @@ export async function render(container, ctx) {
   const partners = await api("GET", "/api/admin/partners");
   const dialogContainer = h("div", {});
 
-  function showDialog(title, body) {
-    dialogContainer.replaceChildren(h("div", { class: "dialog" }, h("h3", {}, title), body));
+  function clearDialog() {
+    dialogContainer.replaceChildren();
   }
 
-  function onEdit(partner) {
-    showDialog("Partner bearbeiten", renderForm(partner, reload));
+  function showDialog(title, body) {
+    dialogContainer.replaceChildren(h("div", { class: "dialog" }, h("h3", {}, title), body));
   }
 
   async function onDelete(partner) {
@@ -228,10 +155,16 @@ export async function render(container, ctx) {
       "button",
       {
         type: "button",
-        onclick: () => showDialog("Partner anlegen", renderForm(null, reload)),
+        onclick: () => showDialog("Partner anlegen", renderCreateForm(reload, clearDialog)),
       },
       "Partner anlegen …",
     ),
+  );
+
+  const intro = h(
+    "p",
+    { class: "muted" },
+    "Klick auf den Partnernamen öffnet die Detailseite — dort werden Stammdaten und Kontaktpersonen gepflegt.",
   );
 
   const table = h(
@@ -243,16 +176,16 @@ export async function render(container, ctx) {
       h(
         "tr",
         {},
-        h("th", {}, "Kürzel"),
         h("th", {}, "Name"),
+        h("th", {}, "Kürzel"),
         h("th", {}, "Land"),
         h("th", {}, "Website"),
         h("th", {}, "Status"),
         h("th", {}, ""),
       ),
     ),
-    h("tbody", {}, ...partners.map((p) => rowFor(p, onEdit, onDelete))),
+    h("tbody", {}, ...partners.map((p) => rowFor(p, onDelete))),
   );
 
-  container.replaceChildren(headerRow, table, dialogContainer);
+  container.replaceChildren(headerRow, intro, table, dialogContainer);
 }

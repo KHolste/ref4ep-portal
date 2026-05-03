@@ -23,7 +23,6 @@ def test_admin_update_writes_all_extended_fields(session: Session) -> None:
     svc = PartnerService(session, role="admin")
     p = svc.update(
         pid,
-        general_email="info@acme.example",
         address_line="Main 1",
         postal_code="12345",
         city="Hauptstadt",
@@ -35,7 +34,6 @@ def test_admin_update_writes_all_extended_fields(session: Session) -> None:
         is_active=False,
         internal_note="Achtung: Verwaltung hängt nach.",
     )
-    assert p.general_email == "info@acme.example"
     assert p.address_line == "Main 1"
     assert p.postal_code == "12345"
     assert p.city == "Hauptstadt"
@@ -52,14 +50,14 @@ def test_admin_update_invalid_email_raises(session: Session) -> None:
     pid = _make_partner(session)
     svc = PartnerService(session, role="admin")
     with pytest.raises(ValueError):
-        svc.update(pid, general_email="ohne_at_zeichen")
+        svc.update(pid, contact_email="ohne_at_zeichen")
 
 
 def test_admin_update_blank_email_clears_to_none(session: Session) -> None:
-    pid = _make_partner(session, general_email="info@acme.example")
+    pid = _make_partner(session, contact_email="info@acme.example")
     svc = PartnerService(session, role="admin")
-    p = svc.update(pid, general_email="")
-    assert p.general_email is None
+    p = svc.update(pid, contact_email="")
+    assert p.contact_email is None
 
 
 def test_admin_update_invalid_address_country_raises(session: Session) -> None:
@@ -108,11 +106,11 @@ def test_wp_lead_can_update_whitelisted_fields(seeded_session: Session) -> None:
     p = svc.update_by_wp_lead(
         partner_id,
         name="Acme — neu",
-        general_email="info@neu.example",
+        contact_email="info@neu.example",
         primary_contact_name="Doris Test",
     )
     assert p.name == "Acme — neu"
-    assert p.general_email == "info@neu.example"
+    assert p.contact_email == "info@neu.example"
     assert p.primary_contact_name == "Doris Test"
 
 

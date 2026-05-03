@@ -54,6 +54,35 @@ DOCUMENT_TYPES = ("deliverable", "report", "note", "other")
 DOCUMENT_STATUSES = ("draft", "in_review", "released")
 DOCUMENT_VISIBILITIES = ("workpackage", "internal", "public")
 
+# Sichtbarkeit der Kontaktpersonen (Block 0007). ``public`` ist im
+# Datenmodell vorbereitet, wird aber in diesem Block noch nicht
+# öffentlich ausgespielt.
+PARTNER_CONTACT_VISIBILITIES = ("internal", "public")
+
+# Vorgegebene Funktions-Auswahlliste für Kontaktpersonen. Die Liste
+# wird im UI angeboten; im Datenmodell bleibt ``function`` ein
+# freier String (eingehende Werte werden im Service jedoch validiert
+# und auf diese Whitelist eingeschränkt — ``None`` bedeutet
+# "nicht angegeben").
+PARTNER_CONTACT_FUNCTIONS = (
+    "Projektleitung",
+    "stellvertretende Projektleitung",
+    "wissenschaftliche Projektkoordination",
+    "Professorin/Professor",
+    "Senior Scientist",
+    "Postdoc",
+    "Doktorandin/Doktorand",
+    "wissenschaftliche Mitarbeiterin/wissenschaftlicher Mitarbeiter",
+    "Technikerin/Techniker",
+    "studentische Hilfskraft",
+    "Masterstudentin/Masterstudent",
+    "Bachelorstudentin/Bachelorstudent",
+    "Administration",
+    "Ansprechperson für Daten/Dokumente",
+    "Ansprechperson für Finanzen/Verwaltung",
+    "sonstige Funktion",
+)
+
 
 def _new_uuid() -> str:
     return str(uuid.uuid4())
@@ -73,7 +102,8 @@ class Partner(Base):
     website: Mapped[str | None] = mapped_column(String, nullable=True)
     # Migration 0006: erweiterte Partnerdaten — alle optional, fachlich
     # getrennt vom technischen Soft-Delete-Flag ``is_deleted``.
-    general_email: Mapped[str | None] = mapped_column(String, nullable=True)
+    # ``general_email`` (0006) wurde mit 0007 wieder entfernt: Konsortialer
+    # Kontakt läuft ausschließlich über ``partner_contact``.
     address_line: Mapped[str | None] = mapped_column(String, nullable=True)
     postal_code: Mapped[str | None] = mapped_column(String, nullable=True)
     city: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -95,6 +125,11 @@ class Partner(Base):
 
     persons: Mapped[list[Person]] = relationship(back_populates="partner")
     led_workpackages: Mapped[list[Workpackage]] = relationship(back_populates="lead_partner")
+    contacts: Mapped[list[PartnerContact]] = relationship(
+        back_populates="partner",
+        cascade="all, delete-orphan",
+        order_by="PartnerContact.name",
+    )
 
 
 class Person(Base):
@@ -297,3 +332,41 @@ class AuditLog(Base):
     )
 
     actor: Mapped[Person | None] = relationship()
+
+
+# --------------------------------------------------------------------------- #
+# Block 0007 — Partnerkontakte                                                #
+# --------------------------------------------------------------------------- #
+
+
+class PartnerContact(Base):
+    __tablename__ = "partner_contact"
+    __table_args__ = (
+        CheckConstraint(
+            "visibility IN ('internal','public')",
+            name="ck_partner_contact_visibility",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    partner_id: Mapped[str] = mapped_column(String(36), ForeignKey("partner.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    title_or_degree: Mapped[str | None] = mapped_column(String, nullable=True)
+    email: Mapped[str | None] = mapped_column(String, nullable=True)
+    phone: Mapped[str | None] = mapped_column(String, nullable=True)
+    function: Mapped[str | None] = mapped_column(String, nullable=True)
+    organization_unit: Mapped[str | None] = mapped_column(String, nullable=True)
+    workpackage_notes: Mapped[str | None] = mapped_column(String, nullable=True)
+    is_primary_contact: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_project_lead: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    visibility: Mapped[str] = mapped_column(String, nullable=False, default="internal")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    internal_note: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc, onupdate=_now_utc
+    )
+
+    partner: Mapped[Partner] = relationship(back_populates="contacts")

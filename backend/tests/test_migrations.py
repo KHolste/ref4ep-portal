@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0006_partner_extended_fields"
+CURRENT_HEAD = "0007_partner_contacts"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -227,8 +227,9 @@ def test_base_metadata_has_document_tables() -> None:
     assert DOCUMENT_TABLES.issubset(set(Base.metadata.tables.keys()))
 
 
+# Block 0006 → 0007: ``general_email`` wurde mit 0007 wieder entfernt;
+# bleibt also nicht mehr in der Stamm-Whitelist enthalten.
 PARTNER_EXTENDED_COLUMNS = {
-    "general_email",
     "address_line",
     "postal_code",
     "city",
@@ -243,7 +244,7 @@ PARTNER_EXTENDED_COLUMNS = {
 
 
 def test_partner_extended_columns_exist(tmp_db_path: Path) -> None:
-    """Sprint-Block 0006: erweiterte Partner-Felder sind vorhanden."""
+    """Block 0006/0007: erweiterte Partner-Felder vorhanden, general_email weg."""
     db_url = f"sqlite:///{tmp_db_path}"
     command.upgrade(_make_config(db_url), "head")
     engine = create_engine(db_url)
@@ -251,6 +252,8 @@ def test_partner_extended_columns_exist(tmp_db_path: Path) -> None:
     assert PARTNER_EXTENDED_COLUMNS.issubset(set(columns)), (
         f"Fehlende Spalten: {PARTNER_EXTENDED_COLUMNS - set(columns)}"
     )
+    # 0007: general_email muss entfernt sein.
+    assert "general_email" not in columns
     # is_active ist NOT NULL mit Server-Default true.
     assert columns["is_active"]["nullable"] is False
     # Alle übrigen neuen Felder sind nullable.
@@ -266,3 +269,69 @@ def test_partner_downgrade_removes_extended_columns(tmp_db_path: Path) -> None:
     engine = create_engine(db_url)
     columns = {c["name"] for c in inspect(engine).get_columns("partner")}
     assert columns.isdisjoint(PARTNER_EXTENDED_COLUMNS)
+
+
+# ---- Block 0007 — Partnerkontakte --------------------------------------
+
+
+PARTNER_CONTACT_COLUMNS = {
+    "id",
+    "partner_id",
+    "name",
+    "title_or_degree",
+    "email",
+    "phone",
+    "function",
+    "organization_unit",
+    "workpackage_notes",
+    "is_primary_contact",
+    "is_project_lead",
+    "visibility",
+    "is_active",
+    "internal_note",
+    "created_at",
+    "updated_at",
+}
+
+
+def test_partner_contact_table_exists_with_expected_columns(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    assert "partner_contact" in set(inspector.get_table_names())
+    cols = {c["name"] for c in inspector.get_columns("partner_contact")}
+    assert PARTNER_CONTACT_COLUMNS == cols
+
+
+def test_partner_contact_has_partner_fk(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    fks = inspector.get_foreign_keys("partner_contact")
+    matching = [
+        fk
+        for fk in fks
+        if fk.get("referred_table") == "partner" and fk.get("constrained_columns") == ["partner_id"]
+    ]
+    assert matching, f"FK partner_id → partner.id fehlt: {fks}"
+
+
+def test_general_email_is_dropped_at_head(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    cols = {c["name"] for c in inspector.get_columns("partner")}
+    assert "general_email" not in cols
+
+
+def test_downgrade_to_0006_restores_general_email_and_drops_contacts(
+    tmp_db_path: Path,
+) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0006_partner_extended_fields")
+    inspector = inspect(create_engine(db_url))
+    assert "partner_contact" not in set(inspector.get_table_names())
+    cols = {c["name"] for c in inspector.get_columns("partner")}
+    assert "general_email" in cols

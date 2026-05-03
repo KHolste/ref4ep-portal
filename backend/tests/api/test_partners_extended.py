@@ -101,7 +101,7 @@ def test_wp_lead_can_patch_own_partner_via_api(
         f"/api/partners/{pid}",
         json={
             "name": "JLU Gießen — neu",
-            "general_email": "info@jlu.example",
+            "contact_email": "info@jlu.example",
             "primary_contact_name": "C. Lead",
         },
         headers=_csrf(member_client),
@@ -109,7 +109,7 @@ def test_wp_lead_can_patch_own_partner_via_api(
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["name"] == "JLU Gießen — neu"
-    assert body["general_email"] == "info@jlu.example"
+    assert body["contact_email"] == "info@jlu.example"
     assert body["primary_contact_name"] == "C. Lead"
     assert body["can_edit"] is True
     # internal_note bleibt für non-admin verborgen.
@@ -156,14 +156,14 @@ def test_admin_patch_via_partners_route_writes_all_fields(
         f"/api/partners/{pid}",
         json={
             "name": "JLU neu",
-            "general_email": "admin@jlu.example",
+            "contact_email": "admin@jlu.example",
         },
         headers=_csrf(admin_client),
     )
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["name"] == "JLU neu"
-    assert body["general_email"] == "admin@jlu.example"
+    assert body["contact_email"] == "admin@jlu.example"
 
 
 def test_patch_invalid_email_returns_422(
@@ -178,7 +178,7 @@ def test_patch_invalid_email_returns_422(
     seeded_session.commit()
     r = member_client.patch(
         f"/api/partners/{pid}",
-        json={"general_email": "kein_at_zeichen"},
+        json={"contact_email": "kein_at_zeichen"},
         headers=_csrf(member_client),
     )
     assert r.status_code == 422
@@ -207,7 +207,7 @@ def test_admin_list_partners_returns_extended_fields(
     pid = _jlu_id(seeded_session)
     PartnerService(seeded_session, role="admin").update(
         pid,
-        general_email="info@jlu.example",
+        contact_email="info@jlu.example",
         is_active=True,
         internal_note="Hinweis",
     )
@@ -215,7 +215,7 @@ def test_admin_list_partners_returns_extended_fields(
     r = admin_client.get("/api/admin/partners")
     assert r.status_code == 200
     jlu = next(p for p in r.json() if p["short_name"] == "JLU")
-    assert jlu["general_email"] == "info@jlu.example"
+    assert jlu["contact_email"] == "info@jlu.example"
     assert jlu["is_active"] is True
     assert jlu["internal_note"] == "Hinweis"
 

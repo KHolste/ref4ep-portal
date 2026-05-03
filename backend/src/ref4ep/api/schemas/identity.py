@@ -31,7 +31,6 @@ class PartnerDetailOut(BaseModel):
     name: str
     country: str
     website: str | None = None
-    general_email: str | None = None
     address_line: str | None = None
     postal_code: str | None = None
     city: str | None = None
@@ -50,7 +49,6 @@ class PartnerPatchRequest(BaseModel):
 
     name: str | None = Field(default=None, min_length=1)
     website: str | None = None
-    general_email: str | None = None
     address_line: str | None = None
     postal_code: str | None = None
     city: str | None = None
@@ -59,6 +57,59 @@ class PartnerPatchRequest(BaseModel):
     contact_email: str | None = None
     contact_phone: str | None = None
     project_role_note: str | None = None
+
+
+# --------------------------------------------------------------------------- #
+# Block 0007 — Partnerkontakte                                                #
+# --------------------------------------------------------------------------- #
+
+
+class PartnerContactOut(BaseModel):
+    """Kontakt-Sicht. ``internal_note`` ist nur für Admins gefüllt."""
+
+    id: str
+    partner_id: str
+    name: str
+    title_or_degree: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    function: str | None = None
+    organization_unit: str | None = None
+    workpackage_notes: str | None = None
+    is_primary_contact: bool = False
+    is_project_lead: bool = False
+    visibility: str = "internal"
+    is_active: bool = True
+    internal_note: str | None = None
+
+
+class PartnerContactCreateRequest(BaseModel):
+    name: str = Field(min_length=1)
+    title_or_degree: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    function: str | None = None
+    organization_unit: str | None = None
+    workpackage_notes: str | None = None
+    is_primary_contact: bool = False
+    is_project_lead: bool = False
+    visibility: str = Field(default="internal")
+    internal_note: str | None = None
+
+
+class PartnerContactPatchRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+    title_or_degree: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    function: str | None = None
+    organization_unit: str | None = None
+    workpackage_notes: str | None = None
+    is_primary_contact: bool | None = None
+    is_project_lead: bool | None = None
+    visibility: str | None = None
+    internal_note: str | None = None
+    is_active: bool | None = None
 
 
 class PersonOut(BaseModel):

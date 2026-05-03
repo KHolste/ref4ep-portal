@@ -5,7 +5,12 @@ export async function render(container, ctx) {
   const status = h("p", {}, "");
 
   function field(labelText, type, name) {
-    const input = h("input", { type, name, required: true, minlength: name.includes("new") ? 10 : 1 });
+    const input = h("input", {
+      type,
+      name,
+      required: true,
+      minlength: name.includes("new") ? 10 : 1,
+    });
     return { input, label: h("label", {}, labelText, input) };
   }
 
@@ -43,7 +48,23 @@ export async function render(container, ctx) {
     oldPw.label,
     newPw.label,
     confirm.label,
-    h("button", { type: "submit" }, "Passwort ändern"),
+    h(
+      "div",
+      { class: "form-actions" },
+      h("button", { type: "submit" }, "Passwort ändern"),
+    ),
+  );
+
+  // Wenn must_change_password gesetzt ist, expandieren wir die Sektion
+  // automatisch. Sonst bleibt sie eingeklappt — die Kontoansicht öffnet
+  // dann nur einen einzelnen Button „Passwort ändern …".
+  const mustChange = !!me.person.must_change_password;
+  const passwordSection = h(
+    "details",
+    { class: "collapsible", id: "password-section", ...(mustChange ? { open: "" } : {}) },
+    h("summary", { id: "password-toggle" }, "Passwort ändern …"),
+    form,
+    status,
   );
 
   const profile = h(
@@ -52,15 +73,11 @@ export async function render(container, ctx) {
     h("h2", {}, "Profil"),
     h("p", {}, `Name: ${me.person.display_name}`),
     h("p", {}, `E-Mail: ${me.person.email}`),
-    h(
-      "p",
-      {},
-      `Partner: ${me.person.partner.name} (${me.person.partner.short_name})`,
-    ),
+    h("p", {}, `Partner: ${me.person.partner.name} (${me.person.partner.short_name})`),
     h("p", {}, `Rolle: ${me.person.platform_role}`),
   );
 
-  const notice = me.person.must_change_password
+  const notice = mustChange
     ? h(
         "p",
         { class: "warning" },
@@ -72,6 +89,6 @@ export async function render(container, ctx) {
     h("h1", {}, "Konto"),
     notice || h("div", {}),
     profile,
-    h("section", {}, h("h2", {}, "Passwort ändern"), form, status),
+    h("section", {}, h("h2", {}, "Passwort"), passwordSection),
   );
 }
