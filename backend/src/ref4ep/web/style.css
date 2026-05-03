@@ -187,6 +187,21 @@ form.stacked textarea {
   margin-top: 0;
 }
 
+.field-hint {
+  display: block;
+  margin-top: 0.2rem;
+  color: #555;
+  font-size: 0.8rem;
+}
+
+.doc-description {
+  white-space: pre-wrap;
+  border-left: 3px solid #d6e4f5;
+  padding: 0.4rem 0.75rem;
+  background: #f7faff;
+  margin: 0.75rem 0;
+}
+
 .actions button.danger {
   background: #8a1c1c;
 }

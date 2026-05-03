@@ -98,6 +98,7 @@ class DocumentService:
         title: str,
         document_type: str,
         deliverable_code: str | None = None,
+        description: str | None = None,
     ) -> Document:
         if document_type not in DOCUMENT_TYPES:
             raise ValueError(f"Unbekannter Dokumenttyp: {document_type!r}")
@@ -119,6 +120,7 @@ class DocumentService:
             slug=slug,
             document_type=document_type,
             deliverable_code=(deliverable_code or None),
+            description=((description or "").strip() or None),
             status="draft",
             visibility="workpackage",
             created_by_person_id=self.auth.person_id,
@@ -143,6 +145,7 @@ class DocumentService:
                     "slug": document.slug,
                     "document_type": document.document_type,
                     "deliverable_code": document.deliverable_code,
+                    "description": document.description,
                     "status": document.status,
                     "visibility": document.visibility,
                 },
@@ -156,6 +159,7 @@ class DocumentService:
         title: str | None = None,
         document_type: str | None = None,
         deliverable_code: str | None = None,
+        description: str | None = None,
     ) -> Document:
         document = self.session.get(Document, document_id)
         if document is None or document.is_deleted:
@@ -167,6 +171,7 @@ class DocumentService:
             "title": document.title,
             "document_type": document.document_type,
             "deliverable_code": document.deliverable_code,
+            "description": document.description,
         }
 
         if title is not None:
@@ -180,6 +185,8 @@ class DocumentService:
             document.document_type = document_type
         if deliverable_code is not None:
             document.deliverable_code = deliverable_code or None
+        if description is not None:
+            document.description = (description or "").strip() or None
         self.session.flush()
 
         if self.audit is not None:
@@ -187,6 +194,7 @@ class DocumentService:
                 "title": document.title,
                 "document_type": document.document_type,
                 "deliverable_code": document.deliverable_code,
+                "description": document.description,
             }
             if after != before:
                 self.audit.log(

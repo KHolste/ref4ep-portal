@@ -18,7 +18,7 @@
       <table>
         <thead>
           <tr>
-            <th>Code</th>
+            <th>Dokumentcode</th>
             <th>Titel</th>
             <th>Workpackage</th>
             <th>Version</th>
@@ -33,13 +33,13 @@
             {% set d = entry.document %}
             {% set v = entry.version %}
             <tr>
-              <td>{{ d.deliverable_code or "" }}</td>
+              <td>{{ d.deliverable_code if d.deliverable_code else "—" }}</td>
               <td>
                 <a href="/downloads/{{ d.workpackage.code }}/{{ d.slug }}">{{ d.title }}</a>
               </td>
               <td>{{ d.workpackage.code }} — {{ d.workpackage.title }}</td>
               <td>{{ v.version_label or ("v" ~ v.version_number) }}</td>
-              <td>{{ v.uploaded_at.strftime("%Y-%m-%d") }}</td>
+              <td>{{ v.uploaded_at.strftime("%d.%m.%Y") }}</td>
               <td>{{ v.original_filename }}</td>
               <td>{{ entry.size_human }}</td>
               <td>

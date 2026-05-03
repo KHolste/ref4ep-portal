@@ -192,6 +192,7 @@ class Document(Base):
     slug: Mapped[str] = mapped_column(String, nullable=False)
     document_type: Mapped[str] = mapped_column(String, nullable=False)
     deliverable_code: Mapped[str | None] = mapped_column(String, nullable=True)
+    description: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False, default="draft")
     visibility: Mapped[str] = mapped_column(String, nullable=False, default="workpackage")
     # Sprint-3: FK auf document_version.id mit use_alter=True wegen Zyklus

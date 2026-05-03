@@ -176,10 +176,33 @@ function renderMetadataDialog(document_, onSaved) {
     "select",
     {},
     ...["deliverable", "report", "note", "other"].map((t) =>
-      h("option", { value: t, selected: t === document_.document_type ? true : null }, TYPE_LABELS[t]),
+      h(
+        "option",
+        { value: t, selected: t === document_.document_type ? true : null },
+        TYPE_LABELS[t],
+      ),
     ),
   );
-  const codeInput = h("input", { type: "text", value: document_.deliverable_code || "" });
+  const codeInput = h("input", {
+    type: "text",
+    value: document_.deliverable_code || "",
+    placeholder: "z. B. D1.1",
+  });
+  const codeHelp = h(
+    "small",
+    { class: "field-hint" },
+    "Optional — z. B. „D1.1“ oder „REF4EP-WP1-001“. Leer lassen für „kein Code“.",
+  );
+  const descriptionInput = h(
+    "textarea",
+    { rows: "3", placeholder: "Kurze inhaltliche Beschreibung (optional)" },
+    document_.description || "",
+  );
+  const descriptionHelp = h(
+    "small",
+    { class: "field-hint" },
+    "Optional. Erscheint im Dokument-Detail; nicht in der öffentlichen Bibliothek.",
+  );
   const errorBox = h("p", { class: "error", style: "display:none" }, "");
 
   async function onSubmit(ev) {
@@ -190,6 +213,7 @@ function renderMetadataDialog(document_, onSaved) {
         title: titleInput.value,
         document_type: typeSelect.value,
         deliverable_code: codeInput.value || null,
+        description: descriptionInput.value || null,
       });
       onSaved(updated);
     } catch (err) {
@@ -203,7 +227,8 @@ function renderMetadataDialog(document_, onSaved) {
     { class: "stacked", onsubmit: onSubmit },
     h("label", {}, "Titel", titleInput),
     h("label", {}, "Typ", typeSelect),
-    h("label", {}, "Deliverable-Code", codeInput),
+    h("label", {}, "Dokumentcode / Deliverable-Code (optional)", codeInput, codeHelp),
+    h("label", {}, "Beschreibung (optional)", descriptionInput, descriptionHelp),
     errorBox,
     h("button", { type: "submit" }, "Speichern"),
   );
@@ -349,8 +374,9 @@ export async function render(container, ctx) {
       "p",
       {},
       `Typ: ${TYPE_LABELS[doc.document_type] || doc.document_type}`,
-      doc.deliverable_code ? ` · Deliverable-Code: ${doc.deliverable_code}` : "",
+      doc.deliverable_code ? ` · Dokumentcode: ${doc.deliverable_code}` : "",
     ),
+    doc.description ? h("p", { class: "doc-description" }, doc.description) : null,
     h("p", { class: "muted" }, `Angelegt von ${doc.created_by.display_name}`),
   );
 
@@ -381,13 +407,27 @@ export async function render(container, ctx) {
     actions.push(
       h(
         "button",
-        { type: "button", onclick: () => showDialog("Neue Version hochladen", renderUploadDialog(documentId, reload)) },
-        "Neue Version hochladen",
+        {
+          type: "button",
+          onclick: () =>
+            showDialog(
+              "Neue Version hochladen",
+              renderUploadDialog(documentId, reload),
+            ),
+        },
+        "Neue Version hochladen …",
       ),
       h(
         "button",
-        { type: "button", onclick: () => showDialog("Metadaten bearbeiten", renderMetadataDialog(doc, reload)) },
-        "Metadaten bearbeiten",
+        {
+          type: "button",
+          onclick: () =>
+            showDialog(
+              "Metadaten bearbeiten",
+              renderMetadataDialog(doc, reload),
+            ),
+        },
+        "Metadaten bearbeiten …",
       ),
     );
     if (doc.status === "draft" && versions.length > 0) {
@@ -431,7 +471,8 @@ export async function render(container, ctx) {
   }
   if (leadHere && (doc.status === "in_review" || doc.status === "released") && versions.length > 0) {
     const defaultVer = versions[versions.length - 1].version_number;
-    const label = doc.status === "released" ? "Andere Version freigeben …" : "Freigeben …";
+    const label =
+      doc.status === "released" ? "Andere Version freigeben …" : "Version freigeben …";
     actions.push(
       h(
         "button",
@@ -490,11 +531,15 @@ export async function render(container, ctx) {
         {
           type: "button",
           class: "danger",
-          onclick: () => showDialog("Soft-Delete", renderDeleteConfirm(documentId, () => {
-            window.location.href = `/portal/workpackages/${wpCode}`;
-          })),
+          onclick: () =>
+            showDialog(
+              "Dokument soft-löschen",
+              renderDeleteConfirm(documentId, () => {
+                window.location.href = `/portal/workpackages/${wpCode}`;
+              }),
+            ),
         },
-        "Soft-Delete",
+        "Soft-Delete …",
       ),
     );
   }

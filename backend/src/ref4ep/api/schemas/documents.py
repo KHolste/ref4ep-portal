@@ -39,6 +39,7 @@ class DocumentOut(BaseModel):
     title: str
     document_type: str
     deliverable_code: str | None
+    description: str | None = None
     status: str
     visibility: str
     workpackage: WorkpackageRef
@@ -58,12 +59,14 @@ class DocumentCreateRequest(BaseModel):
     title: str = Field(min_length=1)
     document_type: str
     deliverable_code: str | None = None
+    description: str | None = None
 
 
 class DocumentPatchRequest(BaseModel):
     title: str | None = Field(default=None, min_length=1)
     document_type: str | None = None
     deliverable_code: str | None = None
+    description: str | None = None
 
 
 class DocumentVersionUploadResponse(BaseModel):

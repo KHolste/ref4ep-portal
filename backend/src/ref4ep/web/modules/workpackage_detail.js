@@ -12,7 +12,7 @@ function renderDocumentsSection(wpCode, documents, onCreate) {
     "div",
     { class: "section-header" },
     h("h2", {}, "Dokumente"),
-    h("button", { type: "button", onclick: onCreate }, "Neues Dokument"),
+    h("button", { type: "button", onclick: onCreate }, "Neues Dokument anlegen …"),
   );
 
   if (!documents.length) {
@@ -82,7 +82,26 @@ function openCreateDialog(wpCode, onCreated) {
     h("option", { value: "note" }, "Notiz"),
     h("option", { value: "other" }, "Sonstiges"),
   );
-  const codeInput = h("input", { type: "text", name: "deliverable_code" });
+  const codeInput = h("input", {
+    type: "text",
+    name: "deliverable_code",
+    placeholder: "z. B. D1.1",
+  });
+  const codeHelp = h(
+    "small",
+    { class: "field-hint" },
+    "Optional — z. B. „D1.1“ oder „REF4EP-WP1-001“. Leer lassen, falls kein Code vergeben wird.",
+  );
+  const descriptionInput = h("textarea", {
+    name: "description",
+    rows: "3",
+    placeholder: "Kurze inhaltliche Beschreibung (optional)",
+  });
+  const descriptionHelp = h(
+    "small",
+    { class: "field-hint" },
+    "Optional. Erscheint im Dokument-Detail; nicht in der öffentlichen Bibliothek.",
+  );
 
   async function onSubmit(ev) {
     ev.preventDefault();
@@ -95,6 +114,7 @@ function openCreateDialog(wpCode, onCreated) {
           title: titleInput.value,
           document_type: typeSelect.value,
           deliverable_code: codeInput.value || null,
+          description: descriptionInput.value || null,
         },
       );
       onCreated(created);
@@ -109,7 +129,8 @@ function openCreateDialog(wpCode, onCreated) {
     { class: "stacked", onsubmit: onSubmit },
     h("label", {}, "Titel", titleInput),
     h("label", {}, "Typ", typeSelect),
-    h("label", {}, "Deliverable-Code (optional)", codeInput),
+    h("label", {}, "Dokumentcode / Deliverable-Code (optional)", codeInput, codeHelp),
+    h("label", {}, "Beschreibung (optional)", descriptionInput, descriptionHelp),
     errorBox,
     h("button", { type: "submit" }, "Anlegen"),
   );
@@ -117,7 +138,7 @@ function openCreateDialog(wpCode, onCreated) {
   return h(
     "div",
     { class: "dialog" },
-    h("h3", {}, "Neues Dokument"),
+    h("h3", {}, "Neues Dokument anlegen"),
     form,
   );
 }

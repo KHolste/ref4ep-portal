@@ -89,3 +89,45 @@ def test_slug_conflict_returns_409(member_client: TestClient, member_in_wp3) -> 
         headers=_csrf(member_client),
     )
     assert r.status_code == 409
+
+
+def test_create_with_description(member_client: TestClient, member_in_wp3) -> None:
+    """Praxistest-Korrekturrunde: optionales Beschreibungsfeld."""
+    r = member_client.post(
+        "/api/workpackages/WP3/documents",
+        json={
+            "title": "MitBeschreibung",
+            "document_type": "note",
+            "description": "Eine längere inhaltliche Beschreibung.",
+        },
+        headers=_csrf(member_client),
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["description"] == "Eine längere inhaltliche Beschreibung."
+
+
+def test_patch_can_update_description(member_client: TestClient, member_in_wp3) -> None:
+    create = member_client.post(
+        "/api/workpackages/WP3/documents",
+        json={"title": "FürDescriptionPatch", "document_type": "note"},
+        headers=_csrf(member_client),
+    )
+    doc_id = create.json()["id"]
+    assert create.json()["description"] is None
+
+    patched = member_client.patch(
+        f"/api/documents/{doc_id}",
+        json={"description": "Neue Beschreibung."},
+        headers=_csrf(member_client),
+    )
+    assert patched.status_code == 200
+    assert patched.json()["description"] == "Neue Beschreibung."
+
+    # Whitespace-only wird als „leer" interpretiert und nullt das Feld.
+    cleared = member_client.patch(
+        f"/api/documents/{doc_id}",
+        json={"description": "   "},
+        headers=_csrf(member_client),
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["description"] is None

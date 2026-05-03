@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0004_audit_and_release"
+CURRENT_HEAD = "0005_document_description"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -186,6 +186,26 @@ def test_downgrade_to_0003_drops_audit_and_release(tmp_db_path: Path) -> None:
     assert AUDIT_TABLES.isdisjoint(tables)
     columns = {c["name"] for c in inspector.get_columns("document")}
     assert "released_version_id" not in columns
+
+
+def test_document_description_column_exists(tmp_db_path: Path) -> None:
+    """Praxistest-Korrekturrunde: optionale Beschreibungsspalte."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    engine = create_engine(db_url)
+    columns = {c["name"]: c for c in inspect(engine).get_columns("document")}
+    assert "description" in columns
+    assert columns["description"]["nullable"] is True
+
+
+def test_downgrade_drops_description(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0004_audit_and_release")
+    engine = create_engine(db_url)
+    columns = {c["name"] for c in inspect(engine).get_columns("document")}
+    assert "description" not in columns
 
 
 def test_downgrade_to_0002_drops_document_tables(tmp_db_path: Path) -> None:

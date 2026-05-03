@@ -9,14 +9,16 @@
     <dl>
       <dt>Workpackage</dt>
       <dd>{{ document.workpackage.code }} — {{ document.workpackage.title }}</dd>
-      {% if document.deliverable_code %}
-        <dt>Deliverable-Code</dt>
-        <dd>{{ document.deliverable_code }}</dd>
+      <dt>Dokumentcode</dt>
+      <dd>{{ document.deliverable_code if document.deliverable_code else "—" }}</dd>
+      {% if document.description %}
+        <dt>Beschreibung</dt>
+        <dd>{{ document.description }}</dd>
       {% endif %}
       <dt>Freigegebene Version</dt>
       <dd>{{ version.version_label or ("v" ~ version.version_number) }}</dd>
       <dt>Freigabedatum</dt>
-      <dd>{{ version.uploaded_at.strftime("%Y-%m-%d") }}</dd>
+      <dd>{{ version.uploaded_at.strftime("%d.%m.%Y") }}</dd>
       <dt>Datei</dt>
       <dd>{{ version.original_filename }} ({{ size_human }}, {{ version.mime_type }})</dd>
       <dt>SHA-256</dt>

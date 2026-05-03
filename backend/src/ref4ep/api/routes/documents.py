@@ -110,6 +110,7 @@ def _document_out(document: Document, *, with_versions: bool = False) -> Documen
         title=document.title,
         document_type=document.document_type,
         deliverable_code=document.deliverable_code,
+        description=document.description,
         status=document.status,
         visibility=document.visibility,
         workpackage=WorkpackageRef(
@@ -170,6 +171,7 @@ def create_document(
             title=payload.title,
             document_type=payload.document_type,
             deliverable_code=payload.deliverable_code,
+            description=payload.description,
         )
     except PermissionError as exc:
         raise HTTPException(
@@ -226,6 +228,7 @@ def patch_document(
             title=payload.title,
             document_type=payload.document_type,
             deliverable_code=payload.deliverable_code,
+            description=payload.description,
         )
     except DocumentNotFoundError as exc:
         raise HTTPException(
