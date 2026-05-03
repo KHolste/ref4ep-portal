@@ -44,10 +44,18 @@ def tmp_db_path(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def settings(tmp_db_path: Path) -> Settings:
+def tmp_storage_dir(tmp_path: Path) -> Path:
+    storage = tmp_path / "storage"
+    storage.mkdir(parents=True, exist_ok=True)
+    return storage
+
+
+@pytest.fixture
+def settings(tmp_db_path: Path, tmp_storage_dir: Path) -> Settings:
     return Settings(
         database_url=f"sqlite:///{tmp_db_path}",
         session_secret=TEST_SESSION_SECRET,
+        storage_dir=str(tmp_storage_dir),
     )
 
 
@@ -146,3 +154,19 @@ def member_client(client: TestClient, member_person_id: str) -> TestClient:
     )
     assert response.status_code == 200, response.text
     return client
+
+
+# ---- Sprint-2-Helfer: Workpackage-Mitgliedschaft -------------------------
+
+
+@pytest.fixture
+def member_in_wp3(seeded_session: Session, member_person_id: str) -> str:
+    """Macht ``MEMBER_EMAIL`` zum WP-Member von ``WP3``. Liefert die WP-UUID."""
+    from ref4ep.services.workpackage_service import WorkpackageService
+
+    wp_service = WorkpackageService(seeded_session, role="admin", person_id="test-fixture")
+    wp = wp_service.get_by_code("WP3")
+    assert wp is not None
+    wp_service.add_membership(member_person_id, wp.id, "wp_member")
+    seeded_session.commit()
+    return wp.id

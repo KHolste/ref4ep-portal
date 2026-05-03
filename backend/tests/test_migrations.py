@@ -11,8 +11,9 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0002_identity_and_project"
+CURRENT_HEAD = "0003_documents"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
+DOCUMENT_TABLES = {"document", "document_version"}
 
 
 def _make_config(db_url: str) -> Config:
@@ -74,3 +75,41 @@ def test_base_metadata_has_identity_tables() -> None:
     from ref4ep.domain.base import Base
 
     assert IDENTITY_TABLES.issubset(set(Base.metadata.tables.keys()))
+
+
+def test_upgrade_head_creates_document_tables(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    engine = create_engine(db_url)
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    assert DOCUMENT_TABLES.issubset(tables)
+
+
+def test_document_table_has_no_released_version_id(tmp_db_path: Path) -> None:
+    """Sprint 2 enthält bewusst kein released_version_id-Feld."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    engine = create_engine(db_url)
+    inspector = inspect(engine)
+    columns = {c["name"] for c in inspector.get_columns("document")}
+    assert "released_version_id" not in columns
+
+
+def test_downgrade_to_0002_drops_document_tables(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0002_identity_and_project")
+    engine = create_engine(db_url)
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    assert DOCUMENT_TABLES.isdisjoint(tables)
+    assert IDENTITY_TABLES.issubset(tables)
+
+
+def test_base_metadata_has_document_tables() -> None:
+    from ref4ep.domain import models  # noqa: F401
+    from ref4ep.domain.base import Base
+
+    assert DOCUMENT_TABLES.issubset(set(Base.metadata.tables.keys()))

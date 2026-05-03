@@ -25,9 +25,11 @@ from ref4ep import __version__
 from ref4ep.api.config import Settings, get_settings
 from ref4ep.api.routes.auth_api import router as auth_api_router
 from ref4ep.api.routes.auth_pages import router as auth_pages_router
+from ref4ep.api.routes.documents import router as documents_router
 from ref4ep.api.routes.health import router as health_router
 from ref4ep.api.routes.public_pages import router as public_pages_router
 from ref4ep.api.routes.stammdaten import router as stammdaten_router
+from ref4ep.storage.local import LocalFileStorage
 
 
 def _resource_dir(name: str) -> Path:
@@ -75,6 +77,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = engine
     app.state.settings = settings
     app.state.version = __version__
+    app.state.storage = LocalFileStorage(settings.storage_dir)
 
     templates_dir = _resource_dir("templates")
     app.state.templates = Jinja2Templates(directory=str(templates_dir))
@@ -83,6 +86,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     app.include_router(auth_api_router)
     app.include_router(stammdaten_router)
+    app.include_router(documents_router)
     # Web (server-rendered)
     app.include_router(public_pages_router)
     app.include_router(auth_pages_router)
