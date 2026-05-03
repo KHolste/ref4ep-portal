@@ -177,6 +177,34 @@ class WorkpackageService:
             )
         return membership
 
+    def set_membership_role(self, person_id: str, workpackage_id: str, wp_role: str) -> Membership:
+        """Wechsel der WP-Rolle einer bestehenden Mitgliedschaft."""
+        self._require_admin()
+        if wp_role not in WP_ROLES:
+            raise ValueError(f"Unbekannte WP-Rolle: {wp_role}")
+        membership = self.session.scalars(
+            select(Membership).where(
+                Membership.person_id == person_id,
+                Membership.workpackage_id == workpackage_id,
+            )
+        ).first()
+        if membership is None:
+            raise LookupError("Mitgliedschaft nicht gefunden.")
+        if membership.wp_role == wp_role:
+            return membership
+        before = {"wp_role": membership.wp_role}
+        membership.wp_role = wp_role
+        self.session.flush()
+        if self.audit is not None:
+            self.audit.log(
+                "membership.set_role",
+                entity_type="membership",
+                entity_id=membership.id,
+                before=before,
+                after={"wp_role": membership.wp_role},
+            )
+        return membership
+
     def remove_membership(self, person_id: str, workpackage_id: str) -> None:
         self._require_admin()
         membership = self.session.scalars(

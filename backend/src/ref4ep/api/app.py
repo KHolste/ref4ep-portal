@@ -23,6 +23,8 @@ from sqlalchemy import create_engine
 
 from ref4ep import __version__
 from ref4ep.api.config import Settings, get_settings
+from ref4ep.api.routes.admin_partners import router as admin_partners_router
+from ref4ep.api.routes.admin_persons import router as admin_persons_router
 from ref4ep.api.routes.audit import router as audit_router
 from ref4ep.api.routes.auth_api import router as auth_api_router
 from ref4ep.api.routes.auth_pages import router as auth_pages_router
@@ -90,6 +92,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(stammdaten_router)
     app.include_router(documents_router)
     app.include_router(audit_router)
+    app.include_router(admin_persons_router)
+    app.include_router(admin_partners_router)
     app.include_router(public_documents_router)
     # Web (server-rendered)
     app.include_router(public_pages_router)

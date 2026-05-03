@@ -102,6 +102,11 @@ def create_csrf_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+def generate_initial_password() -> str:
+    """16-stelliges URL-safes Initial-Passwort (≥ ``MIN_PASSWORD_LEN``)."""
+    return secrets.token_urlsafe(12)
+
+
 def verify_csrf(cookie_token: str | None, header_token: str | None) -> bool:
     if not cookie_token or not header_token:
         return False

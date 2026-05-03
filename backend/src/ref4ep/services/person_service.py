@@ -116,6 +116,50 @@ class PersonService:
             )
         return person
 
+    def update(
+        self,
+        person_id: str,
+        *,
+        display_name: str | None = None,
+        partner_id: str | None = None,
+    ) -> Person:
+        """Admin-Update von Anzeigename und/oder Partner-Zuordnung."""
+        self._require_admin()
+        person = self.get_by_id(person_id)
+        if person is None or person.is_deleted:
+            raise LookupError(f"Person {person_id} nicht gefunden.")
+
+        before = {"display_name": person.display_name, "partner_id": person.partner_id}
+
+        if display_name is not None:
+            stripped = display_name.strip()
+            if not stripped:
+                raise ValueError("Anzeigename darf nicht leer sein.")
+            person.display_name = stripped
+        if partner_id is not None:
+            from ref4ep.domain.models import Partner
+
+            target = self.session.get(Partner, partner_id)
+            if target is None or target.is_deleted:
+                raise LookupError(f"Partner {partner_id} nicht gefunden.")
+            person.partner_id = partner_id
+
+        self.session.flush()
+        if self.audit is not None:
+            after = {
+                "display_name": person.display_name,
+                "partner_id": person.partner_id,
+            }
+            if after != before:
+                self.audit.log(
+                    "person.update",
+                    entity_type="person",
+                    entity_id=person.id,
+                    before=before,
+                    after=after,
+                )
+        return person
+
     def reset_password(self, person_id: str, new_password: str) -> None:
         self._require_admin()
         person = self.get_by_id(person_id)

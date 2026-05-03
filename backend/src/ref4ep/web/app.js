@@ -13,6 +13,9 @@ const ROUTES = [
   { pattern: /^\/portal\/documents\/([^/]+)\/?$/, module: "document_detail", param: "id" },
   { pattern: /^\/portal\/account\/?$/, module: "account" },
   { pattern: /^\/portal\/admin\/audit\/?$/, module: "audit" },
+  { pattern: /^\/portal\/admin\/users\/?$/, module: "admin_users" },
+  { pattern: /^\/portal\/admin\/users\/([^/]+)\/?$/, module: "admin_user_detail", param: "id" },
+  { pattern: /^\/portal\/admin\/partners\/?$/, module: "admin_partners" },
 ];
 
 let currentMe = null;
@@ -115,9 +118,10 @@ function attachLinkInterception() {
 }
 
 function applyRoleVisibility() {
-  const auditLink = document.getElementById("nav-admin-audit");
-  if (auditLink && currentMe?.person?.platform_role === "admin") {
-    auditLink.hidden = false;
+  if (currentMe?.person?.platform_role !== "admin") return;
+  for (const id of ["nav-admin-users", "nav-admin-partners", "nav-admin-audit"]) {
+    const el = document.getElementById(id);
+    if (el) el.hidden = false;
   }
 }
 

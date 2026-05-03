@@ -247,3 +247,15 @@ tr.row-released {
   font-size: 0.85rem;
   overflow-x: auto;
 }
+
+.initial-password {
+  display: block;
+  padding: 0.6rem 0.9rem;
+  margin: 0.5rem 0;
+  font-family: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, monospace;
+  font-size: 1rem;
+  background: #fff7d6;
+  border: 1px solid #e5c100;
+  border-radius: 3px;
+  word-break: break-all;
+}
