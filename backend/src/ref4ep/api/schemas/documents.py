@@ -112,6 +112,32 @@ class AuditLogOut(BaseModel):
     request_id: str | None
 
 
+# --------------------------------------------------------------------------- #
+# Sprint-4-Schema: öffentliche Sicht (anonym)                                  #
+# --------------------------------------------------------------------------- #
+
+
+class PublicDocumentVersionOut(BaseModel):
+    version_number: int
+    version_label: str | None
+    original_filename: str
+    mime_type: str
+    file_size_bytes: int
+    sha256: str
+    uploaded_at: datetime
+
+
+class PublicDocumentOut(BaseModel):
+    slug: str
+    title: str
+    document_type: str
+    deliverable_code: str | None
+    workpackage: WorkpackageRef
+    released_version: PublicDocumentVersionOut
+    released_at: datetime
+    download_url: str
+
+
 __all__ = [
     "AuditActorOut",
     "AuditLogOut",
@@ -126,5 +152,7 @@ __all__ = [
     "DocumentVisibilityRequest",
     "PartnerRefOut",
     "PersonRef",
+    "PublicDocumentOut",
+    "PublicDocumentVersionOut",
     "WorkpackageRef",
 ]

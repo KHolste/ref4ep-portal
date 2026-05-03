@@ -1,0 +1,56 @@
+{% extends "_base.html" %}
+
+{% block title %}Downloads{% endblock %}
+
+{% block content %}
+  <article>
+    <h1>Öffentliche Download-Bibliothek</h1>
+    <p>
+      Hier finden Sie die im Konsortium freigegebenen, öffentlich
+      zugänglichen Dokumente des Ref4EP-Projekts. Interne Entwürfe und
+      WP-interne Materialien erscheinen <strong>nicht</strong> in dieser
+      Liste.
+    </p>
+
+    {% if not documents %}
+      <p class="muted">Aktuell sind keine öffentlich freigegebenen Dokumente verfügbar.</p>
+    {% else %}
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Titel</th>
+            <th>Workpackage</th>
+            <th>Version</th>
+            <th>Datum</th>
+            <th>Datei</th>
+            <th>Größe</th>
+            <th>Download</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in documents %}
+            {% set d = entry.document %}
+            {% set v = entry.version %}
+            <tr>
+              <td>{{ d.deliverable_code or "" }}</td>
+              <td>
+                <a href="/downloads/{{ d.workpackage.code }}/{{ d.slug }}">{{ d.title }}</a>
+              </td>
+              <td>{{ d.workpackage.code }} — {{ d.workpackage.title }}</td>
+              <td>{{ v.version_label or ("v" ~ v.version_number) }}</td>
+              <td>{{ v.uploaded_at.strftime("%Y-%m-%d") }}</td>
+              <td>{{ v.original_filename }}</td>
+              <td>{{ entry.size_human }}</td>
+              <td>
+                <a href="/api/public/documents/{{ d.workpackage.code }}/{{ d.slug }}/download">
+                  Herunterladen
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </article>
+{% endblock %}
