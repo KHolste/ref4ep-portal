@@ -1,7 +1,8 @@
 """Dokument-Verwaltung (Metadaten, ohne Datei-Upload).
 
 Schreibmethoden prüfen Workpackage-Mitgliedschaft (oder Admin) im
-Service-Layer. Audit-Hooks bleiben als TODOs für Sprint 3.
+Service-Layer und schreiben — sofern ein ``AuditLogger`` injiziert
+ist — Audit-Einträge.
 """
 
 from __future__ import annotations
@@ -14,9 +15,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ref4ep.domain.models import DOCUMENT_TYPES, Document, Workpackage
+from ref4ep.services.audit_logger import AuditLogger
 from ref4ep.services.permissions import (
     AuthContext,
+    can_admin,
     can_read_document,
+    can_soft_delete_document,
     can_write_document,
     is_member_of,
 )
@@ -44,9 +48,11 @@ class DocumentService:
         session: Session,
         *,
         auth: AuthContext | None = None,
+        audit: AuditLogger | None = None,
     ) -> None:
         self.session = session
         self.auth = auth
+        self.audit = audit
 
     # ---- read -----------------------------------------------------------
 
@@ -54,12 +60,8 @@ class DocumentService:
         wp = WorkpackageService(self.session).get_by_code(workpackage_code)
         if wp is None:
             return []
-        # Admin oder Mitglied: vollständige Liste sichtbar (alle Sprint-2-Docs
-        # sind workpackage-sichtbar). Andere Eingeloggte: leere Liste.
         if self.auth is None:
             return []
-        from ref4ep.services.permissions import can_admin
-
         is_admin = can_admin(self.auth.platform_role)
         if not is_admin and not is_member_of(self.auth, wp.id):
             return []
@@ -84,8 +86,6 @@ class DocumentService:
     def _require_write(self, workpackage: Workpackage) -> None:
         if self.auth is None:
             raise PermissionError("Nicht angemeldet.")
-        from ref4ep.services.permissions import can_admin
-
         if can_admin(self.auth.platform_role):
             return
         if not is_member_of(self.auth, workpackage.id):
@@ -110,7 +110,7 @@ class DocumentService:
             raise LookupError(f"Workpackage {workpackage_code!r} nicht gefunden.")
 
         self._require_write(wp)
-        assert self.auth is not None  # vom _require_write erzwungen
+        assert self.auth is not None
 
         slug = slugify(title)
         document = Document(
@@ -131,7 +131,22 @@ class DocumentService:
             raise ValueError(
                 f"Slug {slug!r} existiert in WP {workpackage_code!r} bereits."
             ) from exc
-        # TODO Sprint 3: audit_logger.log_action("document.create", document.id, ...)
+
+        if self.audit is not None:
+            self.audit.log(
+                "document.create",
+                entity_type="document",
+                entity_id=document.id,
+                after={
+                    "workpackage_id": document.workpackage_id,
+                    "title": document.title,
+                    "slug": document.slug,
+                    "document_type": document.document_type,
+                    "deliverable_code": document.deliverable_code,
+                    "status": document.status,
+                    "visibility": document.visibility,
+                },
+            )
         return document
 
     def update_metadata(
@@ -148,6 +163,12 @@ class DocumentService:
         if not can_write_document(self.auth, document):
             raise PermissionError("Nicht berechtigt, dieses Dokument zu ändern.")
 
+        before = {
+            "title": document.title,
+            "document_type": document.document_type,
+            "deliverable_code": document.deliverable_code,
+        }
+
         if title is not None:
             stripped = title.strip()
             if not stripped:
@@ -160,5 +181,38 @@ class DocumentService:
         if deliverable_code is not None:
             document.deliverable_code = deliverable_code or None
         self.session.flush()
-        # TODO Sprint 3: audit_logger.log_action("document.update", document.id, ...)
+
+        if self.audit is not None:
+            after = {
+                "title": document.title,
+                "document_type": document.document_type,
+                "deliverable_code": document.deliverable_code,
+            }
+            if after != before:
+                self.audit.log(
+                    "document.update",
+                    entity_type="document",
+                    entity_id=document.id,
+                    before=before,
+                    after=after,
+                )
+        return document
+
+    def soft_delete(self, document_id: str) -> Document:
+        """Sprint 3: nur Admin; setzt is_deleted=True. Versionen + Storage bleiben."""
+        document = self.session.get(Document, document_id)
+        if document is None or document.is_deleted:
+            raise DocumentNotFoundError(document_id)
+        if not can_soft_delete_document(self.auth):
+            raise PermissionError("Nur Admin darf Dokumente soft-löschen.")
+        document.is_deleted = True
+        self.session.flush()
+        if self.audit is not None:
+            self.audit.log(
+                "document.delete",
+                entity_type="document",
+                entity_id=document.id,
+                before={"is_deleted": False},
+                after={"is_deleted": True},
+            )
         return document

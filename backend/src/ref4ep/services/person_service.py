@@ -1,7 +1,8 @@
 """Personen-Verwaltung und Authentifizierung.
 
 Schreibende Methoden auf Plattformrolle ``admin`` beschränkt; eigene
-Operationen (``change_password``) sind ausgenommen.
+Operationen (``change_password``) sind ausgenommen. Audit-Pflicht
+über den optional injizierten ``AuditLogger``.
 """
 
 from __future__ import annotations
@@ -10,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ref4ep.domain.models import PLATFORM_ROLES, Person
+from ref4ep.services.audit_logger import AuditLogger
 from ref4ep.services.auth import (
     MIN_PASSWORD_LEN,
     hash_password,
@@ -30,10 +32,12 @@ class PersonService:
         *,
         role: str | None = None,
         person_id: str | None = None,
+        audit: AuditLogger | None = None,
     ) -> None:
         self.session = session
         self.role = role
         self.person_id = person_id
+        self.audit = audit
 
     # ---- helpers --------------------------------------------------------
 
@@ -96,7 +100,20 @@ class PersonService:
         )
         self.session.add(person)
         self.session.flush()
-        # TODO Sprint 3: audit_logger.log_action("person.create", person.id, ...)
+        if self.audit is not None:
+            self.audit.log(
+                "person.create",
+                entity_type="person",
+                entity_id=person.id,
+                after={
+                    "email": person.email,
+                    "display_name": person.display_name,
+                    "partner_id": person.partner_id,
+                    "platform_role": person.platform_role,
+                    "is_active": person.is_active,
+                    "must_change_password": person.must_change_password,
+                },
+            )
         return person
 
     def reset_password(self, person_id: str, new_password: str) -> None:
@@ -107,7 +124,13 @@ class PersonService:
         person.password_hash = hash_password(new_password)
         person.must_change_password = True
         self.session.flush()
-        # TODO Sprint 3: audit_logger.log_action("person.reset_password", person.id, ...)
+        if self.audit is not None:
+            self.audit.log(
+                "person.reset_password",
+                entity_type="person",
+                entity_id=person.id,
+                after={"must_change_password": True},
+            )
 
     def set_role(self, person_id: str, role: str) -> None:
         self._require_admin()
@@ -116,25 +139,53 @@ class PersonService:
         person = self.get_by_id(person_id)
         if person is None or person.is_deleted:
             raise LookupError(f"Person {person_id} nicht gefunden.")
+        before = {"platform_role": person.platform_role}
         person.platform_role = role
         self.session.flush()
-        # TODO Sprint 3: audit_logger.log_action("person.set_role", person.id, ...)
+        if self.audit is not None:
+            self.audit.log(
+                "person.set_role",
+                entity_type="person",
+                entity_id=person.id,
+                before=before,
+                after={"platform_role": person.platform_role},
+            )
 
     def enable(self, person_id: str) -> None:
         self._require_admin()
         person = self.get_by_id(person_id)
         if person is None or person.is_deleted:
             raise LookupError(f"Person {person_id} nicht gefunden.")
+        if person.is_active:
+            return
         person.is_active = True
         self.session.flush()
+        if self.audit is not None:
+            self.audit.log(
+                "person.enable",
+                entity_type="person",
+                entity_id=person.id,
+                before={"is_active": False},
+                after={"is_active": True},
+            )
 
     def disable(self, person_id: str) -> None:
         self._require_admin()
         person = self.get_by_id(person_id)
         if person is None or person.is_deleted:
             raise LookupError(f"Person {person_id} nicht gefunden.")
+        if not person.is_active:
+            return
         person.is_active = False
         self.session.flush()
+        if self.audit is not None:
+            self.audit.log(
+                "person.disable",
+                entity_type="person",
+                entity_id=person.id,
+                before={"is_active": True},
+                after={"is_active": False},
+            )
 
     # ---- write (eigene) -------------------------------------------------
 
@@ -151,4 +202,10 @@ class PersonService:
         person.password_hash = hash_password(new)
         person.must_change_password = False
         self.session.flush()
-        # TODO Sprint 3: audit_logger.log_action("person.change_password", person.id, ...)
+        if self.audit is not None:
+            self.audit.log(
+                "person.change_password",
+                entity_type="person",
+                entity_id=person.id,
+                after={"must_change_password": False},
+            )

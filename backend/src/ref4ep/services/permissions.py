@@ -80,3 +80,53 @@ def can_write_document(auth: AuthContext | None, document: Document) -> bool:
     if can_admin(auth.platform_role):
         return True
     return is_member_of(auth, document.workpackage_id)
+
+
+# --------------------------------------------------------------------------- #
+# Sprint 3 — Lifecycle-Berechtigungen                                         #
+# --------------------------------------------------------------------------- #
+
+
+def can_set_status(auth: AuthContext | None, document: Document) -> bool:
+    """draft ↔ in_review: WP-Mitglied oder Admin."""
+    return can_write_document(auth, document)
+
+
+def can_release(auth: AuthContext | None, document: Document) -> bool:
+    """release / re-release: WP-Lead oder Admin."""
+    if auth is None or document.is_deleted:
+        return False
+    if can_admin(auth.platform_role):
+        return True
+    return is_wp_lead(auth, document.workpackage_id)
+
+
+def can_unrelease(auth: AuthContext | None) -> bool:
+    """released → draft: ausschließlich Admin."""
+    if auth is None:
+        return False
+    return can_admin(auth.platform_role)
+
+
+def can_set_visibility(auth: AuthContext | None, document: Document, *, to: str) -> bool:
+    """Sichtbarkeit ändern: WP-Mitglied oder Admin; public nur WP-Lead/Admin."""
+    if auth is None or document.is_deleted:
+        return False
+    if can_admin(auth.platform_role):
+        return True
+    if to == "public":
+        return is_wp_lead(auth, document.workpackage_id)
+    return is_member_of(auth, document.workpackage_id)
+
+
+def can_soft_delete_document(auth: AuthContext | None) -> bool:
+    """Soft-Delete eines Dokuments: ausschließlich Admin."""
+    if auth is None:
+        return False
+    return can_admin(auth.platform_role)
+
+
+def can_view_audit_log(auth: AuthContext | None) -> bool:
+    if auth is None:
+        return False
+    return can_admin(auth.platform_role)

@@ -1,8 +1,11 @@
-"""Dokumentenregister-Endpunkte (Sprint 2).
+"""Dokumentenregister-Endpunkte (Sprint 2 + Sprint 3).
 
 Internes Register: Anlegen, Listen, Detail, Metadaten-Patch,
 Version-Upload (multipart) und kontrollierter Download (Streaming).
-Öffentliche Bibliothek folgt erst Sprint 4.
+Sprint-3-Erweiterungen: Status- und Sichtbarkeits-Übergänge,
+explizite Freigabe einer Version, Soft-Delete; jede schreibende
+Aktion ist auditierbar. Öffentliche Bibliothek folgt erst
+Sprint 4.
 """
 
 from __future__ import annotations
@@ -23,18 +26,32 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from ref4ep.api.config import Settings
-from ref4ep.api.deps import get_auth_context, get_session, get_settings, require_csrf
+from ref4ep.api.deps import (
+    get_audit_logger,
+    get_auth_context,
+    get_session,
+    get_settings,
+    require_csrf,
+)
 from ref4ep.api.schemas.documents import (
     DocumentCreateRequest,
     DocumentDetailOut,
     DocumentOut,
     DocumentPatchRequest,
+    DocumentReleaseRequest,
+    DocumentStatusRequest,
     DocumentVersionOut,
     DocumentVersionUploadResponse,
+    DocumentVisibilityRequest,
     PersonRef,
     WorkpackageRef,
 )
 from ref4ep.domain.models import Document, DocumentVersion
+from ref4ep.services.audit_logger import AuditLogger
+from ref4ep.services.document_lifecycle_service import (
+    DocumentLifecycleService,
+    InvalidStatusTransitionError,
+)
 from ref4ep.services.document_service import DocumentNotFoundError, DocumentService
 from ref4ep.services.document_version_service import DocumentVersionService
 from ref4ep.services.permissions import AuthContext
@@ -47,6 +64,7 @@ router = APIRouter(prefix="/api")
 SessionDep = Annotated[Session, Depends(get_session)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 AuthDep = Annotated[AuthContext, Depends(get_auth_context)]
+AuditDep = Annotated[AuditLogger, Depends(get_audit_logger)]
 CHUNK_SIZE = 1024 * 1024
 
 
@@ -83,6 +101,9 @@ def _version_out(version: DocumentVersion) -> DocumentVersionOut:
 def _document_out(document: Document, *, with_versions: bool = False) -> DocumentOut:
     versions_sorted = sorted(document.versions, key=lambda v: v.version_number)
     latest = versions_sorted[-1] if versions_sorted else None
+    released_version = next(
+        (v for v in versions_sorted if v.id == document.released_version_id), None
+    )
     base = DocumentOut(
         id=document.id,
         slug=document.slug,
@@ -98,6 +119,7 @@ def _document_out(document: Document, *, with_versions: bool = False) -> Documen
             email=document.created_by.email, display_name=document.created_by.display_name
         ),
         latest_version=_version_out(latest) if latest else None,
+        released_version_id=document.released_version_id,
         created_at=document.created_at,
         updated_at=document.updated_at,
     )
@@ -105,6 +127,7 @@ def _document_out(document: Document, *, with_versions: bool = False) -> Documen
         return DocumentDetailOut(
             **base.model_dump(),
             versions=[_version_out(v) for v in versions_sorted],
+            released_version=_version_out(released_version) if released_version else None,
         )
     return base
 
@@ -139,9 +162,10 @@ def create_document(
     payload: DocumentCreateRequest,
     session: SessionDep,
     auth: AuthDep,
+    audit: AuditDep,
 ) -> DocumentOut:
     try:
-        document = DocumentService(session, auth=auth).create(
+        document = DocumentService(session, auth=auth, audit=audit).create(
             workpackage_code=code,
             title=payload.title,
             document_type=payload.document_type,
@@ -194,9 +218,10 @@ def patch_document(
     payload: DocumentPatchRequest,
     session: SessionDep,
     auth: AuthDep,
+    audit: AuditDep,
 ) -> DocumentOut:
     try:
-        document = DocumentService(session, auth=auth).update_metadata(
+        document = DocumentService(session, auth=auth, audit=audit).update_metadata(
             document_id,
             title=payload.title,
             document_type=payload.document_type,
@@ -244,6 +269,7 @@ async def upload_version(
     auth: AuthDep,
     settings: SettingsDep,
     storage: StorageDep,
+    audit: AuditDep,
     file: Annotated[UploadFile, File(...)],
     change_note: Annotated[str, Form()],
     version_label: Annotated[str | None, Form()] = None,
@@ -271,7 +297,7 @@ async def upload_version(
     # einen wrapping-Stream während des eigentlichen Uploads.
     file_stream = _SizeLimitingStream(file.file, max_bytes)
 
-    service = DocumentVersionService(session, auth=auth, storage=storage)
+    service = DocumentVersionService(session, auth=auth, storage=storage, audit=audit)
     try:
         version, warnings = service.upload_new_version(
             document_id,
@@ -369,3 +395,138 @@ class _SizeLimitingStream:
         if self._read > self._max:
             raise _PayloadTooLarge(f"Upload überschreitet Limit von {self._max} Bytes.")
         return chunk
+
+
+# --------------------------------------------------------------------------- #
+# Sprint 3 — Lifecycle-Endpunkte                                              #
+# --------------------------------------------------------------------------- #
+
+
+def _lifecycle(session: Session, auth: AuthContext, audit: AuditLogger) -> DocumentLifecycleService:
+    return DocumentLifecycleService(session, auth=auth, audit=audit)
+
+
+def _handle_lifecycle_call(call):
+    """Mappt Service-Exceptions auf HTTP-Codes."""
+    try:
+        return call()
+    except DocumentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": "Dokument nicht gefunden."}},
+        ) from exc
+    except InvalidStatusTransitionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": {"code": "invalid_status_transition", "message": str(exc)}},
+        ) from exc
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "forbidden", "message": str(exc)}},
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"error": {"code": "invalid", "message": str(exc)}},
+        ) from exc
+
+
+@router.post(
+    "/documents/{document_id}/status",
+    response_model=DocumentDetailOut,
+    dependencies=[Depends(require_csrf)],
+)
+def set_status_endpoint(
+    document_id: str,
+    payload: DocumentStatusRequest,
+    session: SessionDep,
+    auth: AuthDep,
+    audit: AuditDep,
+) -> DocumentDetailOut:
+    document = _handle_lifecycle_call(
+        lambda: _lifecycle(session, auth, audit).set_status(document_id, to=payload.to)
+    )
+    return _document_out(document, with_versions=True)
+
+
+@router.post(
+    "/documents/{document_id}/release",
+    response_model=DocumentDetailOut,
+    dependencies=[Depends(require_csrf)],
+)
+def release_endpoint(
+    document_id: str,
+    payload: DocumentReleaseRequest,
+    session: SessionDep,
+    auth: AuthDep,
+    audit: AuditDep,
+) -> DocumentDetailOut:
+    document = _handle_lifecycle_call(
+        lambda: _lifecycle(session, auth, audit).release(
+            document_id, version_number=payload.version_number
+        )
+    )
+    return _document_out(document, with_versions=True)
+
+
+@router.post(
+    "/documents/{document_id}/unrelease",
+    response_model=DocumentDetailOut,
+    dependencies=[Depends(require_csrf)],
+)
+def unrelease_endpoint(
+    document_id: str,
+    session: SessionDep,
+    auth: AuthDep,
+    audit: AuditDep,
+) -> DocumentDetailOut:
+    document = _handle_lifecycle_call(
+        lambda: _lifecycle(session, auth, audit).unrelease(document_id)
+    )
+    return _document_out(document, with_versions=True)
+
+
+@router.post(
+    "/documents/{document_id}/visibility",
+    response_model=DocumentDetailOut,
+    dependencies=[Depends(require_csrf)],
+)
+def set_visibility_endpoint(
+    document_id: str,
+    payload: DocumentVisibilityRequest,
+    session: SessionDep,
+    auth: AuthDep,
+    audit: AuditDep,
+) -> DocumentDetailOut:
+    document = _handle_lifecycle_call(
+        lambda: _lifecycle(session, auth, audit).set_visibility(document_id, to=payload.to)
+    )
+    return _document_out(document, with_versions=True)
+
+
+@router.delete(
+    "/documents/{document_id}",
+    response_model=DocumentOut,
+    dependencies=[Depends(require_csrf)],
+)
+def soft_delete_document(
+    document_id: str,
+    session: SessionDep,
+    auth: AuthDep,
+    audit: AuditDep,
+) -> DocumentOut:
+    """Soft-Delete: setzt is_deleted=true. Versionen + Storage bleiben."""
+    try:
+        document = DocumentService(session, auth=auth, audit=audit).soft_delete(document_id)
+    except DocumentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": "Dokument nicht gefunden."}},
+        ) from exc
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "forbidden", "message": str(exc)}},
+        ) from exc
+    return _document_out(document)

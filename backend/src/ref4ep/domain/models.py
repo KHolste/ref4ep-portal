@@ -1,4 +1,4 @@
-"""SQLAlchemy-Modelle für Identität, Projektstruktur und Dokumente.
+"""SQLAlchemy-Modelle für Identität, Projektstruktur, Dokumente und Audit.
 
 Sprint-1-Tabellen:
 - partner       — Konsortialpartner
@@ -9,6 +9,11 @@ Sprint-1-Tabellen:
 Sprint-2-Tabellen:
 - document          — projektbezogener Registereintrag mit WP-Bezug
 - document_version  — append-only Versionseinträge mit Storage-Key
+
+Sprint-3-Erweiterungen:
+- audit_log         — Audit-Einträge für jede schreibende Aktion
+- document.released_version_id  — FK auf document_version.id
+                                  (zyklisch, mit use_alter=True)
 
 UUID-Spalten als CHAR(36) für Dialektneutralität (SQLite + PostgreSQL).
 Zeitstempel als ``DateTime(timezone=True)``.
@@ -189,6 +194,18 @@ class Document(Base):
     deliverable_code: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False, default="draft")
     visibility: Mapped[str] = mapped_column(String, nullable=False, default="workpackage")
+    # Sprint-3: FK auf document_version.id mit use_alter=True wegen Zyklus
+    # document ↔ document_version. Service-Layer prüft zusätzlich, dass die
+    # referenzierte Version zum richtigen Dokument gehört.
+    released_version_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey(
+            "document_version.id",
+            name="fk_document_released_version",
+            use_alter=True,
+        ),
+        nullable=True,
+    )
     created_by_person_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("person.id"), nullable=False
     )
@@ -206,6 +223,11 @@ class Document(Base):
         back_populates="document",
         cascade="all, delete-orphan",
         order_by="DocumentVersion.version_number",
+        foreign_keys="DocumentVersion.document_id",
+    )
+    released_version: Mapped[DocumentVersion | None] = relationship(
+        foreign_keys=[released_version_id],
+        post_update=True,
     )
 
 
@@ -232,5 +254,31 @@ class DocumentVersion(Base):
         DateTime(timezone=True), nullable=False, default=_now_utc
     )
 
-    document: Mapped[Document] = relationship(back_populates="versions")
+    document: Mapped[Document] = relationship(back_populates="versions", foreign_keys=[document_id])
     uploaded_by: Mapped[Person] = relationship()
+
+
+# --------------------------------------------------------------------------- #
+# Sprint 3 — Audit-Log                                                        #
+# --------------------------------------------------------------------------- #
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    actor_person_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("person.id"), nullable=True
+    )
+    actor_label: Mapped[str | None] = mapped_column(String, nullable=True)
+    action: Mapped[str] = mapped_column(String, nullable=False)
+    entity_type: Mapped[str] = mapped_column(String, nullable=False)
+    entity_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    details: Mapped[str | None] = mapped_column(String, nullable=True)
+    client_ip: Mapped[str | None] = mapped_column(String, nullable=True)
+    request_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc
+    )
+
+    actor: Mapped[Person | None] = relationship()

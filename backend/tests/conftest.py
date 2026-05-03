@@ -170,3 +170,16 @@ def member_in_wp3(seeded_session: Session, member_person_id: str) -> str:
     wp_service.add_membership(member_person_id, wp.id, "wp_member")
     seeded_session.commit()
     return wp.id
+
+
+@pytest.fixture
+def lead_in_wp3(seeded_session: Session, member_person_id: str) -> str:
+    """Macht ``MEMBER_EMAIL`` zum WP-Lead von ``WP3``. Liefert die WP-UUID."""
+    from ref4ep.services.workpackage_service import WorkpackageService
+
+    wp_service = WorkpackageService(seeded_session, role="admin", person_id="test-fixture")
+    wp = wp_service.get_by_code("WP3")
+    assert wp is not None
+    wp_service.add_membership(member_person_id, wp.id, "wp_lead")
+    seeded_session.commit()
+    return wp.id

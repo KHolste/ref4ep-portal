@@ -186,3 +186,49 @@ form.stacked textarea {
 .dialog h3 {
   margin-top: 0;
 }
+
+.actions button.danger {
+  background: #8a1c1c;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  vertical-align: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-draft { background: #ddd; color: #444; }
+.badge-review { background: #f5d97a; color: #5a4500; }
+.badge-released { background: #b9e3b9; color: #1a4f1a; }
+.badge-wp { background: #d6e4f5; color: #1c2c4c; }
+.badge-internal { background: #e3d6f5; color: #3a1c5c; }
+.badge-public { background: #fcd5c0; color: #6c1f00; }
+
+tr.row-released {
+  background: #f3fbef;
+}
+
+.audit-filters {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.audit-filters input {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #ccd;
+  border-radius: 3px;
+}
+
+.audit-details {
+  background: #f4f4f8;
+  border: 1px solid #ddd;
+  padding: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  overflow-x: auto;
+}

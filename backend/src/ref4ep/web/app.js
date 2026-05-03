@@ -12,6 +12,7 @@ const ROUTES = [
   { pattern: /^\/portal\/workpackages\/([^/]+)\/?$/, module: "workpackage_detail", param: "code" },
   { pattern: /^\/portal\/documents\/([^/]+)\/?$/, module: "document_detail", param: "id" },
   { pattern: /^\/portal\/account\/?$/, module: "account" },
+  { pattern: /^\/portal\/admin\/audit\/?$/, module: "audit" },
 ];
 
 let currentMe = null;
@@ -113,6 +114,13 @@ function attachLinkInterception() {
   window.addEventListener("popstate", () => dispatch(window.location.pathname));
 }
 
+function applyRoleVisibility() {
+  const auditLink = document.getElementById("nav-admin-audit");
+  if (auditLink && currentMe?.person?.platform_role === "admin") {
+    auditLink.hidden = false;
+  }
+}
+
 async function bootstrap() {
   try {
     currentMe = await api("GET", "/api/me");
@@ -120,6 +128,7 @@ async function bootstrap() {
     return; // api() leitet bereits zu /login um.
   }
   renderUserBox();
+  applyRoleVisibility();
   attachLinkInterception();
   await dispatch(window.location.pathname);
 }

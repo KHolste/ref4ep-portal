@@ -1,7 +1,8 @@
 """Partner-Verwaltung.
 
-Schreibende Methoden setzen Plattformrolle ``admin`` voraus. Der
-Audit-Log-Hook (Sprint 3) ist als TODO im Code markiert.
+Schreibende Methoden setzen Plattformrolle ``admin`` voraus und
+schreiben — sofern ein ``AuditLogger`` injiziert ist — Audit-
+Einträge.
 """
 
 from __future__ import annotations
@@ -10,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ref4ep.domain.models import Partner
+from ref4ep.services.audit_logger import AuditLogger
 from ref4ep.services.permissions import can_admin
 
 
@@ -20,10 +22,12 @@ class PartnerService:
         *,
         role: str | None = None,
         person_id: str | None = None,
+        audit: AuditLogger | None = None,
     ) -> None:
         self.session = session
         self.role = role
         self.person_id = person_id
+        self.audit = audit
 
     # ---- read -----------------------------------------------------------
 
@@ -65,7 +69,18 @@ class PartnerService:
         )
         self.session.add(partner)
         self.session.flush()
-        # TODO Sprint 3: audit_logger.log_action("partner.create", partner.id, ...)
+        if self.audit is not None:
+            self.audit.log(
+                "partner.create",
+                entity_type="partner",
+                entity_id=partner.id,
+                after={
+                    "name": partner.name,
+                    "short_name": partner.short_name,
+                    "country": partner.country,
+                    "website": partner.website,
+                },
+            )
         return partner
 
     def update(self, partner_id: str, **fields) -> Partner:
@@ -73,11 +88,21 @@ class PartnerService:
         partner = self.get_by_id(partner_id)
         if partner is None or partner.is_deleted:
             raise LookupError(f"Partner {partner_id} nicht gefunden.")
+        before = {k: getattr(partner, k) for k in ("name", "short_name", "country", "website")}
         for key, value in fields.items():
             if key in {"name", "short_name", "country", "website"}:
                 setattr(partner, key, value)
         self.session.flush()
-        # TODO Sprint 3: audit_logger.log_action("partner.update", partner.id, ...)
+        if self.audit is not None:
+            after = {k: getattr(partner, k) for k in ("name", "short_name", "country", "website")}
+            if after != before:
+                self.audit.log(
+                    "partner.update",
+                    entity_type="partner",
+                    entity_id=partner.id,
+                    before=before,
+                    after=after,
+                )
         return partner
 
     def soft_delete(self, partner_id: str) -> None:
@@ -87,4 +112,11 @@ class PartnerService:
             return
         partner.is_deleted = True
         self.session.flush()
-        # TODO Sprint 3: audit_logger.log_action("partner.delete", partner.id, ...)
+        if self.audit is not None:
+            self.audit.log(
+                "partner.delete",
+                entity_type="partner",
+                entity_id=partner.id,
+                before={"is_deleted": False},
+                after={"is_deleted": True},
+            )

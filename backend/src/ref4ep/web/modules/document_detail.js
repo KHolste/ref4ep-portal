@@ -7,13 +7,43 @@ const TYPE_LABELS = {
   other: "Sonstiges",
 };
 
+const STATUS_BADGES = {
+  draft: { label: "Entwurf", cls: "badge badge-draft" },
+  in_review: { label: "Review", cls: "badge badge-review" },
+  released: { label: "Freigegeben", cls: "badge badge-released" },
+};
+
+const VISIBILITY_BADGES = {
+  workpackage: { label: "WP-intern", cls: "badge badge-wp" },
+  internal: { label: "Konsortium", cls: "badge badge-internal" },
+  public: { label: "Öffentlich", cls: "badge badge-public" },
+};
+
 function formatBytes(n) {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KiB`;
   return `${(n / (1024 * 1024)).toFixed(2)} MiB`;
 }
 
-function renderVersionsTable(documentId, versions) {
+function isAdmin(me) {
+  return me?.person?.platform_role === "admin";
+}
+
+function isWpLead(me, wpCode) {
+  return (me?.memberships || []).some(
+    (m) => m.workpackage_code === wpCode && m.wp_role === "wp_lead",
+  );
+}
+
+function isWpMember(me, wpCode) {
+  return (me?.memberships || []).some((m) => m.workpackage_code === wpCode);
+}
+
+function badge(spec) {
+  return h("span", { class: spec.cls }, spec.label);
+}
+
+function renderVersionsTable(documentId, versions, releasedVersionId) {
   if (!versions.length) {
     return h(
       "p",
@@ -24,11 +54,12 @@ function renderVersionsTable(documentId, versions) {
   const rows = versions
     .slice()
     .reverse()
-    .map((v) =>
-      h(
+    .map((v) => {
+      const isReleased = v.id === releasedVersionId;
+      return h(
         "tr",
-        {},
-        h("td", {}, `v${v.version_number}`),
+        { class: isReleased ? "row-released" : "" },
+        h("td", {}, isReleased ? `★ v${v.version_number}` : `v${v.version_number}`),
         h("td", {}, v.version_label || ""),
         h("td", {}, v.change_note),
         h("td", {}, v.original_filename),
@@ -41,14 +72,12 @@ function renderVersionsTable(documentId, versions) {
           {},
           h(
             "a",
-            {
-              href: `/api/documents/${documentId}/versions/${v.version_number}/download`,
-            },
+            { href: `/api/documents/${documentId}/versions/${v.version_number}/download` },
             "Download",
           ),
         ),
-      ),
-    );
+      );
+    });
   return h(
     "table",
     {},
@@ -180,19 +209,140 @@ function renderMetadataDialog(document_, onSaved) {
   );
 }
 
+function renderReleaseDialog(documentId, versions, defaultVersion, onSuccess) {
+  const select = h(
+    "select",
+    {},
+    ...versions
+      .slice()
+      .reverse()
+      .map((v) =>
+        h(
+          "option",
+          { value: String(v.version_number), selected: v.version_number === defaultVersion ? true : null },
+          `v${v.version_number} — ${v.original_filename}`,
+        ),
+      ),
+  );
+  const errorBox = h("p", { class: "error", style: "display:none" }, "");
+
+  async function onSubmit(ev) {
+    ev.preventDefault();
+    errorBox.style.display = "none";
+    try {
+      await api("POST", `/api/documents/${documentId}/release`, {
+        version_number: parseInt(select.value, 10),
+      });
+      onSuccess();
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.style.display = "";
+    }
+  }
+
+  return h(
+    "form",
+    { class: "stacked", onsubmit: onSubmit },
+    h("label", {}, "Version freigeben", select),
+    errorBox,
+    h("button", { type: "submit" }, "Freigeben"),
+  );
+}
+
+function renderVisibilityDialog(documentId, current, canPublic, onSuccess) {
+  const options = [
+    { value: "workpackage", label: "WP-intern (nur WP-Mitglieder)" },
+    { value: "internal", label: "Konsortium (alle Eingeloggten)" },
+  ];
+  if (canPublic) {
+    options.push({ value: "public", label: "Öffentlich (extern sichtbar nach Release)" });
+  }
+  const select = h(
+    "select",
+    {},
+    ...options.map((o) =>
+      h("option", { value: o.value, selected: o.value === current ? true : null }, o.label),
+    ),
+  );
+  const errorBox = h("p", { class: "error", style: "display:none" }, "");
+
+  async function onSubmit(ev) {
+    ev.preventDefault();
+    errorBox.style.display = "none";
+    try {
+      await api("POST", `/api/documents/${documentId}/visibility`, { to: select.value });
+      onSuccess();
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.style.display = "";
+    }
+  }
+
+  return h(
+    "form",
+    { class: "stacked", onsubmit: onSubmit },
+    h("label", {}, "Sichtbarkeit", select),
+    errorBox,
+    h("button", { type: "submit" }, "Übernehmen"),
+  );
+}
+
+function renderDeleteConfirm(documentId, onSuccess) {
+  const errorBox = h("p", { class: "error", style: "display:none" }, "");
+
+  async function onSubmit(ev) {
+    ev.preventDefault();
+    errorBox.style.display = "none";
+    try {
+      await api("DELETE", `/api/documents/${documentId}`);
+      onSuccess();
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.style.display = "";
+    }
+  }
+  return h(
+    "form",
+    { class: "stacked", onsubmit: onSubmit },
+    h(
+      "p",
+      {},
+      "Soft-Delete: Das Dokument wird ausgeblendet, aber " +
+        "Versionen und Storage-Dateien bleiben physisch erhalten.",
+    ),
+    errorBox,
+    h("button", { type: "submit" }, "Soft-Delete bestätigen"),
+  );
+}
+
 export async function render(container, ctx) {
   const documentId = ctx.params.id;
+  const me = ctx.me;
   const doc = await api("GET", `/api/documents/${documentId}`);
+  const wpCode = doc.workpackage.code;
+
+  const admin = isAdmin(me);
+  const memberHere = isWpMember(me, wpCode) || admin;
+  const leadHere = isWpLead(me, wpCode) || admin;
+  const versions = doc.versions || [];
 
   const header = h(
     "div",
     {},
-    h("h1", {}, doc.title),
+    h(
+      "h1",
+      {},
+      doc.title,
+      " ",
+      badge(STATUS_BADGES[doc.status] || STATUS_BADGES.draft),
+      " ",
+      badge(VISIBILITY_BADGES[doc.visibility] || VISIBILITY_BADGES.workpackage),
+    ),
     h(
       "p",
       {},
       "Workpackage: ",
-      h("a", { href: `/portal/workpackages/${doc.workpackage.code}` }, doc.workpackage.code),
+      h("a", { href: `/portal/workpackages/${wpCode}` }, wpCode),
       ` — ${doc.workpackage.title}`,
     ),
     h(
@@ -201,56 +351,168 @@ export async function render(container, ctx) {
       `Typ: ${TYPE_LABELS[doc.document_type] || doc.document_type}`,
       doc.deliverable_code ? ` · Deliverable-Code: ${doc.deliverable_code}` : "",
     ),
-    h(
-      "p",
-      {},
-      `Status: ${doc.status} · Sichtbarkeit: ${doc.visibility}`,
-    ),
     h("p", { class: "muted" }, `Angelegt von ${doc.created_by.display_name}`),
   );
 
+  // Hinweisbanner bei visibility=public und status≠released.
+  const visibilityNotice =
+    doc.visibility === "public" && doc.status !== "released"
+      ? h(
+          "p",
+          { class: "warning" },
+          "Sichtbarkeit ist öffentlich, das Dokument ist aber noch nicht freigegeben — " +
+            "es erscheint erst ab dem Release in der öffentlichen Bibliothek.",
+        )
+      : null;
+
   const dialogContainer = h("div", {});
 
-  function showUpload() {
-    dialogContainer.replaceChildren(
+  function reload() {
+    window.location.reload();
+  }
+
+  function showDialog(title, body) {
+    dialogContainer.replaceChildren(h("div", { class: "dialog" }, h("h3", {}, title), body));
+  }
+
+  // Aktionsleiste rollenabhängig.
+  const actions = [];
+  if (memberHere) {
+    actions.push(
       h(
-        "div",
-        { class: "dialog" },
-        h("h3", {}, "Neue Version hochladen"),
-        renderUploadDialog(documentId, () => {
-          ctx.navigate(`/portal/documents/${documentId}`); // reload via dispatcher
-          window.location.reload();
-        }),
+        "button",
+        { type: "button", onclick: () => showDialog("Neue Version hochladen", renderUploadDialog(documentId, reload)) },
+        "Neue Version hochladen",
+      ),
+      h(
+        "button",
+        { type: "button", onclick: () => showDialog("Metadaten bearbeiten", renderMetadataDialog(doc, reload)) },
+        "Metadaten bearbeiten",
+      ),
+    );
+    if (doc.status === "draft" && versions.length > 0) {
+      actions.push(
+        h(
+          "button",
+          {
+            type: "button",
+            onclick: async () => {
+              try {
+                await api("POST", `/api/documents/${documentId}/status`, { to: "in_review" });
+                reload();
+              } catch (err) {
+                alert(err.message);
+              }
+            },
+          },
+          "Zur Review schicken",
+        ),
+      );
+    }
+    if (doc.status === "in_review") {
+      actions.push(
+        h(
+          "button",
+          {
+            type: "button",
+            onclick: async () => {
+              try {
+                await api("POST", `/api/documents/${documentId}/status`, { to: "draft" });
+                reload();
+              } catch (err) {
+                alert(err.message);
+              }
+            },
+          },
+          "Zurück zu Draft",
+        ),
+      );
+    }
+  }
+  if (leadHere && (doc.status === "in_review" || doc.status === "released") && versions.length > 0) {
+    const defaultVer = versions[versions.length - 1].version_number;
+    const label = doc.status === "released" ? "Andere Version freigeben …" : "Freigeben …";
+    actions.push(
+      h(
+        "button",
+        {
+          type: "button",
+          onclick: () =>
+            showDialog(
+              "Version freigeben",
+              renderReleaseDialog(documentId, versions, defaultVer, reload),
+            ),
+        },
+        label,
+      ),
+    );
+  }
+  if (admin && doc.status === "released") {
+    actions.push(
+      h(
+        "button",
+        {
+          type: "button",
+          onclick: async () => {
+            if (!confirm("Freigabe wirklich zurückziehen?")) return;
+            try {
+              await api("POST", `/api/documents/${documentId}/unrelease`, {});
+              reload();
+            } catch (err) {
+              alert(err.message);
+            }
+          },
+        },
+        "Freigabe zurückziehen",
+      ),
+    );
+  }
+  if (memberHere) {
+    actions.push(
+      h(
+        "button",
+        {
+          type: "button",
+          onclick: () =>
+            showDialog(
+              "Sichtbarkeit ändern",
+              renderVisibilityDialog(documentId, doc.visibility, leadHere, reload),
+            ),
+        },
+        "Sichtbarkeit ändern …",
+      ),
+    );
+  }
+  if (admin) {
+    actions.push(
+      h(
+        "button",
+        {
+          type: "button",
+          class: "danger",
+          onclick: () => showDialog("Soft-Delete", renderDeleteConfirm(documentId, () => {
+            window.location.href = `/portal/workpackages/${wpCode}`;
+          })),
+        },
+        "Soft-Delete",
       ),
     );
   }
 
-  function showMetadataEdit() {
-    dialogContainer.replaceChildren(
-      h(
-        "div",
-        { class: "dialog" },
-        h("h3", {}, "Metadaten bearbeiten"),
-        renderMetadataDialog(doc, () => {
-          window.location.reload();
-        }),
-      ),
-    );
-  }
-
-  const actions = h(
-    "div",
-    { class: "actions" },
-    h("button", { type: "button", onclick: showUpload }, "Neue Version hochladen"),
-    h("button", { type: "button", onclick: showMetadataEdit }, "Metadaten bearbeiten"),
-  );
+  const actionsBar = actions.length ? h("div", { class: "actions" }, ...actions) : null;
 
   const versionsBlock = h(
     "section",
     {},
     h("h2", {}, "Versionen"),
-    renderVersionsTable(documentId, doc.versions || []),
+    renderVersionsTable(documentId, versions, doc.released_version_id),
   );
 
-  container.replaceChildren(header, actions, versionsBlock, dialogContainer);
+  container.replaceChildren(
+    header,
+    visibilityNotice || h("div", {}),
+    actionsBar || h("div", {}),
+    versionsBlock,
+    dialogContainer,
+  );
 }

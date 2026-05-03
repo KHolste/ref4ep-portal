@@ -17,6 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ref4ep.domain.models import Document, DocumentVersion
+from ref4ep.services.audit_logger import AuditLogger
 from ref4ep.services.document_service import DocumentNotFoundError
 from ref4ep.services.permissions import (
     AuthContext,
@@ -38,10 +39,12 @@ class DocumentVersionService:
         *,
         auth: AuthContext | None = None,
         storage: Storage | None = None,
+        audit: AuditLogger | None = None,
     ) -> None:
         self.session = session
         self.auth = auth
         self.storage = storage
+        self.audit = audit
 
     # ---- read -----------------------------------------------------------
 
@@ -139,7 +142,21 @@ class DocumentVersionService:
             self.session.add(version)
             try:
                 self.session.flush()
-                # TODO Sprint 3: audit_logger.log_action("document_version.upload", ...)
+                if self.audit is not None:
+                    self.audit.log(
+                        "document_version.upload",
+                        entity_type="document_version",
+                        entity_id=version.id,
+                        after={
+                            "document_id": version.document_id,
+                            "version_number": version.version_number,
+                            "version_label": version.version_label,
+                            "original_filename": version.original_filename,
+                            "mime_type": version.mime_type,
+                            "file_size_bytes": version.file_size_bytes,
+                            "sha256": version.sha256,
+                        },
+                    )
                 return version, warnings
             except IntegrityError:
                 self.session.rollback()

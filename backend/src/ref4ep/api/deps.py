@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from ref4ep.api.config import Settings
 from ref4ep.domain.models import Person
+from ref4ep.services.audit_logger import AuditLogger
 from ref4ep.services.auth import read_session_token, verify_csrf
 from ref4ep.services.permissions import AuthContext, MembershipInfo
 
@@ -102,6 +103,21 @@ def require_csrf(
 
 
 CurrentPersonDep = Annotated[Person, Depends(get_current_person)]
+
+
+def get_audit_logger(
+    request: Request,
+    person: CurrentPersonDep,
+    session: SessionDep,
+) -> AuditLogger:
+    request_id = request.headers.get("X-Request-ID")
+    client_host = request.client.host if request.client else None
+    return AuditLogger(
+        session,
+        actor_person_id=person.id,
+        client_ip=client_host,
+        request_id=request_id,
+    )
 
 
 def get_auth_context(person: CurrentPersonDep) -> AuthContext:

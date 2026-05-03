@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from ref4ep import __version__
 from ref4ep.api.config import get_settings
+from ref4ep.services.audit_logger import AuditLogger
 from ref4ep.services.partner_service import PartnerService
 from ref4ep.services.person_service import PersonService
 from ref4ep.services.seed_service import SeedService
@@ -65,9 +66,10 @@ def _session_scope() -> Iterator[Session]:
 
 
 def _admin_services(session: Session) -> tuple[PartnerService, PersonService, WorkpackageService]:
-    p = PartnerService(session, role="admin", person_id=CLI_ACTOR)
-    pe = PersonService(session, role="admin", person_id=CLI_ACTOR)
-    w = WorkpackageService(session, role="admin", person_id=CLI_ACTOR)
+    audit = AuditLogger(session, actor_label=CLI_ACTOR)
+    p = PartnerService(session, role="admin", person_id=CLI_ACTOR, audit=audit)
+    pe = PersonService(session, role="admin", person_id=CLI_ACTOR, audit=audit)
+    w = WorkpackageService(session, role="admin", person_id=CLI_ACTOR, audit=audit)
     return p, pe, w
 
 

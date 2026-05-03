@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ref4ep.domain.models import WP_ROLES, Membership, Partner, Person, Workpackage
+from ref4ep.services.audit_logger import AuditLogger
 from ref4ep.services.permissions import can_admin
 
 
@@ -34,10 +35,12 @@ class WorkpackageService:
         *,
         role: str | None = None,
         person_id: str | None = None,
+        audit: AuditLogger | None = None,
     ) -> None:
         self.session = session
         self.role = role
         self.person_id = person_id
+        self.audit = audit
 
     # ---- helpers --------------------------------------------------------
 
@@ -113,7 +116,18 @@ class WorkpackageService:
         )
         self.session.add(wp)
         self.session.flush()
-        # TODO Sprint 3: audit_logger.log_action("workpackage.create", wp.id, ...)
+        if self.audit is not None:
+            self.audit.log(
+                "workpackage.create",
+                entity_type="workpackage",
+                entity_id=wp.id,
+                after={
+                    "code": wp.code,
+                    "title": wp.title,
+                    "parent_workpackage_id": wp.parent_workpackage_id,
+                    "lead_partner_id": wp.lead_partner_id,
+                },
+            )
         return wp
 
     # ---- memberships ----------------------------------------------------
@@ -150,7 +164,17 @@ class WorkpackageService:
         membership = Membership(person_id=person_id, workpackage_id=workpackage_id, wp_role=wp_role)
         self.session.add(membership)
         self.session.flush()
-        # TODO Sprint 3: audit_logger.log_action("membership.add", membership.id, ...)
+        if self.audit is not None:
+            self.audit.log(
+                "membership.add",
+                entity_type="membership",
+                entity_id=membership.id,
+                after={
+                    "person_id": membership.person_id,
+                    "workpackage_id": membership.workpackage_id,
+                    "wp_role": membership.wp_role,
+                },
+            )
         return membership
 
     def remove_membership(self, person_id: str, workpackage_id: str) -> None:
@@ -163,6 +187,18 @@ class WorkpackageService:
         ).first()
         if membership is None:
             return
+        snapshot = {
+            "person_id": membership.person_id,
+            "workpackage_id": membership.workpackage_id,
+            "wp_role": membership.wp_role,
+        }
+        membership_id = membership.id
         self.session.delete(membership)
         self.session.flush()
-        # TODO Sprint 3: audit_logger.log_action("membership.remove", membership.id, ...)
+        if self.audit is not None:
+            self.audit.log(
+                "membership.remove",
+                entity_type="membership",
+                entity_id=membership_id,
+                before=snapshot,
+            )
