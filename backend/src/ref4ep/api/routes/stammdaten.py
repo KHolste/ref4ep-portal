@@ -49,7 +49,9 @@ def list_persons(_: PersonDep, session: SessionDep) -> list[PersonOut]:
             id=p.id,
             email=p.email,
             display_name=p.display_name,
-            partner=PartnerRefOut(short_name=p.partner.short_name, name=p.partner.name),
+            partner=PartnerRefOut(
+                id=p.partner.id, short_name=p.partner.short_name, name=p.partner.name
+            ),
             platform_role=p.platform_role,
             is_active=p.is_active,
             must_change_password=p.must_change_password,
@@ -77,7 +79,9 @@ def list_workpackages(
                 title=wp.title,
                 parent_code=parent_code,
                 lead_partner=PartnerRefOut(
-                    short_name=wp.lead_partner.short_name, name=wp.lead_partner.name
+                    id=wp.lead_partner.id,
+                    short_name=wp.lead_partner.short_name,
+                    name=wp.lead_partner.name,
                 ),
                 sort_order=wp.sort_order,
             )
@@ -100,6 +104,7 @@ def get_workpackage(code: str, _: PersonDep, session: SessionDep) -> Workpackage
             code=wp.parent.code,
             title=wp.parent.title,
             lead_partner=PartnerRefOut(
+                id=wp.parent.lead_partner.id,
                 short_name=wp.parent.lead_partner.short_name,
                 name=wp.parent.lead_partner.name,
             ),
@@ -109,7 +114,9 @@ def get_workpackage(code: str, _: PersonDep, session: SessionDep) -> Workpackage
             code=c.code,
             title=c.title,
             lead_partner=PartnerRefOut(
-                short_name=c.lead_partner.short_name, name=c.lead_partner.name
+                id=c.lead_partner.id,
+                short_name=c.lead_partner.short_name,
+                name=c.lead_partner.name,
             ),
         )
         for c in service.get_children(wp.id)
@@ -128,7 +135,9 @@ def get_workpackage(code: str, _: PersonDep, session: SessionDep) -> Workpackage
         description=wp.description,
         parent=parent_ref,
         lead_partner=PartnerRefOut(
-            short_name=wp.lead_partner.short_name, name=wp.lead_partner.name
+            id=wp.lead_partner.id,
+            short_name=wp.lead_partner.short_name,
+            name=wp.lead_partner.name,
         ),
         children=children,
         memberships=memberships,

@@ -41,7 +41,11 @@ def _person_to_out(person: Person) -> PersonOut:
         id=person.id,
         email=person.email,
         display_name=person.display_name,
-        partner=PartnerRefOut(short_name=person.partner.short_name, name=person.partner.name),
+        partner=PartnerRefOut(
+            id=person.partner.id,
+            short_name=person.partner.short_name,
+            name=person.partner.name,
+        ),
         platform_role=person.platform_role,
         is_active=person.is_active,
         must_change_password=person.must_change_password,
@@ -141,6 +145,7 @@ def me(person: PersonDep) -> MeOut:
             workpackage_title=m.workpackage.title,
             wp_role=m.wp_role,
             lead_partner=PartnerRefOut(
+                id=m.workpackage.lead_partner.id,
                 short_name=m.workpackage.lead_partner.short_name,
                 name=m.workpackage.lead_partner.name,
             ),

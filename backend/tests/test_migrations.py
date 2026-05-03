@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0005_document_description"
+CURRENT_HEAD = "0006_partner_extended_fields"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -225,3 +225,44 @@ def test_base_metadata_has_document_tables() -> None:
     from ref4ep.domain.base import Base
 
     assert DOCUMENT_TABLES.issubset(set(Base.metadata.tables.keys()))
+
+
+PARTNER_EXTENDED_COLUMNS = {
+    "general_email",
+    "address_line",
+    "postal_code",
+    "city",
+    "address_country",
+    "primary_contact_name",
+    "contact_email",
+    "contact_phone",
+    "project_role_note",
+    "is_active",
+    "internal_note",
+}
+
+
+def test_partner_extended_columns_exist(tmp_db_path: Path) -> None:
+    """Sprint-Block 0006: erweiterte Partner-Felder sind vorhanden."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    engine = create_engine(db_url)
+    columns = {c["name"]: c for c in inspect(engine).get_columns("partner")}
+    assert PARTNER_EXTENDED_COLUMNS.issubset(set(columns)), (
+        f"Fehlende Spalten: {PARTNER_EXTENDED_COLUMNS - set(columns)}"
+    )
+    # is_active ist NOT NULL mit Server-Default true.
+    assert columns["is_active"]["nullable"] is False
+    # Alle übrigen neuen Felder sind nullable.
+    for name in PARTNER_EXTENDED_COLUMNS - {"is_active"}:
+        assert columns[name]["nullable"] is True
+
+
+def test_partner_downgrade_removes_extended_columns(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0005_document_description")
+    engine = create_engine(db_url)
+    columns = {c["name"] for c in inspect(engine).get_columns("partner")}
+    assert columns.isdisjoint(PARTNER_EXTENDED_COLUMNS)

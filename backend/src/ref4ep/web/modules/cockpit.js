@@ -8,7 +8,12 @@ export async function render(container, ctx) {
   const partnerLine = h(
     "p",
     {},
-    `Partner: ${me.person.partner.name} (${me.person.partner.short_name})`,
+    `Partner: ${me.person.partner.name} (${me.person.partner.short_name}) — `,
+    h(
+      "a",
+      { href: `/portal/partners/${me.person.partner.id}` },
+      "Stammdaten anzeigen / bearbeiten",
+    ),
   );
 
   let mySection;

@@ -30,6 +30,7 @@ from ref4ep.api.routes.auth_api import router as auth_api_router
 from ref4ep.api.routes.auth_pages import router as auth_pages_router
 from ref4ep.api.routes.documents import router as documents_router
 from ref4ep.api.routes.health import router as health_router
+from ref4ep.api.routes.partners import router as partners_router
 from ref4ep.api.routes.public_documents import router as public_documents_router
 from ref4ep.api.routes.public_pages import router as public_pages_router
 from ref4ep.api.routes.stammdaten import router as stammdaten_router
@@ -90,6 +91,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     app.include_router(auth_api_router)
     app.include_router(stammdaten_router)
+    app.include_router(partners_router)
     app.include_router(documents_router)
     app.include_router(audit_router)
     app.include_router(admin_persons_router)

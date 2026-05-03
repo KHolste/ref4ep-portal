@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class PartnerRefOut(BaseModel):
+    id: str
     short_name: str
     name: str
 
@@ -16,6 +17,48 @@ class PartnerOut(BaseModel):
     name: str
     country: str
     website: str | None = None
+
+
+class PartnerDetailOut(BaseModel):
+    """Detail-Sicht für eingeloggte Personen.
+
+    Enthält alle fachlich öffentlichen Felder. ``internal_note`` ist
+    nur für Admins gefüllt und wird sonst weggelassen.
+    """
+
+    id: str
+    short_name: str
+    name: str
+    country: str
+    website: str | None = None
+    general_email: str | None = None
+    address_line: str | None = None
+    postal_code: str | None = None
+    city: str | None = None
+    address_country: str | None = None
+    primary_contact_name: str | None = None
+    contact_email: str | None = None
+    contact_phone: str | None = None
+    project_role_note: str | None = None
+    is_active: bool = True
+    internal_note: str | None = None
+    can_edit: bool = False
+
+
+class PartnerPatchRequest(BaseModel):
+    """WP-Lead-Patch — Whitelist erzwingt der Service zusätzlich."""
+
+    name: str | None = Field(default=None, min_length=1)
+    website: str | None = None
+    general_email: str | None = None
+    address_line: str | None = None
+    postal_code: str | None = None
+    city: str | None = None
+    address_country: str | None = Field(default=None, min_length=2, max_length=2)
+    primary_contact_name: str | None = None
+    contact_email: str | None = None
+    contact_phone: str | None = None
+    project_role_note: str | None = None
 
 
 class PersonOut(BaseModel):

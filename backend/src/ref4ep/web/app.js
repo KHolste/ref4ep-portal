@@ -11,6 +11,7 @@ const ROUTES = [
   { pattern: /^\/portal\/workpackages\/?$/, module: "workpackages" },
   { pattern: /^\/portal\/workpackages\/([^/]+)\/?$/, module: "workpackage_detail", param: "code" },
   { pattern: /^\/portal\/documents\/([^/]+)\/?$/, module: "document_detail", param: "id" },
+  { pattern: /^\/portal\/partners\/([^/]+)\/?$/, module: "partner_detail", param: "id" },
   { pattern: /^\/portal\/account\/?$/, module: "account" },
   { pattern: /^\/portal\/admin\/audit\/?$/, module: "audit" },
   { pattern: /^\/portal\/admin\/users\/?$/, module: "admin_users" },

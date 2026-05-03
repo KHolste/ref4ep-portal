@@ -40,14 +40,30 @@ def _partner_out(partner: Partner) -> AdminPartnerOut:
         name=partner.name,
         country=partner.country,
         website=partner.website,
+        general_email=partner.general_email,
+        address_line=partner.address_line,
+        postal_code=partner.postal_code,
+        city=partner.city,
+        address_country=partner.address_country,
+        primary_contact_name=partner.primary_contact_name,
+        contact_email=partner.contact_email,
+        contact_phone=partner.contact_phone,
+        project_role_note=partner.project_role_note,
+        is_active=partner.is_active,
+        internal_note=partner.internal_note,
         is_deleted=partner.is_deleted,
         created_at=partner.created_at,
         updated_at=partner.updated_at,
     )
 
 
-def _service(session: Session, *, audit: AuditLogger) -> PartnerService:
-    return PartnerService(session, role="admin", audit=audit)
+def _service(
+    session: Session,
+    *,
+    audit: AuditLogger,
+    person_id: str | None = None,
+) -> PartnerService:
+    return PartnerService(session, role="admin", person_id=person_id, audit=audit)
 
 
 @router.get("/partners", response_model=list[AdminPartnerOut])
@@ -76,6 +92,17 @@ def create_partner(
             short_name=payload.short_name,
             country=payload.country,
             website=payload.website,
+            general_email=payload.general_email,
+            address_line=payload.address_line,
+            postal_code=payload.postal_code,
+            city=payload.city,
+            address_country=payload.address_country,
+            primary_contact_name=payload.primary_contact_name,
+            contact_email=payload.contact_email,
+            contact_phone=payload.contact_phone,
+            project_role_note=payload.project_role_note,
+            is_active=payload.is_active,
+            internal_note=payload.internal_note,
         )
     except ValueError as exc:
         raise HTTPException(
@@ -105,6 +132,11 @@ def patch_partner(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"error": {"code": "invalid", "message": str(exc)}},
         ) from exc
     return _partner_out(partner)
 

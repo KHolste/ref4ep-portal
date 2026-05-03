@@ -71,6 +71,20 @@ class Partner(Base):
     short_name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     country: Mapped[str] = mapped_column(String(2), nullable=False)
     website: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Migration 0006: erweiterte Partnerdaten — alle optional, fachlich
+    # getrennt vom technischen Soft-Delete-Flag ``is_deleted``.
+    general_email: Mapped[str | None] = mapped_column(String, nullable=True)
+    address_line: Mapped[str | None] = mapped_column(String, nullable=True)
+    postal_code: Mapped[str | None] = mapped_column(String, nullable=True)
+    city: Mapped[str | None] = mapped_column(String, nullable=True)
+    address_country: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    primary_contact_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    contact_email: Mapped[str | None] = mapped_column(String, nullable=True)
+    contact_phone: Mapped[str | None] = mapped_column(String, nullable=True)
+    project_role_note: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Fachliche Aktivität im Projekt — getrennt von ``is_deleted``.
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    internal_note: Mapped[str | None] = mapped_column(String, nullable=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_now_utc
