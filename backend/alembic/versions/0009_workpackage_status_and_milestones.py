@@ -26,7 +26,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0009_workpackage_status_and_milestones"
+revision: str = "0009_wp_ms"
 down_revision: Union[str, None] = "0008_partner_organization_fields"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
