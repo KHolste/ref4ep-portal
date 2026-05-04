@@ -96,6 +96,64 @@ def test_admin_partners_uses_name_as_link_and_no_duplicate_edit() -> None:
     assert "Bearbeitende Einheit" in body
 
 
+# ---- Block 0009 — WP-Cockpit + Meilensteine ----------------------------
+
+
+def test_workpackage_detail_renders_cockpit_sections() -> None:
+    body = (MODULES_DIR / "workpackage_detail.js").read_text(encoding="utf-8")
+    for term in (
+        "Status",
+        "Kurzbeschreibung",
+        "Nächste Schritte",
+        "Offene Punkte",
+        "Cockpit",
+        "Meilensteine",
+        "Kontaktpersonen des Lead-Partners",
+    ):
+        assert term in body, f"workpackage_detail.js sollte {term!r} enthalten"
+    # Status-Werte (intern)
+    assert "in_progress" in body
+    assert "waiting_for_input" in body
+    assert "critical" in body
+    # Deutsche Anzeige
+    assert "in Arbeit" in body
+    assert "wartet auf Input" in body
+
+
+def test_navigation_includes_milestones_link() -> None:
+    body = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    assert 'href="/portal/milestones"' in body
+    assert "Meilensteine" in body
+    # Route registriert
+    app_js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    assert "milestones" in app_js
+
+
+def test_milestones_page_renders_table() -> None:
+    body = (MODULES_DIR / "milestones.js").read_text(encoding="utf-8")
+    for term in ("Code", "Titel", "Arbeitspaket", "Plandatum", "Istdatum", "Status", "Notiz"):
+        assert term in body
+    # Status-Übersetzungen
+    assert "geplant" in body
+    assert "erreicht" in body
+    assert "verschoben" in body
+    assert "gefährdet" in body
+    assert "entfallen" in body
+
+
+def test_no_deliverable_term_introduced_as_main_function(all_web_text: str) -> None:
+    """Ref4EP führt in diesem Block bewusst keine Deliverables ein.
+
+    „Deliverable" als Dokumenttyp-Label im Dokument-Anlegen-Dialog ist
+    erlaubt — das ist alte UI-Logik. Aber es darf keine eigene
+    Hauptfunktion / Sektion geben.
+    """
+    # Keine eigene Detailseite/Route /portal/deliverables.
+    assert "/portal/deliverables" not in all_web_text
+    # Keine Sektionsüberschrift „Deliverables" auf der Hauptebene.
+    assert ">Deliverables<" not in all_web_text
+
+
 def test_account_password_form_is_collapsible() -> None:
     body = (MODULES_DIR / "account.js").read_text(encoding="utf-8")
     # Verwendet das <details>-Element für die einklappbare Sektion.
@@ -174,6 +232,45 @@ def _broken_string_lines(src: str) -> list[tuple[int, str, str]]:
             str_start_line = line
         i += 1
     return issues
+
+
+def test_cockpit_uses_project_dashboard_terms() -> None:
+    """Block 0010: Cockpit zeigt vier Aggregatkarten mit klaren deutschen Labels."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    for term in (
+        "Nächste Meilensteine",
+        "Überfällige Meilensteine",
+        "Offene Punkte aus Arbeitspaketen",
+        "Arbeitspaket-Statusübersicht",
+    ):
+        assert term in body, f"cockpit.js sollte {term!r} enthalten"
+    # Cockpit lädt das Aggregat vom Backend.
+    assert "/api/cockpit/project" in body
+    # Links auf WP-Detail und Meilensteinübersicht.
+    assert "/portal/workpackages/" in body
+    assert "/portal/milestones" in body
+
+
+def test_cockpit_has_empty_states() -> None:
+    """Wenn Listen leer sind, zeigt das Cockpit deutsche Empty-States."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    assert "Keine offenen Meilensteine" in body
+    assert "Keine überfälligen Meilensteine" in body
+    assert "Aktuell sind keine offenen Punkte" in body
+
+
+def test_cockpit_does_not_introduce_deliverables() -> None:
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    # Weder als Wort noch als Pfad/Endpoint.
+    assert "deliverable" not in body.lower()
+    assert "/api/deliverables" not in body
+    assert "/portal/deliverables" not in body
+
+
+def test_cockpit_grid_styles_are_present() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert ".cockpit-grid" in css
+    assert ".cockpit-card" in css
 
 
 def test_no_javascript_string_spans_a_newline() -> None:

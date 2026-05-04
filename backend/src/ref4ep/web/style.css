@@ -258,6 +258,61 @@ details.collapsible[open] > summary {
   flex-wrap: wrap;
 }
 
+/* Projekt-Cockpit (Block 0010) — Karten-Layout. */
+.cockpit-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  margin: 1rem 0;
+}
+
+.cockpit-card {
+  border: 1px solid #d6dfe9;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  background: #fff;
+}
+
+.cockpit-card h2,
+.cockpit-card h3 {
+  margin-top: 0;
+}
+
+.cockpit-card ul {
+  padding-left: 1.1rem;
+  margin: 0.5rem 0;
+}
+
+.cockpit-card .empty {
+  color: #555;
+  font-style: italic;
+}
+
+.cockpit-card.danger {
+  border-color: #c0392b;
+  background: #fdecea;
+}
+
+.cockpit-status-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin: 0.5rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cockpit-status-counts li {
+  font-size: 0.9rem;
+}
+
+.cockpit-status-counts strong {
+  display: inline-block;
+  min-width: 1.5rem;
+  text-align: right;
+  margin-right: 0.25rem;
+}
+
 .dialog {
   margin-top: 1rem;
   padding: 1rem;
