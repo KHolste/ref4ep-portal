@@ -1,4 +1,4 @@
-"""API: Partner-Detail + WP-Lead-Edit (Migration 0006)."""
+"""API: Partner-Detail + WP-Lead-Edit (Block 0008)."""
 
 from __future__ import annotations
 
@@ -101,19 +101,28 @@ def test_wp_lead_can_patch_own_partner_via_api(
         f"/api/partners/{pid}",
         json={
             "name": "JLU Gießen — neu",
-            "contact_email": "info@jlu.example",
-            "primary_contact_name": "C. Lead",
+            "unit_name": "I. Physikalisches Institut",
+            "organization_address_line": "Heinrich-Buff-Ring 16",
+            "organization_postal_code": "35392",
+            "organization_city": "Gießen",
+            "organization_country": "DE",
+            "unit_address_same_as_organization": True,
         },
         headers=_csrf(member_client),
     )
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["name"] == "JLU Gießen — neu"
-    assert body["contact_email"] == "info@jlu.example"
-    assert body["primary_contact_name"] == "C. Lead"
+    assert body["unit_name"] == "I. Physikalisches Institut"
+    assert body["organization_address_line"] == "Heinrich-Buff-Ring 16"
+    assert body["organization_city"] == "Gießen"
+    assert body["unit_address_same_as_organization"] is True
     assert body["can_edit"] is True
     # internal_note bleibt für non-admin verborgen.
     assert body["internal_note"] is None
+    # Personenbezogene Felder dürfen im Antwortobjekt gar nicht mehr auftauchen.
+    for legacy in ("primary_contact_name", "contact_email", "contact_phone", "project_role_note"):
+        assert legacy not in body
 
 
 def test_wp_lead_patch_ignores_admin_only_fields(
@@ -156,17 +165,19 @@ def test_admin_patch_via_partners_route_writes_all_fields(
         f"/api/partners/{pid}",
         json={
             "name": "JLU neu",
-            "contact_email": "admin@jlu.example",
+            "unit_name": "II. Physikalisches Institut",
+            "organization_country": "DE",
         },
         headers=_csrf(admin_client),
     )
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["name"] == "JLU neu"
-    assert body["contact_email"] == "admin@jlu.example"
+    assert body["unit_name"] == "II. Physikalisches Institut"
+    assert body["organization_country"] == "DE"
 
 
-def test_patch_invalid_email_returns_422(
+def test_patch_invalid_country_returns_422(
     member_client: TestClient,
     seeded_session: Session,
     member_person_id: str,
@@ -178,7 +189,7 @@ def test_patch_invalid_email_returns_422(
     seeded_session.commit()
     r = member_client.patch(
         f"/api/partners/{pid}",
-        json={"contact_email": "kein_at_zeichen"},
+        json={"organization_country": "DEU"},
         headers=_csrf(member_client),
     )
     assert r.status_code == 422
@@ -207,7 +218,8 @@ def test_admin_list_partners_returns_extended_fields(
     pid = _jlu_id(seeded_session)
     PartnerService(seeded_session, role="admin").update(
         pid,
-        contact_email="info@jlu.example",
+        unit_name="I. Physikalisches Institut",
+        organization_city="Gießen",
         is_active=True,
         internal_note="Hinweis",
     )
@@ -215,9 +227,13 @@ def test_admin_list_partners_returns_extended_fields(
     r = admin_client.get("/api/admin/partners")
     assert r.status_code == 200
     jlu = next(p for p in r.json() if p["short_name"] == "JLU")
-    assert jlu["contact_email"] == "info@jlu.example"
+    assert jlu["unit_name"] == "I. Physikalisches Institut"
+    assert jlu["organization_city"] == "Gießen"
     assert jlu["is_active"] is True
     assert jlu["internal_note"] == "Hinweis"
+    # Personenbezogene Felder dürfen in der Liste nicht mehr enthalten sein.
+    for legacy in ("primary_contact_name", "contact_email", "contact_phone", "project_role_note"):
+        assert legacy not in jlu
 
 
 def test_me_response_now_includes_partner_id(member_client: TestClient) -> None:
@@ -227,3 +243,76 @@ def test_me_response_now_includes_partner_id(member_client: TestClient) -> None:
     assert body["person"]["email"] == MEMBER_EMAIL
     assert "id" in body["person"]["partner"]
     assert body["person"]["partner"]["id"]
+
+
+# ---- Admin-Anlegen ist auf Organisation-Minimalfelder reduziert ---------
+
+
+def test_admin_create_accepts_minimal_organization_fields_only(
+    admin_client: TestClient,
+) -> None:
+    r = admin_client.post(
+        "/api/admin/partners",
+        json={
+            "short_name": "TEST",
+            "name": "Test-Organisation",
+            "country": "DE",
+            "website": "https://test.example",
+            "unit_name": "Testabteilung",
+        },
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["short_name"] == "TEST"
+    assert body["unit_name"] == "Testabteilung"
+    assert body["unit_address_same_as_organization"] is True
+
+
+def test_admin_create_rejects_legacy_person_fields(admin_client: TestClient) -> None:
+    """Anlegen-Schema enthält keine personenbezogenen Felder mehr — Pydantic ignoriert sie."""
+    r = admin_client.post(
+        "/api/admin/partners",
+        json={
+            "short_name": "TEST2",
+            "name": "T2",
+            "country": "DE",
+            "primary_contact_name": "Eingeschmuggelt",
+            "contact_email": "eingeschmuggelt@x.example",
+        },
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    # Personenbezogene Felder sind im Antwortobjekt nicht vorhanden.
+    for legacy in ("primary_contact_name", "contact_email", "contact_phone", "project_role_note"):
+        assert legacy not in body
+
+
+def test_patch_unit_address_same_as_org_clears_unit_fields(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    pid = _jlu_id(seeded_session)
+    # Erst Einheitsadresse setzen.
+    PartnerService(seeded_session, role="admin").update(
+        pid,
+        unit_address_same_as_organization=False,
+        unit_address_line="Alt 1",
+        unit_postal_code="00000",
+        unit_city="Altstadt",
+        unit_country="DE",
+    )
+    seeded_session.commit()
+    # Dann via API auf "identisch" setzen.
+    r = admin_client.patch(
+        f"/api/partners/{pid}",
+        json={"unit_address_same_as_organization": True},
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["unit_address_same_as_organization"] is True
+    assert body["unit_address_line"] is None
+    assert body["unit_postal_code"] is None
+    assert body["unit_city"] is None
+    assert body["unit_country"] is None

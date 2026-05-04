@@ -33,6 +33,10 @@ function renderCreateForm(onSaved, onCancel) {
     placeholder: "z. B. DE",
   });
   const websiteInput = h("input", { type: "url", placeholder: "https://…" });
+  const unitNameInput = h("input", {
+    type: "text",
+    placeholder: "z. B. I. Physikalisches Institut (optional)",
+  });
   const errorBox = h("p", { class: "error", style: "display:none" }, "");
 
   async function onSubmit(ev) {
@@ -44,6 +48,7 @@ function renderCreateForm(onSaved, onCancel) {
         name: nameInput.value,
         country: countryInput.value.toUpperCase(),
         website: nullIfBlank(websiteInput.value),
+        unit_name: nullIfBlank(unitNameInput.value),
       });
       onSaved();
     } catch (err) {
@@ -56,16 +61,20 @@ function renderCreateForm(onSaved, onCancel) {
     "form",
     { class: "stacked", onsubmit: onSubmit },
     fieldsetGroup(
-      "Stammdaten",
+      "Organisation",
       h("label", {}, "Kürzel", shortInput),
-      h("label", {}, "Name", nameInput),
+      h("label", {}, "Name der Organisation", nameInput),
       h("label", {}, "Land (ISO-3166-1 Alpha-2)", countryInput),
       h("label", {}, "Website (optional)", websiteInput),
+    ),
+    fieldsetGroup(
+      "Bearbeitende Einheit (optional)",
+      h("label", {}, "Institut / Arbeitsgruppe / Abteilung", unitNameInput),
     ),
     h(
       "p",
       { class: "muted" },
-      "Adresse, Kontakt und Kontaktpersonen werden anschließend auf der Detailseite gepflegt.",
+      "Adressen und Kontaktpersonen werden anschließend auf der Detailseite gepflegt.",
     ),
     errorBox,
     h(
@@ -90,12 +99,9 @@ function rowFor(partner, onDelete) {
   return h(
     "tr",
     { class: cls },
-    h(
-      "td",
-      {},
-      h("a", { href: `/portal/partners/${partner.id}` }, partner.name),
-    ),
+    h("td", {}, h("a", { href: `/portal/partners/${partner.id}` }, partner.name)),
     h("td", {}, partner.short_name),
+    h("td", {}, partner.unit_name || h("span", { class: "muted" }, "—")),
     h("td", {}, partner.country),
     h(
       "td",
@@ -178,6 +184,7 @@ export async function render(container, ctx) {
         {},
         h("th", {}, "Name"),
         h("th", {}, "Kürzel"),
+        h("th", {}, "Bearbeitende Einheit"),
         h("th", {}, "Land"),
         h("th", {}, "Website"),
         h("th", {}, "Status"),

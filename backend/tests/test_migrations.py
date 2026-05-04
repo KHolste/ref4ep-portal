@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0007_partner_contacts"
+CURRENT_HEAD = "0008_partner_organization_fields"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -227,48 +227,122 @@ def test_base_metadata_has_document_tables() -> None:
     assert DOCUMENT_TABLES.issubset(set(Base.metadata.tables.keys()))
 
 
-# Block 0006 → 0007: ``general_email`` wurde mit 0007 wieder entfernt;
-# bleibt also nicht mehr in der Stamm-Whitelist enthalten.
-PARTNER_EXTENDED_COLUMNS = {
-    "address_line",
-    "postal_code",
-    "city",
-    "address_country",
-    "primary_contact_name",
-    "contact_email",
-    "contact_phone",
-    "project_role_note",
+# Block 0008-State: Partner-Stammdaten beschreiben Organisation und
+# bearbeitende Einheit. Die personenbezogenen Spalten aus 0006 sind weg
+# (siehe ``PARTNER_REMOVED_PERSON_COLUMNS``).
+PARTNER_ORGANIZATION_COLUMNS = {
+    "unit_name",
+    "organization_address_line",
+    "organization_postal_code",
+    "organization_city",
+    "organization_country",
+    "unit_address_same_as_organization",
+    "unit_address_line",
+    "unit_postal_code",
+    "unit_city",
+    "unit_country",
     "is_active",
     "internal_note",
 }
 
+PARTNER_REMOVED_PERSON_COLUMNS = {
+    "primary_contact_name",
+    "contact_email",
+    "contact_phone",
+    "project_role_note",
+}
+
 
 def test_partner_extended_columns_exist(tmp_db_path: Path) -> None:
-    """Block 0006/0007: erweiterte Partner-Felder vorhanden, general_email weg."""
+    """Block 0008: Organisations-/Einheits-Felder da, Personenfelder weg."""
     db_url = f"sqlite:///{tmp_db_path}"
     command.upgrade(_make_config(db_url), "head")
     engine = create_engine(db_url)
     columns = {c["name"]: c for c in inspect(engine).get_columns("partner")}
-    assert PARTNER_EXTENDED_COLUMNS.issubset(set(columns)), (
-        f"Fehlende Spalten: {PARTNER_EXTENDED_COLUMNS - set(columns)}"
-    )
-    # 0007: general_email muss entfernt sein.
+    missing = PARTNER_ORGANIZATION_COLUMNS - set(columns)
+    assert not missing, f"Fehlende Spalten: {missing}"
+    # 0008: personenbezogene Spalten müssen alle weg sein.
+    assert PARTNER_REMOVED_PERSON_COLUMNS.isdisjoint(set(columns))
+    # 0007: general_email bleibt entfernt.
     assert "general_email" not in columns
-    # is_active ist NOT NULL mit Server-Default true.
-    assert columns["is_active"]["nullable"] is False
-    # Alle übrigen neuen Felder sind nullable.
-    for name in PARTNER_EXTENDED_COLUMNS - {"is_active"}:
-        assert columns[name]["nullable"] is True
+    # Alte Adress-Spaltennamen sind durch organization_*-Renames weg.
+    for old_name in ("address_line", "postal_code", "city", "address_country"):
+        assert old_name not in columns
+    # NOT-NULL-Pflichten:
+    for col in ("is_active", "unit_address_same_as_organization"):
+        assert columns[col]["nullable"] is False
 
 
-def test_partner_downgrade_removes_extended_columns(tmp_db_path: Path) -> None:
+def test_partner_downgrade_removes_organization_columns(tmp_db_path: Path) -> None:
+    """Downgrade auf 0005 entfernt alle 0006/0007/0008-Erweiterungen."""
     db_url = f"sqlite:///{tmp_db_path}"
     cfg = _make_config(db_url)
     command.upgrade(cfg, "head")
     command.downgrade(cfg, "0005_document_description")
     engine = create_engine(db_url)
     columns = {c["name"] for c in inspect(engine).get_columns("partner")}
-    assert columns.isdisjoint(PARTNER_EXTENDED_COLUMNS)
+    assert columns.isdisjoint(PARTNER_ORGANIZATION_COLUMNS)
+
+
+def test_downgrade_to_0007_restores_person_columns_and_old_address_names(
+    tmp_db_path: Path,
+) -> None:
+    """Downgrade 0008 → 0007: alte Adressnamen + Personenfelder kommen zurück."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0007_partner_contacts")
+    engine = create_engine(db_url)
+    columns = {c["name"] for c in inspect(engine).get_columns("partner")}
+    # Personenbezogene Felder wieder vorhanden (für Bestandsdaten).
+    assert PARTNER_REMOVED_PERSON_COLUMNS.issubset(columns)
+    # Adressspalten haben wieder die alten Namen.
+    for old_name in ("address_line", "postal_code", "city", "address_country"):
+        assert old_name in columns
+    # Neue Einheits-Spalten weg.
+    for new_name in (
+        "unit_name",
+        "unit_address_same_as_organization",
+        "unit_address_line",
+        "unit_postal_code",
+        "unit_city",
+        "unit_country",
+        "organization_address_line",
+        "organization_postal_code",
+        "organization_city",
+        "organization_country",
+    ):
+        assert new_name not in columns
+
+
+def test_partner_address_data_survives_rename_round_trip(tmp_db_path: Path) -> None:
+    """Bestehender Datensatz mit Adresswerten bleibt nach 0007→0008 lesbar.
+
+    Wir starten in 0007 (alte Spaltennamen), legen einen Partner mit
+    Adresse an, fahren auf head (0008) hoch und prüfen, dass die
+    Werte unter den neuen Namen ``organization_*`` ankommen.
+    """
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "0007_partner_contacts")
+    engine = create_engine(db_url)
+    with engine.begin() as conn:
+        conn.exec_driver_sql(
+            "INSERT INTO partner (id, name, short_name, country, "
+            "address_line, postal_code, city, address_country, "
+            "is_active, is_deleted, created_at, updated_at) VALUES "
+            "('p1', 'P1', 'P1', 'DE', 'Hauptstr. 1', '12345', 'Stadt', 'DE', "
+            "1, 0, datetime('now'), datetime('now'))"
+        )
+    command.upgrade(cfg, "head")
+    with engine.begin() as conn:
+        row = conn.exec_driver_sql(
+            "SELECT organization_address_line, organization_postal_code, "
+            "organization_city, organization_country, "
+            "unit_address_same_as_organization "
+            "FROM partner WHERE id = 'p1'"
+        ).fetchone()
+    assert row == ("Hauptstr. 1", "12345", "Stadt", "DE", 1)
 
 
 # ---- Block 0007 — Partnerkontakte --------------------------------------

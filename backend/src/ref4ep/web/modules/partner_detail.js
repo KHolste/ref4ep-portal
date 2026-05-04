@@ -19,9 +19,21 @@ function renderRow(label, value) {
   return h("tr", {}, h("th", {}, label), h("td", {}, value));
 }
 
+function formatAddress(line, postal, city, country) {
+  const parts = [line, [postal, city].filter(Boolean).join(" "), country]
+    .filter((p) => p && p.trim())
+    .join(", ");
+  return parts || null;
+}
+
+function kvTable(...rows) {
+  return h("table", { class: "kv" }, h("tbody", {}, ...rows));
+}
+
 function renderViewMode(partner) {
-  const rows = [
+  const orgRows = [
     renderRow("Kürzel", partner.short_name),
+    renderRow("Name der Organisation", partner.name),
     renderRow("Land", partner.country),
     renderRow(
       "Website",
@@ -29,73 +41,145 @@ function renderViewMode(partner) {
         ? h("a", { href: partner.website, rel: "noopener noreferrer" }, partner.website)
         : null,
     ),
+  ];
+  const unitRows = [renderRow("Bearbeitende Einheit", partner.unit_name)];
+  const orgAddrRows = [
     renderRow(
-      "Postanschrift",
-      [
-        partner.address_line,
-        [partner.postal_code, partner.city].filter(Boolean).join(" "),
-        partner.address_country,
+      "Adresse der Organisation",
+      formatAddress(
+        partner.organization_address_line,
+        partner.organization_postal_code,
+        partner.organization_city,
+        partner.organization_country,
+      ),
+    ),
+  ];
+  const sameAddr = !!partner.unit_address_same_as_organization;
+  const unitAddrRows = sameAddr
+    ? [
+        renderRow(
+          "Adresse der bearbeitenden Einheit",
+          h("span", { class: "muted" }, "identisch mit Organisationsadresse"),
+        ),
       ]
-        .filter((p) => p && p.trim())
-        .join(", ") || null,
+    : [
+        renderRow(
+          "Adresse der bearbeitenden Einheit",
+          formatAddress(
+            partner.unit_address_line,
+            partner.unit_postal_code,
+            partner.unit_city,
+            partner.unit_country,
+          ),
+        ),
+      ];
+
+  const sections = [
+    h("section", {}, h("h3", {}, "Organisation"), kvTable(...orgRows)),
+    h("section", {}, h("h3", {}, "Bearbeitende Einheit"), kvTable(...unitRows)),
+    h("section", {}, h("h3", {}, "Adresse der Organisation"), kvTable(...orgAddrRows)),
+    h(
+      "section",
+      {},
+      h("h3", {}, "Adresse der bearbeitenden Einheit"),
+      kvTable(...unitAddrRows),
     ),
-    renderRow("Projektkontakt", partner.primary_contact_name),
-    renderRow(
-      "Kontakt-E-Mail",
-      partner.contact_email
-        ? h("a", { href: `mailto:${partner.contact_email}` }, partner.contact_email)
-        : null,
-    ),
-    renderRow("Telefon", partner.contact_phone),
-    renderRow("Rolle / Aufgabe im Projekt", partner.project_role_note),
   ];
   if (partner.internal_note !== null && partner.internal_note !== undefined) {
-    rows.push(renderRow("Interne Notiz (nur Admin)", partner.internal_note));
+    sections.push(
+      h(
+        "section",
+        {},
+        h("h3", {}, "Verwaltung (nur Admin)"),
+        kvTable(renderRow("Interne Notiz", partner.internal_note)),
+      ),
+    );
   }
-  return h("table", { class: "kv" }, h("tbody", {}, ...rows));
+  return h("div", { class: "partner-stamm-view" }, ...sections);
 }
 
 function renderEditForm(partner, onSaved, onCancel) {
+  // Organisation
   const nameInput = h("input", { type: "text", value: partner.name || "", required: true });
   const websiteInput = h("input", {
     type: "url",
     value: partner.website || "",
     placeholder: "https://…",
   });
-  const addressLineInput = h("input", { type: "text", value: partner.address_line || "" });
-  const postalCodeInput = h("input", { type: "text", value: partner.postal_code || "" });
-  const cityInput = h("input", { type: "text", value: partner.city || "" });
-  const addressCountryInput = h("input", {
+  // Bearbeitende Einheit
+  const unitNameInput = h("input", { type: "text", value: partner.unit_name || "" });
+  // Organisationsadresse
+  const orgLineInput = h("input", {
     type: "text",
-    value: partner.address_country || "",
+    value: partner.organization_address_line || "",
+  });
+  const orgPostalInput = h("input", {
+    type: "text",
+    value: partner.organization_postal_code || "",
+  });
+  const orgCityInput = h("input", { type: "text", value: partner.organization_city || "" });
+  const orgCountryInput = h("input", {
+    type: "text",
+    value: partner.organization_country || "",
     minlength: "2",
     maxlength: "2",
     placeholder: "z. B. DE",
   });
-  const primaryContactInput = h("input", {
-    type: "text",
-    value: partner.primary_contact_name || "",
+  // Einheitsadresse + Toggle
+  const sameAddressCheckbox = h("input", {
+    type: "checkbox",
+    ...(partner.unit_address_same_as_organization !== false ? { checked: "" } : {}),
   });
-  const contactEmailInput = h("input", { type: "email", value: partner.contact_email || "" });
-  const contactPhoneInput = h("input", { type: "text", value: partner.contact_phone || "" });
-  const projectRoleInput = h("textarea", { rows: "3" }, partner.project_role_note || "");
+  const unitLineInput = h("input", { type: "text", value: partner.unit_address_line || "" });
+  const unitPostalInput = h("input", { type: "text", value: partner.unit_postal_code || "" });
+  const unitCityInput = h("input", { type: "text", value: partner.unit_city || "" });
+  const unitCountryInput = h("input", {
+    type: "text",
+    value: partner.unit_country || "",
+    minlength: "2",
+    maxlength: "2",
+    placeholder: "z. B. DE",
+  });
+
+  const unitAddressFieldset = h(
+    "fieldset",
+    { class: "form-group", id: "unit-address-fieldset" },
+    h("legend", {}, "Adresse der bearbeitenden Einheit"),
+    h("label", {}, "Straße / Hausnr.", unitLineInput),
+    h("label", {}, "PLZ", unitPostalInput),
+    h("label", {}, "Ort", unitCityInput),
+    h("label", {}, "Land (ISO-3166-1 Alpha-2)", unitCountryInput),
+  );
+
+  function applySameAddressVisibility() {
+    const same = sameAddressCheckbox.checked;
+    unitAddressFieldset.style.display = same ? "none" : "";
+    for (const inp of [unitLineInput, unitPostalInput, unitCityInput, unitCountryInput]) {
+      inp.disabled = same;
+    }
+  }
+  sameAddressCheckbox.addEventListener("change", applySameAddressVisibility);
+  applySameAddressVisibility();
 
   const errorBox = h("p", { class: "error", style: "display:none" }, "");
 
   async function onSubmit(ev) {
     ev.preventDefault();
     errorBox.style.display = "none";
+    const same = sameAddressCheckbox.checked;
     const payload = {
       name: nameInput.value,
       website: nullIfBlank(websiteInput.value),
-      address_line: nullIfBlank(addressLineInput.value),
-      postal_code: nullIfBlank(postalCodeInput.value),
-      city: nullIfBlank(cityInput.value),
-      address_country: nullIfBlank(addressCountryInput.value)?.toUpperCase() ?? null,
-      primary_contact_name: nullIfBlank(primaryContactInput.value),
-      contact_email: nullIfBlank(contactEmailInput.value),
-      contact_phone: nullIfBlank(contactPhoneInput.value),
-      project_role_note: nullIfBlank(projectRoleInput.value),
+      unit_name: nullIfBlank(unitNameInput.value),
+      organization_address_line: nullIfBlank(orgLineInput.value),
+      organization_postal_code: nullIfBlank(orgPostalInput.value),
+      organization_city: nullIfBlank(orgCityInput.value),
+      organization_country: nullIfBlank(orgCountryInput.value)?.toUpperCase() ?? null,
+      unit_address_same_as_organization: same,
+      unit_address_line: same ? null : nullIfBlank(unitLineInput.value),
+      unit_postal_code: same ? null : nullIfBlank(unitPostalInput.value),
+      unit_city: same ? null : nullIfBlank(unitCityInput.value),
+      unit_country: same ? null : (nullIfBlank(unitCountryInput.value)?.toUpperCase() ?? null),
     };
     try {
       await api("PATCH", `/api/partners/${partner.id}`, payload);
@@ -110,23 +194,40 @@ function renderEditForm(partner, onSaved, onCancel) {
     "form",
     { class: "stacked", onsubmit: onSubmit },
     h("p", { class: "muted" }, "Kürzel und Land sind nicht editierbar — bitte beim Admin melden."),
-    h("label", {}, "Name", nameInput),
-    h("label", {}, "Website (optional)", websiteInput),
-    h("h3", {}, "Postanschrift"),
-    h("label", {}, "Straße / Hausnr.", addressLineInput),
-    h("label", {}, "PLZ", postalCodeInput),
-    h("label", {}, "Ort", cityInput),
-    h("label", {}, "Land (ISO-3166-1 Alpha-2)", addressCountryInput),
-    h("h3", {}, "Allgemeiner Projektkontakt"),
+    h(
+      "fieldset",
+      { class: "form-group" },
+      h("legend", {}, "Organisation"),
+      h("label", {}, "Name der Organisation", nameInput),
+      h("label", {}, "Website (optional)", websiteInput),
+    ),
+    h(
+      "fieldset",
+      { class: "form-group" },
+      h("legend", {}, "Bearbeitende Einheit"),
+      h("label", {}, "Institut / Arbeitsgruppe / Abteilung", unitNameInput),
+    ),
+    h(
+      "fieldset",
+      { class: "form-group" },
+      h("legend", {}, "Adresse der Organisation"),
+      h("label", {}, "Straße / Hausnr.", orgLineInput),
+      h("label", {}, "PLZ", orgPostalInput),
+      h("label", {}, "Ort", orgCityInput),
+      h("label", {}, "Land (ISO-3166-1 Alpha-2)", orgCountryInput),
+    ),
+    h(
+      "label",
+      { class: "checkbox-row" },
+      sameAddressCheckbox,
+      h("span", {}, "Adresse der bearbeitenden Einheit ist identisch mit der Organisationsadresse"),
+    ),
+    unitAddressFieldset,
     h(
       "p",
       { class: "muted" },
-      "Konkrete Personen werden weiter unten unter „Kontaktpersonen“ gepflegt.",
+      "Personenbezogene Angaben werden ausschließlich unter „Kontaktpersonen“ gepflegt.",
     ),
-    h("label", {}, "Name", primaryContactInput),
-    h("label", {}, "E-Mail", contactEmailInput),
-    h("label", {}, "Telefon", contactPhoneInput),
-    h("label", {}, "Rolle / Aufgabe im Projekt", projectRoleInput),
     errorBox,
     h(
       "div",

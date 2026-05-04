@@ -33,12 +33,55 @@ def test_general_email_is_gone_from_frontend(all_web_text: str) -> None:
     assert "Allgemeine E-Mail" not in all_web_text
 
 
+def test_legacy_person_fields_are_gone_from_partner_stamm_ui() -> None:
+    """0008: alte personenbezogene Partner-Felder dürfen nicht mehr in
+    partner_detail.js / admin_partners.js auftauchen — weder als
+    Schlüssel noch als Label.
+    """
+    paths = (
+        MODULES_DIR / "partner_detail.js",
+        MODULES_DIR / "admin_partners.js",
+    )
+    for path in paths:
+        body = path.read_text(encoding="utf-8")
+        for legacy_key in (
+            "primary_contact_name",
+            "contact_email",
+            "contact_phone",
+            "project_role_note",
+        ):
+            assert legacy_key not in body, f"{path.name} enthält noch {legacy_key!r}"
+        for legacy_label in (
+            "Projektkontakt",
+            "Kontakt-E-Mail",
+            "Rolle / Aufgabe im Projekt",
+        ):
+            assert legacy_label not in body, f"{path.name} enthält noch Label {legacy_label!r}"
+    # Telefon ist im Kontaktpersonen-Block legitim — daher prüfen wir dort
+    # nur, dass das Stamm-Edit keine eigene Telefon-Sektion mehr enthält:
+    detail = (MODULES_DIR / "partner_detail.js").read_text(encoding="utf-8")
+    assert "Allgemeiner Projektkontakt" not in detail
+
+
+def test_partner_detail_uses_new_organization_terms() -> None:
+    body = (MODULES_DIR / "partner_detail.js").read_text(encoding="utf-8")
+    for term in (
+        "Organisation",
+        "Bearbeitende Einheit",
+        "Adresse der Organisation",
+        "Adresse der bearbeitenden Einheit",
+        "Kontaktpersonen",
+    ):
+        assert term in body, f"partner_detail.js sollte {term!r} enthalten"
+    # Toggle / Checkbox für identische Adresse vorhanden.
+    assert "unit_address_same_as_organization" in body
+    assert "identisch" in body
+
+
 def test_partner_detail_renders_contacts_section() -> None:
     body = (MODULES_DIR / "partner_detail.js").read_text(encoding="utf-8")
-    # Sektionsüberschrift, Anzeige- und Anlege-Bezeichnungen müssen vorhanden sein.
     assert "Kontaktpersonen" in body
     assert "Kontakt anlegen" in body or "Kontakt anlegen …" in body
-    # Aufruf der Kontakte-API.
     assert "/api/partners/${partner.id}/contacts" in body or "/contacts" in body
     assert "/api/partner-contacts/" in body
 
@@ -49,6 +92,8 @@ def test_admin_partners_uses_name_as_link_and_no_duplicate_edit() -> None:
     assert "/portal/partners/${partner.id}" in body
     # Kein doppelter Bearbeiten-Button mehr in der Listenzeile (Edit lebt im Detail).
     assert "Bearbeiten …" not in body
+    # Optional: bearbeitende Einheit ist eine eigene Spalte in der Liste.
+    assert "Bearbeitende Einheit" in body
 
 
 def test_account_password_form_is_collapsible() -> None:

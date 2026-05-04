@@ -100,18 +100,28 @@ class Partner(Base):
     short_name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     country: Mapped[str] = mapped_column(String(2), nullable=False)
     website: Mapped[str | None] = mapped_column(String, nullable=True)
-    # Migration 0006: erweiterte Partnerdaten — alle optional, fachlich
-    # getrennt vom technischen Soft-Delete-Flag ``is_deleted``.
-    # ``general_email`` (0006) wurde mit 0007 wieder entfernt: Konsortialer
-    # Kontakt läuft ausschließlich über ``partner_contact``.
-    address_line: Mapped[str | None] = mapped_column(String, nullable=True)
-    postal_code: Mapped[str | None] = mapped_column(String, nullable=True)
-    city: Mapped[str | None] = mapped_column(String, nullable=True)
-    address_country: Mapped[str | None] = mapped_column(String(2), nullable=True)
-    primary_contact_name: Mapped[str | None] = mapped_column(String, nullable=True)
-    contact_email: Mapped[str | None] = mapped_column(String, nullable=True)
-    contact_phone: Mapped[str | None] = mapped_column(String, nullable=True)
-    project_role_note: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Migration 0006/0007/0008: Partner-Stammdaten beschreiben jetzt
+    # ausschließlich Organisation und bearbeitende Einheit. Personen
+    # liegen ausschließlich in ``partner_contact``.
+    #
+    # Bearbeitende Einheit innerhalb der Organisation
+    # (z. B. „I. Physikalisches Institut" bei der JLU). Optional.
+    unit_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Postanschrift der Organisation.
+    organization_address_line: Mapped[str | None] = mapped_column(String, nullable=True)
+    organization_postal_code: Mapped[str | None] = mapped_column(String, nullable=True)
+    organization_city: Mapped[str | None] = mapped_column(String, nullable=True)
+    organization_country: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    # Postanschrift der bearbeitenden Einheit. Wenn das Flag gesetzt
+    # ist (Default), übernimmt die UI die Organisationsadresse und
+    # die unit_address_*-Felder bleiben leer.
+    unit_address_same_as_organization: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
+    unit_address_line: Mapped[str | None] = mapped_column(String, nullable=True)
+    unit_postal_code: Mapped[str | None] = mapped_column(String, nullable=True)
+    unit_city: Mapped[str | None] = mapped_column(String, nullable=True)
+    unit_country: Mapped[str | None] = mapped_column(String(2), nullable=True)
     # Fachliche Aktivität im Projekt — getrennt von ``is_deleted``.
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     internal_note: Mapped[str | None] = mapped_column(String, nullable=True)

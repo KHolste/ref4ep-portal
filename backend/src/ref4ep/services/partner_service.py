@@ -12,6 +12,13 @@ bearbeiten (siehe ``WP_LEAD_FIELDS``).
 
 Block 0007: ``general_email`` wurde wieder entfernt — Kontakt
 läuft ausschließlich über ``PartnerContact``.
+
+Block 0008: Personenbezogene Partnerfelder
+(``primary_contact_name``, ``contact_email``, ``contact_phone``,
+``project_role_note``) sind weg; Adressspalten heißen
+``organization_*`` und es gibt eigene Felder für die
+bearbeitende Einheit (``unit_name``, ``unit_address_*``,
+``unit_address_same_as_organization``).
 """
 
 from __future__ import annotations
@@ -22,7 +29,7 @@ from sqlalchemy.orm import Session
 from ref4ep.domain.models import Membership, Partner, Workpackage
 from ref4ep.services.audit_logger import AuditLogger
 from ref4ep.services.permissions import can_admin
-from ref4ep.services.validators import normalise_text, validate_country_code, validate_email
+from ref4ep.services.validators import normalise_text, validate_country_code
 
 # Felder, die sowohl bei Create als auch beim Vergleich für Audit
 # berücksichtigt werden. Reihenfolge bestimmt die Reihenfolge in
@@ -32,14 +39,16 @@ ADMIN_FIELDS: tuple[str, ...] = (
     "short_name",
     "country",
     "website",
-    "address_line",
-    "postal_code",
-    "city",
-    "address_country",
-    "primary_contact_name",
-    "contact_email",
-    "contact_phone",
-    "project_role_note",
+    "unit_name",
+    "organization_address_line",
+    "organization_postal_code",
+    "organization_city",
+    "organization_country",
+    "unit_address_same_as_organization",
+    "unit_address_line",
+    "unit_postal_code",
+    "unit_city",
+    "unit_country",
     "is_active",
     "internal_note",
 )
@@ -51,18 +60,20 @@ ADMIN_FIELDS: tuple[str, ...] = (
 WP_LEAD_FIELDS: tuple[str, ...] = (
     "name",
     "website",
-    "address_line",
-    "postal_code",
-    "city",
-    "address_country",
-    "primary_contact_name",
-    "contact_email",
-    "contact_phone",
-    "project_role_note",
+    "unit_name",
+    "organization_address_line",
+    "organization_postal_code",
+    "organization_city",
+    "organization_country",
+    "unit_address_same_as_organization",
+    "unit_address_line",
+    "unit_postal_code",
+    "unit_city",
+    "unit_country",
 )
 
-# Felder, in denen einfache E-Mail-Validierung greifen muss.
-EMAIL_FIELDS: frozenset[str] = frozenset({"contact_email"})
+# Spalten, die ISO-3166-1-alpha-2-Validierung bekommen.
+COUNTRY_FIELDS: frozenset[str] = frozenset({"country", "organization_country", "unit_country"})
 
 
 class PartnerService:
@@ -127,33 +138,38 @@ class PartnerService:
         short_name: str,
         country: str,
         website: str | None = None,
-        address_line: str | None = None,
-        postal_code: str | None = None,
-        city: str | None = None,
-        address_country: str | None = None,
-        primary_contact_name: str | None = None,
-        contact_email: str | None = None,
-        contact_phone: str | None = None,
-        project_role_note: str | None = None,
+        unit_name: str | None = None,
+        organization_address_line: str | None = None,
+        organization_postal_code: str | None = None,
+        organization_city: str | None = None,
+        organization_country: str | None = None,
+        unit_address_same_as_organization: bool = True,
+        unit_address_line: str | None = None,
+        unit_postal_code: str | None = None,
+        unit_city: str | None = None,
+        unit_country: str | None = None,
         is_active: bool = True,
         internal_note: str | None = None,
     ) -> Partner:
         self._require_admin()
-        validate_email(contact_email, "contact_email")
-        validate_country_code(address_country, "address_country")
+        validate_country_code(country, "country")
+        validate_country_code(organization_country, "organization_country")
+        validate_country_code(unit_country, "unit_country")
         partner = Partner(
             name=name,
             short_name=short_name,
             country=country,
             website=normalise_text(website),
-            address_line=normalise_text(address_line),
-            postal_code=normalise_text(postal_code),
-            city=normalise_text(city),
-            address_country=normalise_text(address_country),
-            primary_contact_name=normalise_text(primary_contact_name),
-            contact_email=normalise_text(contact_email),
-            contact_phone=normalise_text(contact_phone),
-            project_role_note=normalise_text(project_role_note),
+            unit_name=normalise_text(unit_name),
+            organization_address_line=normalise_text(organization_address_line),
+            organization_postal_code=normalise_text(organization_postal_code),
+            organization_city=normalise_text(organization_city),
+            organization_country=normalise_text(organization_country),
+            unit_address_same_as_organization=unit_address_same_as_organization,
+            unit_address_line=normalise_text(unit_address_line),
+            unit_postal_code=normalise_text(unit_postal_code),
+            unit_city=normalise_text(unit_city),
+            unit_country=normalise_text(unit_country),
             is_active=is_active,
             internal_note=normalise_text(internal_note),
         )
@@ -183,11 +199,21 @@ class PartnerService:
             value: object = raw_value
             if isinstance(value, str):
                 value = normalise_text(value)
-            if key in EMAIL_FIELDS and (value is None or isinstance(value, str)):
-                validate_email(value, key)
-            if key == "address_country" and (value is None or isinstance(value, str)):
+            if key in COUNTRY_FIELDS and (value is None or isinstance(value, str)):
                 validate_country_code(value, key)
             setattr(partner, key, value)
+        # Wenn Einheitsadresse identisch zur Organisationsadresse sein soll,
+        # leeren wir die unit_address_*-Felder defensiv — egal, ob die
+        # Whitelist sie enthielt oder nicht. Damit gibt es keine
+        # widersprüchliche Anzeige (Flag = true, aber Adressfelder gefüllt).
+        if partner.unit_address_same_as_organization:
+            for field in (
+                "unit_address_line",
+                "unit_postal_code",
+                "unit_city",
+                "unit_country",
+            ):
+                setattr(partner, field, None)
         self.session.flush()
         if self.audit is not None:
             after = self._snapshot(partner, allowed)
