@@ -3,7 +3,7 @@
 // Tabelle aller Projekt-Meilensteine. Berechtigte (Admin oder
 // WP-Lead des MS-Arbeitspakets) bekommen einen Bearbeiten-Dialog.
 
-import { api, h } from "/portal/common.js";
+import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
 
 const STATUS_LABELS = {
   planned: "geplant",
@@ -155,15 +155,24 @@ export async function render(container, _ctx) {
     dialogContainer.replaceChildren(h("div", { class: "dialog" }, h("h3", {}, title), body));
   }
 
+  function header() {
+    return [
+      h("h1", {}, "Meilensteine"),
+      h(
+        "p",
+        { class: "muted" },
+        "Projekt-Meilensteine aus dem Antrag. Bearbeiten dürfen Admins und der WP-Lead des Meilenstein-Arbeitspakets; den Gesamtprojekt-Meilenstein nur Admins.",
+      ),
+    ];
+  }
+
   async function rerender() {
+    container.replaceChildren(...header(), renderLoading("Meilensteine werden geladen …"));
     let milestones = [];
     try {
       milestones = await api("GET", "/api/milestones");
     } catch (err) {
-      container.replaceChildren(
-        h("h1", {}, "Meilensteine"),
-        h("p", { class: "error" }, err.message),
-      );
+      container.replaceChildren(...header(), renderError(err));
       return;
     }
 
@@ -181,37 +190,35 @@ export async function render(container, _ctx) {
       );
     }
 
-    const table = h(
-      "table",
-      {},
-      h(
-        "thead",
-        {},
-        h(
-          "tr",
+    const body = milestones.length
+      ? h(
+          "table",
           {},
-          h("th", {}, "Code"),
-          h("th", {}, "Titel"),
-          h("th", {}, "Arbeitspaket"),
-          h("th", {}, "Plandatum"),
-          h("th", {}, "Istdatum"),
-          h("th", {}, "Status"),
-          h("th", {}, "Notiz"),
-          h("th", {}, ""),
-        ),
-      ),
-      h("tbody", {}, ...milestones.map((ms) => rowFor(ms, onEdit))),
-    );
+          h(
+            "thead",
+            {},
+            h(
+              "tr",
+              {},
+              h("th", {}, "Code"),
+              h("th", {}, "Titel"),
+              h("th", {}, "Arbeitspaket"),
+              h("th", {}, "Plandatum"),
+              h("th", {}, "Istdatum"),
+              h("th", {}, "Status"),
+              h("th", {}, "Notiz"),
+              h("th", {}, ""),
+            ),
+          ),
+          h("tbody", {}, ...milestones.map((ms) => rowFor(ms, onEdit))),
+        )
+      : renderEmpty("Es sind noch keine Meilensteine angelegt.");
 
     container.replaceChildren(
-      h("h1", {}, "Meilensteine"),
-      h(
-        "p",
-        { class: "muted" },
-        "Projekt-Meilensteine aus dem Antrag. Bearbeiten dürfen Admins und der WP-Lead des Meilenstein-Arbeitspakets; den Gesamtprojekt-Meilenstein nur Admins.",
-      ),
-      table,
+      ...header(),
+      body,
       dialogContainer,
+      crossNav("/portal/milestones"),
     );
   }
 

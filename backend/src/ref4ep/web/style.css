@@ -258,6 +258,31 @@ details.collapsible[open] > summary {
   flex-wrap: wrap;
 }
 
+/* UX-Helfer (Block 0011) — einheitliche Lade-/Empty-/Cross-Nav-Stile. */
+.loading,
+.empty {
+  margin: 0.75rem 0;
+}
+
+.loading::before {
+  content: "⏳ ";
+}
+
+.cross-nav {
+  margin-top: 2rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #d6dfe9;
+  font-size: 0.9rem;
+}
+
+.cross-nav strong {
+  color: #1c2c4c;
+}
+
+.cross-nav-sep {
+  color: #999;
+}
+
 /* Projekt-Cockpit (Block 0010) — Karten-Layout. */
 .cockpit-grid {
   display: grid;

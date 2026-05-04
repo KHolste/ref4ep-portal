@@ -9,7 +9,7 @@
 //  - Meilensteine
 //  - Dokumente
 
-import { api, h } from "/portal/common.js";
+import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
 
 const TYPE_LABELS = {
   deliverable: "Deliverable",
@@ -255,11 +255,7 @@ function renderDocumentsSection(wpCode, documents, onCreate) {
       "section",
       {},
       headerRow,
-      h(
-        "p",
-        { class: "muted" },
-        "Noch keine Dokumente in diesem Arbeitspaket — leg das erste an.",
-      ),
+      renderEmpty("Noch keine Dokumente in diesem Arbeitspaket — leg das erste an."),
     );
   }
 
@@ -381,13 +377,15 @@ export async function render(container, ctx) {
     ]);
   }
 
+  container.replaceChildren(
+    h("h1", {}, code),
+    renderLoading("Arbeitspaket-Details werden geladen …"),
+  );
+
   try {
     await load();
   } catch (err) {
-    container.replaceChildren(
-      h("h1", {}, code),
-      h("p", { class: "error" }, err.message),
-    );
+    container.replaceChildren(h("h1", {}, code), renderError(err));
     return;
   }
 
@@ -508,7 +506,7 @@ export async function render(container, ctx) {
             "section",
             {},
             h("h2", {}, "Mitglieder"),
-            h("p", { class: "muted" }, "Noch keine Mitglieder eingetragen."),
+            renderEmpty("Noch keine Mitglieder eingetragen."),
           );
 
     function openCreate() {
@@ -531,6 +529,7 @@ export async function render(container, ctx) {
       renderMilestones(wp),
       documentsSection,
       dialogContainer,
+      crossNav("/portal/workpackages"),
     );
   }
 

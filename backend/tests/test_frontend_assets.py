@@ -273,6 +273,103 @@ def test_cockpit_grid_styles_are_present() -> None:
     assert ".cockpit-card" in css
 
 
+def test_common_js_exports_ux_helpers() -> None:
+    """Block 0011: zentrale Render-Helper für Lade-/Fehler-/Empty-Zustände."""
+    body = (WEB_DIR / "common.js").read_text(encoding="utf-8")
+    assert "export function renderLoading" in body
+    assert "export function renderError" in body
+    assert "export function renderEmpty" in body
+    assert "export function crossNav" in body
+
+
+def test_modules_use_central_loading_helpers() -> None:
+    """Cockpit, Workpackages, Workpackage-Detail und Meilensteine
+    importieren ``renderLoading`` und nutzen den zentralen Helper —
+    statt jeweils eigener ``Lade …``-Strings."""
+    for name in (
+        "cockpit.js",
+        "workpackages.js",
+        "workpackage_detail.js",
+        "milestones.js",
+    ):
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        assert "renderLoading" in body, f"{name} sollte renderLoading nutzen"
+
+
+def test_modules_use_central_error_and_empty_helpers() -> None:
+    for name in (
+        "cockpit.js",
+        "workpackages.js",
+        "workpackage_detail.js",
+        "milestones.js",
+    ):
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        assert "renderError" in body, f"{name} sollte renderError nutzen"
+        assert "renderEmpty" in body, f"{name} sollte renderEmpty nutzen"
+
+
+def test_modules_render_cross_nav() -> None:
+    """Drei interne Hauptseiten zeigen am Fuß die gleiche Quer-Navigation."""
+    for name in (
+        "cockpit.js",
+        "workpackages.js",
+        "milestones.js",
+        "workpackage_detail.js",
+    ):
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        assert "crossNav(" in body, f"{name} sollte crossNav verwenden"
+
+
+def test_cross_nav_helper_lists_three_main_pages() -> None:
+    body = (WEB_DIR / "common.js").read_text(encoding="utf-8")
+    # Drei Pfade müssen in der Helper-Definition stehen.
+    assert '"/portal/"' in body
+    assert '"/portal/workpackages"' in body
+    assert '"/portal/milestones"' in body
+    # Deutsche Labels.
+    assert "Projektcockpit" in body
+    assert "Arbeitspakete" in body
+    assert "Meilensteine" in body
+
+
+def test_loading_and_empty_styles_are_present() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert ".loading" in css
+    assert ".empty" in css
+    assert ".cross-nav" in css
+
+
+def test_manual_smoke_test_doc_exists() -> None:
+    """Block 0011: manuelle Smoke-Test-Checkliste ist Teil der Doku."""
+    doc = WEB_DIR.parent.parent.parent.parent / "docs" / "manual_smoke_test.md"
+    assert doc.exists(), f"Erwartete {doc} fehlt"
+    text = doc.read_text(encoding="utf-8")
+    # Kerninhalte
+    for keyword in (
+        "Login",
+        "Projektcockpit",
+        "Arbeitspaket-Detail",
+        "Meilensteinliste",
+        "Meilensteinstatus",
+        "Admin",
+        "WP-Lead",
+        "Member",
+    ):
+        assert keyword in text, f"Smoke-Test-Doku sollte {keyword!r} enthalten"
+    # Sicherheits-Bullets
+    assert "Deliverable" in text  # taucht nur als Negativhinweis auf
+    assert "Kein Hard-Delete" in text
+
+
+def test_smoke_test_doc_does_not_introduce_deliverables() -> None:
+    doc = WEB_DIR.parent.parent.parent.parent / "docs" / "manual_smoke_test.md"
+    text = doc.read_text(encoding="utf-8").lower()
+    # Auch in der Doku darf „Deliverable" nicht als Funktion eingeführt werden.
+    # Wir prüfen nur die Negativ-Form: keine eigene Sektion „Deliverables".
+    assert "## deliverables" not in text
+    assert "/portal/deliverables" not in text
+
+
 def test_no_javascript_string_spans_a_newline() -> None:
     """Regressionstest für ‚missing ) after argument list'.
 

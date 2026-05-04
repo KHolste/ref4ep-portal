@@ -9,7 +9,7 @@
 //
 // Aggregate kommen von ``GET /api/cockpit/project``.
 
-import { api, h } from "/portal/common.js";
+import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
 
 const WP_STATUS_LABELS = {
   planned: "geplant",
@@ -62,7 +62,7 @@ function renderUpcomingCard(milestones) {
       "section",
       { class: "cockpit-card" },
       h("h2", {}, "Nächste Meilensteine"),
-      h("p", { class: "empty" }, "Keine offenen Meilensteine in der Zukunft."),
+      renderEmpty("Keine offenen Meilensteine in der Zukunft."),
     );
   }
   const items = milestones.map((ms) =>
@@ -99,7 +99,7 @@ function renderOverdueCard(milestones) {
       "section",
       { class: "cockpit-card" },
       h("h2", {}, "Überfällige Meilensteine"),
-      h("p", { class: "empty" }, "Keine überfälligen Meilensteine — gut so."),
+      renderEmpty("Keine überfälligen Meilensteine — gut so."),
     );
   }
   const items = milestones.map((ms) =>
@@ -131,11 +131,7 @@ function renderOpenIssuesCard(issues) {
       "section",
       { class: "cockpit-card" },
       h("h2", {}, "Offene Punkte aus Arbeitspaketen"),
-      h(
-        "p",
-        { class: "empty" },
-        "Aktuell sind keine offenen Punkte in den Arbeitspaketen vermerkt.",
-      ),
+      renderEmpty("Aktuell sind keine offenen Punkte in den Arbeitspaketen vermerkt."),
     );
   }
   const items = issues.map((issue) =>
@@ -213,7 +209,7 @@ function renderStatusOverviewCard(counts, overview) {
           ),
           h("tbody", {}, ...rows),
         )
-      : h("p", { class: "empty" }, "Noch keine Arbeitspakete angelegt."),
+      : renderEmpty("Noch keine Arbeitspakete angelegt."),
   );
 }
 
@@ -260,16 +256,17 @@ export async function render(container, ctx) {
     );
   }
 
-  // Cockpit-Aggregate vom Backend laden.
+  // Konsistenter Ladezustand: erst zeichnen, dann den Backend-Call abwarten.
+  const dashboardSlot = h("div", {}, renderLoading("Cockpit-Daten werden geladen …"));
+  const nav = crossNav("/portal/");
+  container.replaceChildren(greeting, partnerLine, mySection, dashboardSlot, nav);
+
   let cockpit;
   try {
     cockpit = await api("GET", "/api/cockpit/project");
   } catch (err) {
-    container.replaceChildren(
-      greeting,
-      partnerLine,
-      mySection,
-      h("p", { class: "error" }, `Cockpit konnte nicht geladen werden: ${err.message}`),
+    dashboardSlot.replaceChildren(
+      renderError(`Cockpit konnte nicht geladen werden: ${err.message}`),
     );
     return;
   }
@@ -285,16 +282,5 @@ export async function render(container, ctx) {
       cockpit.workpackage_status_overview || [],
     ),
   );
-
-  const navHint = h(
-    "p",
-    { class: "muted" },
-    "Alle Arbeitspakete des Konsortiums findest du unter ",
-    h("a", { href: "/portal/workpackages" }, "Arbeitspakete"),
-    ", alle Meilensteine unter ",
-    h("a", { href: "/portal/milestones" }, "Meilensteine"),
-    ".",
-  );
-
-  container.replaceChildren(greeting, partnerLine, mySection, dashboard, navHint);
+  dashboardSlot.replaceChildren(dashboard);
 }
