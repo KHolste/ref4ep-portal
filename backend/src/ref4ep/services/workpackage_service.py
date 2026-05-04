@@ -5,9 +5,20 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ref4ep.domain.models import WP_ROLES, Membership, Partner, Person, Workpackage
+from ref4ep.domain.models import (
+    WORKPACKAGE_STATUSES,
+    WP_ROLES,
+    Membership,
+    Partner,
+    Person,
+    Workpackage,
+)
 from ref4ep.services.audit_logger import AuditLogger
 from ref4ep.services.permissions import can_admin
+from ref4ep.services.validators import normalise_text
+
+# Cockpit-Felder, die über ``update_status`` (Block 0009) gesetzt werden.
+WP_STATUS_FIELDS: tuple[str, ...] = ("status", "summary", "next_steps", "open_issues")
 
 
 def _sort_key_from_code(code: str) -> int:
@@ -128,6 +139,67 @@ class WorkpackageService:
                     "lead_partner_id": wp.lead_partner_id,
                 },
             )
+        return wp
+
+    # ---- Cockpit (Block 0009) ------------------------------------------
+
+    def is_wp_lead(self, person_id: str, workpackage_id: str) -> bool:
+        """True, wenn ``person_id`` als ``wp_lead`` in diesem WP eingetragen ist."""
+        stmt = (
+            select(Membership.id)
+            .where(
+                Membership.person_id == person_id,
+                Membership.workpackage_id == workpackage_id,
+                Membership.wp_role == "wp_lead",
+            )
+            .limit(1)
+        )
+        return self.session.scalars(stmt).first() is not None
+
+    def update_status(self, workpackage_id: str, **fields: object) -> Workpackage:
+        """Aktualisiert die Cockpit-Felder eines Arbeitspakets.
+
+        Berechtigung: ``admin`` darf jedes WP, ``wp_lead`` darf nur
+        eigene WPs (lt. Membership). Member ohne Lead-Rolle und
+        anonyme Aufrufer werden mit ``PermissionError`` abgewiesen.
+        Audit-Log wird geschrieben, wenn sich tatsächlich etwas
+        ändert.
+        """
+        wp = self.get_by_id(workpackage_id)
+        if wp is None or wp.is_deleted:
+            raise LookupError(f"Workpackage {workpackage_id} nicht gefunden.")
+        is_admin = can_admin(self.role or "")
+        is_lead = bool(self.person_id) and self.is_wp_lead(self.person_id, workpackage_id)
+        if not (is_admin or is_lead):
+            raise PermissionError(
+                "Nur Admin oder WP-Lead dieses Arbeitspakets darf den Status ändern."
+            )
+
+        before = {k: getattr(wp, k) for k in WP_STATUS_FIELDS}
+        for key, raw in fields.items():
+            if key not in WP_STATUS_FIELDS:
+                continue
+            value: object = raw
+            if isinstance(value, str):
+                value = normalise_text(value)
+            if key == "status":
+                if value not in WORKPACKAGE_STATUSES:
+                    raise ValueError(
+                        f"status: ungültiger Wert {raw!r} — "
+                        f"erlaubt: {', '.join(WORKPACKAGE_STATUSES)}"
+                    )
+            setattr(wp, key, value)
+        self.session.flush()
+        if self.audit is not None:
+            after = {k: getattr(wp, k) for k in WP_STATUS_FIELDS}
+            if after != before:
+                self.audit.log(
+                    "workpackage.update_status",
+                    entity_type="workpackage",
+                    entity_id=wp.id,
+                    before=before,
+                    after=after,
+                )
         return wp
 
     # ---- memberships ----------------------------------------------------

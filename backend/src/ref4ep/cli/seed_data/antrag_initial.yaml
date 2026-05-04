@@ -140,3 +140,31 @@ workpackages:
   - code: WP8.3
     title: "Energiekalibrierung"
     parent: WP8
+
+# Block 0009 — Projekt-Meilensteine. Seed ist idempotent über ``code``.
+# MS4 hat bewusst kein workpackage (Gesamtprojekt-Meilenstein).
+milestones:
+  - code: MS1
+    title: "Kick-off Meeting"
+    workpackage: WP1.1
+    planned_date: 2026-03-02
+    actual_date: 2026-03-28
+    status: achieved
+    note: >-
+      Tatsächlicher Kick-off-Termin war der 28.03.2026; im Antrag war
+      der 02.03.2026 genannt.
+  - code: MS2
+    title: "FS-Langzeittest abgeschlossen"
+    workpackage: WP4.1
+    planned_date: 2027-02-15
+    status: planned
+  - code: MS3
+    title: "Referenz-HT fertiggestellt"
+    workpackage: WP3.1
+    planned_date: 2028-02-15
+    status: planned
+  - code: MS4
+    title: "Projektende / Bewertung abgeschlossen"
+    # workpackage absichtlich leer → Gesamtprojekt-Meilenstein.
+    planned_date: 2029-02-28
+    status: planned

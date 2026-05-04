@@ -22,12 +22,13 @@ Zeitstempel als ``DateTime(timezone=True)``.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -46,6 +47,39 @@ if TYPE_CHECKING:
 # und über CHECK-Constraints; eigener Python-Enum-Typ nicht nötig für Sprint 1).
 PLATFORM_ROLES = ("admin", "member")
 WP_ROLES = ("wp_lead", "wp_member")
+
+# Block 0009 — Cockpit-Status pro Arbeitspaket. Default ``planned``.
+WORKPACKAGE_STATUSES = (
+    "planned",
+    "in_progress",
+    "waiting_for_input",
+    "critical",
+    "completed",
+)
+WORKPACKAGE_STATUS_LABELS_DE = {
+    "planned": "geplant",
+    "in_progress": "in Arbeit",
+    "waiting_for_input": "wartet auf Input",
+    "critical": "kritisch",
+    "completed": "abgeschlossen",
+}
+
+# Block 0009 — Meilensteine. ``MS4`` darf ``workpackage_id = NULL``
+# haben (Gesamtprojekt-Meilenstein).
+MILESTONE_STATUSES = (
+    "planned",
+    "achieved",
+    "postponed",
+    "at_risk",
+    "cancelled",
+)
+MILESTONE_STATUS_LABELS_DE = {
+    "planned": "geplant",
+    "achieved": "erreicht",
+    "postponed": "verschoben",
+    "at_risk": "gefährdet",
+    "cancelled": "entfallen",
+}
 
 # Dokument-Enums (Sprint 2). status und visibility sind im Schema komplett
 # vorgesehen, in Sprint 2 aber konstant 'draft' / 'workpackage'. Release- und
@@ -172,6 +206,12 @@ class Person(Base):
 
 class Workpackage(Base):
     __tablename__ = "workpackage"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('planned','in_progress','waiting_for_input','critical','completed')",
+            name="ck_workpackage_status",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
     code: Mapped[str] = mapped_column(String, nullable=False, unique=True)
@@ -184,6 +224,11 @@ class Workpackage(Base):
         String(36), ForeignKey("partner.id"), nullable=False
     )
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Block 0009 — Cockpit-Felder.
+    status: Mapped[str] = mapped_column(String, nullable=False, default="planned")
+    summary: Mapped[str | None] = mapped_column(String, nullable=True)
+    next_steps: Mapped[str | None] = mapped_column(String, nullable=True)
+    open_issues: Mapped[str | None] = mapped_column(String, nullable=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_now_utc
@@ -199,6 +244,10 @@ class Workpackage(Base):
     lead_partner: Mapped[Partner] = relationship(back_populates="led_workpackages")
     memberships: Mapped[list[Membership]] = relationship(
         back_populates="workpackage", cascade="all, delete-orphan"
+    )
+    milestones: Mapped[list[Milestone]] = relationship(
+        back_populates="workpackage",
+        order_by="Milestone.code",
     )
 
 
@@ -380,3 +429,38 @@ class PartnerContact(Base):
     )
 
     partner: Mapped[Partner] = relationship(back_populates="contacts")
+
+
+# --------------------------------------------------------------------------- #
+# Block 0009 — Meilensteine                                                   #
+# --------------------------------------------------------------------------- #
+
+
+class Milestone(Base):
+    __tablename__ = "milestone"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('planned','achieved','postponed','at_risk','cancelled')",
+            name="ck_milestone_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    code: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    # Nullable: MS4 (Projektende) hängt an keinem konkreten WP.
+    workpackage_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("workpackage.id"), nullable=True
+    )
+    planned_date: Mapped[date] = mapped_column(Date, nullable=False)
+    actual_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="planned")
+    note: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc, onupdate=_now_utc
+    )
+
+    workpackage: Mapped[Workpackage | None] = relationship(back_populates="milestones")

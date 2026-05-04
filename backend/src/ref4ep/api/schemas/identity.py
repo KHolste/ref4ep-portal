@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from pydantic import BaseModel, Field
 
 
@@ -144,6 +146,31 @@ class WorkpackageOut(BaseModel):
     sort_order: int
 
 
+class WorkpackageMilestoneOut(BaseModel):
+    """Schmaler Meilenstein-View für die WP-Detailseite."""
+
+    id: str
+    code: str
+    title: str
+    planned_date: date
+    actual_date: date | None = None
+    status: str
+    note: str | None = None
+
+
+class WorkpackageContactOut(BaseModel):
+    """Kontaktperson des Lead-Partners auf der WP-Cockpit-Seite."""
+
+    id: str
+    name: str
+    title_or_degree: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    function: str | None = None
+    is_primary_contact: bool = False
+    is_project_lead: bool = False
+
+
 class WorkpackageDetailOut(BaseModel):
     code: str
     title: str
@@ -152,6 +179,88 @@ class WorkpackageDetailOut(BaseModel):
     lead_partner: PartnerRefOut
     children: list[WorkpackageRefOut]
     memberships: list[WPMembershipOut]
+    # Block 0009 — Cockpit-Felder.
+    status: str = "planned"
+    summary: str | None = None
+    next_steps: str | None = None
+    open_issues: str | None = None
+    can_edit_status: bool = False
+    lead_partner_contacts: list[WorkpackageContactOut] = Field(default_factory=list)
+    milestones: list[WorkpackageMilestoneOut] = Field(default_factory=list)
+
+
+class WorkpackageStatusPatchRequest(BaseModel):
+    """PATCH des WP-Cockpits — alle Felder optional, Whitelist im Service."""
+
+    status: str | None = None
+    summary: str | None = None
+    next_steps: str | None = None
+    open_issues: str | None = None
+
+
+class MilestoneOut(BaseModel):
+    id: str
+    code: str
+    title: str
+    workpackage_id: str | None = None
+    workpackage_code: str | None = None
+    workpackage_title: str | None = None
+    planned_date: date
+    actual_date: date | None = None
+    status: str
+    note: str | None = None
+    can_edit: bool = False
+
+
+class MilestonePatchRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1)
+    planned_date: date | None = None
+    actual_date: date | None = None
+    status: str | None = None
+    note: str | None = None
+
+
+# --------------------------------------------------------------------------- #
+# Block 0010 — Projekt-Cockpit                                                #
+# --------------------------------------------------------------------------- #
+
+
+class CockpitMilestoneOut(BaseModel):
+    """Schmale Meilenstein-Sicht für die Cockpit-Karten."""
+
+    id: str
+    code: str
+    title: str
+    workpackage_code: str | None = None
+    workpackage_title: str | None = None
+    planned_date: date
+    actual_date: date | None = None
+    status: str
+    days_to_planned: int
+    note: str | None = None
+
+
+class CockpitOpenIssueOut(BaseModel):
+    code: str
+    title: str
+    status: str
+    open_issues: str
+    next_steps: str | None = None
+
+
+class CockpitWorkpackageStatusOut(BaseModel):
+    code: str
+    title: str
+    status: str
+
+
+class ProjectCockpitOut(BaseModel):
+    today: date
+    upcoming_milestones: list[CockpitMilestoneOut] = Field(default_factory=list)
+    overdue_milestones: list[CockpitMilestoneOut] = Field(default_factory=list)
+    workpackages_with_open_issues: list[CockpitOpenIssueOut] = Field(default_factory=list)
+    status_counts: dict[str, int] = Field(default_factory=dict)
+    workpackage_status_overview: list[CockpitWorkpackageStatusOut] = Field(default_factory=list)
 
 
 class MembershipOut(BaseModel):

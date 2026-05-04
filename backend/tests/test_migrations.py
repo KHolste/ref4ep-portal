@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0008_partner_organization_fields"
+CURRENT_HEAD = "0009_workpackage_status_and_milestones"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -409,3 +409,80 @@ def test_downgrade_to_0006_restores_general_email_and_drops_contacts(
     assert "partner_contact" not in set(inspector.get_table_names())
     cols = {c["name"] for c in inspector.get_columns("partner")}
     assert "general_email" in cols
+
+
+# ---- Block 0009 — WP-Cockpit-Felder + Milestone-Tabelle ----------------
+
+
+WORKPACKAGE_COCKPIT_COLUMNS = {"status", "summary", "next_steps", "open_issues"}
+MILESTONE_COLUMNS = {
+    "id",
+    "code",
+    "title",
+    "workpackage_id",
+    "planned_date",
+    "actual_date",
+    "status",
+    "note",
+    "created_at",
+    "updated_at",
+}
+
+
+def test_workpackage_has_cockpit_fields(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    cols = {c["name"]: c for c in inspector.get_columns("workpackage")}
+    assert WORKPACKAGE_COCKPIT_COLUMNS.issubset(set(cols))
+    # status ist NOT NULL mit Default 'planned'.
+    assert cols["status"]["nullable"] is False
+    for soft in ("summary", "next_steps", "open_issues"):
+        assert cols[soft]["nullable"] is True
+
+
+def test_milestone_table_exists_with_expected_columns(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    assert "milestone" in set(inspector.get_table_names())
+    cols = {c["name"] for c in inspector.get_columns("milestone")}
+    assert MILESTONE_COLUMNS == cols
+    # workpackage_id darf NULL sein (Gesamtprojekt-MS).
+    nullable = {c["name"]: c["nullable"] for c in inspector.get_columns("milestone")}
+    assert nullable["workpackage_id"] is True
+    assert nullable["actual_date"] is True
+    assert nullable["planned_date"] is False
+
+
+def test_milestone_has_workpackage_fk(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    fks = inspector.get_foreign_keys("milestone")
+    matching = [
+        fk
+        for fk in fks
+        if fk.get("referred_table") == "workpackage"
+        and fk.get("constrained_columns") == ["workpackage_id"]
+    ]
+    assert matching, f"FK milestone.workpackage_id → workpackage.id fehlt: {fks}"
+
+
+def test_no_deliverable_table_exists(tmp_db_path: Path) -> None:
+    """Ref4EP hat keine formalen Deliverables — kein Modell, keine Tabelle."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    assert "deliverable" not in set(inspector.get_table_names())
+
+
+def test_downgrade_to_0008_drops_milestones_and_cockpit_fields(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0008_partner_organization_fields")
+    inspector = inspect(create_engine(db_url))
+    assert "milestone" not in set(inspector.get_table_names())
+    cols = {c["name"] for c in inspector.get_columns("workpackage")}
+    assert cols.isdisjoint(WORKPACKAGE_COCKPIT_COLUMNS)

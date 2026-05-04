@@ -1,22 +1,38 @@
 """Initial-Seed aus YAML-Quelldateien (siehe MVP-Spec §13).
 
 Idempotent: bereits vorhandene Datensätze (Partner per ``short_name``,
-Workpackage per ``code``) werden nicht überschrieben. Sub-WPs erben
-den Lead-Partner ihres Parents, sofern keine eigene Angabe vorliegt.
+Workpackage per ``code``, Milestone per ``code``) werden nicht
+überschrieben. Sub-WPs erben den Lead-Partner ihres Parents, sofern
+keine eigene Angabe vorliegt.
+
+Block 0009: zusätzlich werden die vier Projekt-Meilensteine angelegt
+(MS1–MS4). MS4 hängt an keinem konkreten WP — Gesamtprojekt-Meilenstein.
 """
 
 from __future__ import annotations
 
+from datetime import date, datetime
 from importlib import resources
 from typing import Any
 
 import yaml
 from sqlalchemy.orm import Session
 
-from ref4ep.domain.models import Partner, Workpackage
+from ref4ep.domain.models import MILESTONE_STATUSES, Milestone, Partner, Workpackage
 from ref4ep.services.workpackage_service import _sort_key_from_code
 
 KNOWN_SOURCES = ("antrag",)
+
+
+def _coerce_date(value: object) -> date:
+    """Akzeptiert ``date`` (PyYAML parsed YYYY-MM-DD automatisch) oder ``str``."""
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, str):
+        return date.fromisoformat(value)
+    raise TypeError(f"Erwartetes Datum, bekam {type(value).__name__}: {value!r}")
 
 
 def _load_seed_data(source: str) -> dict[str, Any]:
@@ -40,6 +56,7 @@ class SeedService:
 
         partners_added, partners_skipped = self._seed_partners(data.get("partners", []))
         wps_added, wps_skipped = self._seed_workpackages(data.get("workpackages", []))
+        ms_added, ms_skipped = self._seed_milestones(data.get("milestones", []))
 
         self.session.flush()
 
@@ -49,6 +66,8 @@ class SeedService:
             "partners_skipped": partners_skipped,
             "workpackages_added": wps_added,
             "workpackages_skipped": wps_skipped,
+            "milestones_added": ms_added,
+            "milestones_skipped": ms_skipped,
         }
 
     # ---- internals ------------------------------------------------------
@@ -149,4 +168,47 @@ class SeedService:
             # der Code bleibt robust).
             parent_lookup[code] = wp
             added += 1
+        return added, skipped
+
+    def _seed_milestones(self, items: list[dict[str, Any]]) -> tuple[int, int]:
+        if not items:
+            return 0, 0
+        wps_by_code = {wp.code: wp for wp in self.session.query(Workpackage).all()}
+        added = 0
+        skipped = 0
+        for item in items:
+            code = item["code"]
+            existing = self.session.query(Milestone).filter_by(code=code).first()
+            if existing is not None:
+                skipped += 1
+                continue
+            wp_code = item.get("workpackage")
+            wp_id: str | None = None
+            if wp_code:
+                wp = wps_by_code.get(wp_code)
+                if wp is None:
+                    raise LookupError(
+                        f"Seed: Meilenstein {code!r} verweist auf unbekanntes WP {wp_code!r}."
+                    )
+                wp_id = wp.id
+            status_value = item.get("status", "planned")
+            if status_value not in MILESTONE_STATUSES:
+                raise ValueError(
+                    f"Seed: Meilenstein {code!r} hat ungültigen status {status_value!r}."
+                )
+            planned_date = _coerce_date(item["planned_date"])
+            actual_raw = item.get("actual_date")
+            actual_date = _coerce_date(actual_raw) if actual_raw is not None else None
+            milestone = Milestone(
+                code=code,
+                title=item["title"],
+                workpackage_id=wp_id,
+                planned_date=planned_date,
+                actual_date=actual_date,
+                status=status_value,
+                note=item.get("note"),
+            )
+            self.session.add(milestone)
+            added += 1
+        self.session.flush()
         return added, skipped

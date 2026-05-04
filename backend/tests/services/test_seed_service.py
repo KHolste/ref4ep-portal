@@ -68,6 +68,10 @@ def test_seed_is_idempotent(session: Session) -> None:
     assert second["partners_skipped"] == 5
     assert second["workpackages_added"] == 0
     assert second["workpackages_skipped"] == 35
+    # Block 0009: Meilensteine ebenfalls idempotent.
+    assert first["milestones_added"] == 4
+    assert second["milestones_added"] == 0
+    assert second["milestones_skipped"] == 4
 
 
 def test_seed_does_not_overwrite_manual_changes(session: Session) -> None:
@@ -78,3 +82,45 @@ def test_seed_does_not_overwrite_manual_changes(session: Session) -> None:
     SeedService(session).apply_initial_seed(source="antrag")
     refreshed = session.query(Workpackage).filter_by(code="WP1.1").one()
     assert refreshed.title == "Manuell geändert"
+
+
+# ---- Block 0009 — Meilensteine ----------------------------------------
+
+
+def test_seed_creates_four_milestones(session: Session) -> None:
+    from datetime import date
+
+    from ref4ep.domain.models import Milestone
+
+    SeedService(session).apply_initial_seed(source="antrag")
+    by_code = {ms.code: ms for ms in session.query(Milestone).all()}
+    assert set(by_code) == {"MS1", "MS2", "MS3", "MS4"}
+
+    ms1 = by_code["MS1"]
+    assert ms1.title == "Kick-off Meeting"
+    assert ms1.workpackage is not None
+    assert ms1.workpackage.code == "WP1.1"
+    assert ms1.planned_date == date(2026, 3, 2)
+    assert ms1.actual_date == date(2026, 3, 28)
+    assert ms1.status == "achieved"
+    assert "28.03.2026" in (ms1.note or "")
+
+    ms2 = by_code["MS2"]
+    assert ms2.workpackage is not None
+    assert ms2.workpackage.code == "WP4.1"
+    assert ms2.planned_date == date(2027, 2, 15)
+    assert ms2.actual_date is None
+    assert ms2.status == "planned"
+
+    ms3 = by_code["MS3"]
+    assert ms3.workpackage is not None
+    assert ms3.workpackage.code == "WP3.1"
+    assert ms3.planned_date == date(2028, 2, 15)
+    assert ms3.status == "planned"
+
+    ms4 = by_code["MS4"]
+    # MS4 ist Gesamtprojekt-Meilenstein → kein Workpackage.
+    assert ms4.workpackage_id is None
+    assert ms4.workpackage is None
+    assert ms4.planned_date == date(2029, 2, 28)
+    assert ms4.status == "planned"
