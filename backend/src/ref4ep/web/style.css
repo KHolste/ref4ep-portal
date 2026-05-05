@@ -1655,3 +1655,163 @@ tr.row-released {
   outline-offset: 2px;
   transition: outline-color 0.6s ease;
 }
+
+/* ---- Arbeitspaket-Übersicht (UX-Folgeblock) ------------------------- */
+
+.wp-overview-summary {
+  margin: 0.25rem 0 0.6rem;
+  font-size: 0.95rem;
+}
+
+.wp-filterbox {
+  display: flex;
+  gap: 0.6rem 0.9rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 1rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid #d6dfe9;
+  border-radius: 4px;
+  background: #fafbfd;
+}
+
+.wp-filterbox legend {
+  padding: 0 0.4rem;
+  font-size: 0.85rem;
+  color: #555;
+  font-weight: 600;
+}
+
+.wp-filterbox label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.wp-filter-reset {
+  margin-left: auto;
+}
+
+.wp-card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin: 0 0 1rem;
+}
+
+@media (min-width: 720px) {
+  .wp-card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  }
+}
+
+.wp-card {
+  border: 1px solid #d6dfe9;
+  border-left: 4px solid #1c2c4c;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.wp-card-mine {
+  border-left-color: #2f7a3a;
+  background: #f6fbf6;
+}
+
+.wp-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.wp-card-title {
+  font-size: 1rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.wp-card-title a {
+  color: #1c2c4c;
+  font-family: monospace;
+  font-size: 0.95rem;
+  margin-right: 0.2rem;
+}
+
+.wp-lead-badge {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  background: #d6e4f5;
+  color: #1c2c4c;
+  white-space: nowrap;
+}
+
+.wp-card-meta {
+  font-size: 0.85rem;
+}
+
+.wp-subpackage-list {
+  list-style: none;
+  margin: 0.2rem 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.wp-subpackage-item {
+  font-size: 0.9rem;
+  padding: 0.2rem 0.4rem;
+  border-bottom: 1px dotted #eef2f7;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.wp-subpackage-item:last-child {
+  border-bottom: none;
+}
+
+.wp-subpackage-mine {
+  background: #f0f7ed;
+}
+
+.wp-subpackage-code {
+  font-family: monospace;
+  color: #1c2c4c;
+}
+
+.wp-subpackage-mine-marker {
+  font-size: 0.75rem;
+  color: #2f7a3a;
+  font-weight: 600;
+}
+
+.wp-subpackage-more {
+  margin-top: 0.3rem;
+}
+
+.wp-subpackage-more > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #1c2c4c;
+}
+
+.wp-subpackage-empty,
+.wp-subpackage-filterhint {
+  margin: 0.3rem 0;
+  font-size: 0.85rem;
+}
+
+.wp-card-footer {
+  margin-top: auto;
+  text-align: right;
+  font-size: 0.9rem;
+}

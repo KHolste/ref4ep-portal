@@ -1797,3 +1797,101 @@ def test_calendar_module_still_has_no_external_framework_or_writes() -> None:
         assert f'"{evt}"' not in body
     for method in ('"POST"', '"PATCH"', '"DELETE"'):
         assert method not in body
+
+
+# ---- Arbeitspaket-Übersicht — Karten-Layout ---------------------------
+
+
+def test_workpackages_module_uses_card_grid_not_table() -> None:
+    """Die Übersicht ist auf Kartenlayout umgestellt — keine
+    klassische Tabelle mit ``<thead>`` mehr im Render-Pfad."""
+    body = (MODULES_DIR / "workpackages.js").read_text(encoding="utf-8")
+    assert "wp-card-grid" in body
+    assert "wp-card" in body
+    # Tops + Subs werden gruppiert.
+    assert "buildHierarchy" in body
+    assert "parent_code" in body
+    # Negative: keine Tabellen-Konstruktion mehr.
+    assert '"thead"' not in body
+    # Bestehende Detail-Links bleiben.
+    assert "/portal/workpackages/" in body
+
+
+def test_workpackages_overview_summary_shows_counts() -> None:
+    body = (MODULES_DIR / "workpackages.js").read_text(encoding="utf-8")
+    # Render-Funktion + Klasse sichtbar.
+    assert "renderSummary" in body
+    assert "wp-overview-summary" in body
+    # Mindestens diese Teilstrings tauchen im Summary-Text auf.
+    for term in ("Arbeitspakete", "Haupt-WPs", "Unterpakete"):
+        assert term in body, f"workpackages.js sollte Summary-Begriff {term!r} enthalten"
+
+
+def test_workpackages_filterbox_exists_with_search_lead_and_reset() -> None:
+    body = (MODULES_DIR / "workpackages.js").read_text(encoding="utf-8")
+    assert "wp-filterbox" in body
+    assert "Arbeitspakete filtern" in body
+    # Suche, Lead-Filter, Reset-Button verdrahtet.
+    assert "Suche nach Code/Titel" in body
+    assert "Lead-Partner" in body
+    assert "Alle Lead-Partner" in body
+    assert "Zurücksetzen" in body
+    assert "resetBtn.addEventListener" in body
+    # Live-Filterung beim Tippen — kein „Filtern"-Button nötig.
+    assert 'searchInput.addEventListener("input"' in body
+
+
+def test_workpackages_mine_filter_uses_membership_data_when_available() -> None:
+    """„Nur meine Arbeitspakete" wird über ``ctx.me.memberships``
+    realisiert — keine API-Erweiterung nötig."""
+    body = (MODULES_DIR / "workpackages.js").read_text(encoding="utf-8")
+    assert "ctx.me" in body
+    assert "memberships" in body
+    assert "Nur meine Arbeitspakete" in body
+    assert "mineSet" in body
+
+
+def test_workpackages_subpackages_render_inside_top_cards() -> None:
+    body = (MODULES_DIR / "workpackages.js").read_text(encoding="utf-8")
+    # Sub-Liste innerhalb der Top-Karte.
+    assert "wp-subpackage-list" in body
+    assert "wp-subpackage-item" in body
+    # Cap + <details>-Erweiterung für den Rest.
+    assert "SUBS_VISIBLE_LIMIT" in body
+    assert "weitere Unterpakete anzeigen" in body
+    # Top-Karte bekommt einen „Details anzeigen"-Footer-Link.
+    assert "Details anzeigen" in body
+
+
+def test_workpackages_filter_no_match_shows_empty_state() -> None:
+    body = (MODULES_DIR / "workpackages.js").read_text(encoding="utf-8")
+    assert "Keine Arbeitspakete für die aktuelle Filterauswahl." in body
+    assert "renderEmpty" in body
+
+
+def test_workpackages_styles_are_responsive() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (
+        ".wp-overview-summary",
+        ".wp-filterbox",
+        ".wp-card-grid",
+        ".wp-card",
+        ".wp-card-head",
+        ".wp-card-meta",
+        ".wp-subpackage-list",
+        ".wp-subpackage-item",
+        ".wp-card-footer",
+        ".wp-lead-badge",
+    ):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+    # Responsive-Default: einspaltig auf mobil, Grid auf Desktop.
+    assert "@media (min-width: 720px)" in css
+    # Lange Titel müssen umbrechen können.
+    assert "overflow-wrap" in css
+
+
+def test_workpackages_module_has_no_destructive_actions_or_upload() -> None:
+    """Reine Lesesicht — keine Schreibpfade in der Übersicht."""
+    body = (MODULES_DIR / "workpackages.js").read_text(encoding="utf-8")
+    for forbidden in ('"POST"', '"PATCH"', '"DELETE"', "FormData", 'type: "file"'):
+        assert forbidden not in body, f"workpackages.js darf {forbidden!r} nicht enthalten"
