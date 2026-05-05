@@ -3,7 +3,7 @@
 // Bearbeitung läuft über die Detailseite (Klick auf den Namen).
 // Hier auf der Liste nur noch: Soft-Delete und Anlegen.
 
-import { api, h } from "/portal/common.js";
+import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
 
 function isAdmin(me) {
   return me?.person?.platform_role === "admin";
@@ -127,11 +127,21 @@ function rowFor(partner, onDelete) {
 
 export async function render(container, ctx) {
   if (!isAdmin(ctx.me)) {
-    container.replaceChildren(h("h1", {}, "Partner"), h("p", { class: "error" }, "Nur Admin."));
+    container.replaceChildren(h("h1", {}, "Partner"), renderError("Nur Admin."));
     return;
   }
 
-  const partners = await api("GET", "/api/admin/partners");
+  container.replaceChildren(
+    h("h1", {}, "Partner"),
+    renderLoading("Partnerliste wird geladen …"),
+  );
+  let partners;
+  try {
+    partners = await api("GET", "/api/admin/partners");
+  } catch (err) {
+    container.replaceChildren(h("h1", {}, "Partner"), renderError(err));
+    return;
+  }
   const dialogContainer = h("div", {});
 
   function clearDialog() {
@@ -194,5 +204,9 @@ export async function render(container, ctx) {
     h("tbody", {}, ...partners.map((p) => rowFor(p, onDelete))),
   );
 
-  container.replaceChildren(headerRow, intro, table, dialogContainer);
+  const body = partners.length
+    ? table
+    : renderEmpty("Es sind noch keine Partner angelegt.");
+
+  container.replaceChildren(headerRow, intro, body, dialogContainer, crossNav());
 }

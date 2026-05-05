@@ -1,4 +1,4 @@
-import { api, h } from "/portal/common.js";
+import { api, crossNav, h } from "/portal/common.js";
 
 export async function render(container, ctx) {
   const me = ctx.me;
@@ -90,5 +90,6 @@ export async function render(container, ctx) {
     notice || h("div", {}),
     profile,
     h("section", {}, h("h2", {}, "Passwort"), passwordSection),
+    crossNav(),
   );
 }

@@ -320,6 +320,81 @@ def test_modules_render_cross_nav() -> None:
         assert "crossNav(" in body, f"{name} sollte crossNav verwenden"
 
 
+# ---- Block 0012 — UX-Helper-Konsolidierung in den Restmodulen --------
+
+
+# Module mit eigenem API-Call beim Render → Loading + Error sind sinnvoll.
+LOADING_AND_ERROR_MODULES = (
+    "partner_detail.js",
+    "admin_users.js",
+    "admin_user_detail.js",
+    "admin_partners.js",
+    "audit.js",
+    "document_detail.js",
+)
+
+# Module, in denen mind. ein Empty-State über renderEmpty läuft.
+EMPTY_HELPER_MODULES = (
+    "partner_detail.js",
+    "admin_users.js",
+    "admin_user_detail.js",
+    "admin_partners.js",
+    "document_detail.js",
+)
+
+# Hauptseiten, die crossNav am Seitenfuß haben.
+CROSS_NAV_MODULES = (
+    "cockpit.js",
+    "workpackages.js",
+    "workpackage_detail.js",
+    "milestones.js",
+    "partner_detail.js",
+    "account.js",
+    "audit.js",
+    "admin_users.js",
+    "admin_user_detail.js",
+    "admin_partners.js",
+    "document_detail.js",
+)
+
+
+def test_remaining_modules_use_loading_and_error_helpers() -> None:
+    """Block 0012: Module mit Render-API-Call nutzen ``renderLoading`` + ``renderError``."""
+    for name in LOADING_AND_ERROR_MODULES:
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        assert "renderLoading" in body, f"{name} sollte renderLoading nutzen"
+        assert "renderError" in body, f"{name} sollte renderError nutzen"
+
+
+def test_remaining_modules_use_empty_helper() -> None:
+    for name in EMPTY_HELPER_MODULES:
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        assert "renderEmpty" in body, f"{name} sollte renderEmpty nutzen"
+
+
+def test_all_main_modules_render_cross_nav() -> None:
+    """Alle internen Hauptmodule haben am Fuß den ``crossNav``-Footer."""
+    for name in CROSS_NAV_MODULES:
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        assert "crossNav(" in body, f"{name} sollte crossNav verwenden"
+
+
+def test_modules_no_inline_error_paragraph_for_render_failures() -> None:
+    """Regressions-Schutz: nach der Umstellung darf in den Render-Pfaden
+    kein hartkodiertes ``h(\"p\", { class: \"error\" }, err.message)`` mehr stehen.
+
+    In Submit-Forms (errorBox + display:none) ist das Pattern weiterhin in Ordnung —
+    der Test erlaubt es daher explizit. Die Probe greift den
+    ``err.message``-Punkt, der typisch für API-Fehlerbehandlung ist.
+    """
+    bad_pattern = '"p", { class: "error" }, err.message'
+    for name in LOADING_AND_ERROR_MODULES:
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        assert bad_pattern not in body, (
+            f"{name} sollte renderError(err) statt {bad_pattern!r} verwenden"
+        )
+
+
 def test_cross_nav_helper_lists_three_main_pages() -> None:
     body = (WEB_DIR / "common.js").read_text(encoding="utf-8")
     # Drei Pfade müssen in der Helper-Definition stehen.

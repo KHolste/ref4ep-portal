@@ -1,4 +1,4 @@
-import { api, h } from "/portal/common.js";
+import { api, crossNav, h, renderError, renderLoading } from "/portal/common.js";
 
 function row(entry) {
   const detailsBtn = h(
@@ -40,10 +40,7 @@ async function load(filters) {
 
 export async function render(container, ctx) {
   if (ctx.me?.person?.platform_role !== "admin") {
-    container.replaceChildren(
-      h("h1", {}, "Audit-Log"),
-      h("p", { class: "error" }, "Nur Admin."),
-    );
+    container.replaceChildren(h("h1", {}, "Audit-Log"), renderError("Nur Admin."));
     return;
   }
 
@@ -72,15 +69,32 @@ export async function render(container, ctx) {
     tableBody,
   );
 
+  // Status-Slot oberhalb der Tabelle: nimmt Loading- bzw. Fehlerzeile auf.
+  const statusSlot = h("div", {});
+
   async function refresh() {
+    statusSlot.replaceChildren(renderLoading("Audit-Einträge werden geladen …"));
     tableBody.replaceChildren();
-    const items = await load({
-      actor_email: actorInput.value || null,
-      entity_type: entityInput.value || null,
-      action: actionInput.value || null,
-    });
+    let items;
+    try {
+      items = await load({
+        actor_email: actorInput.value || null,
+        entity_type: entityInput.value || null,
+        action: actionInput.value || null,
+      });
+    } catch (err) {
+      statusSlot.replaceChildren(renderError(err));
+      return;
+    }
+    statusSlot.replaceChildren();
     if (!items.length) {
-      tableBody.append(h("tr", {}, h("td", { colspan: "5", class: "muted" }, "(keine Einträge)")));
+      tableBody.append(
+        h(
+          "tr",
+          {},
+          h("td", { colspan: "5", class: "empty muted" }, "(keine Einträge)"),
+        ),
+      );
     } else {
       for (const e of items) tableBody.append(row(e));
     }
@@ -98,7 +112,9 @@ export async function render(container, ctx) {
       actionInput,
       reload,
     ),
+    statusSlot,
     table,
+    crossNav(),
   );
   await refresh();
 }

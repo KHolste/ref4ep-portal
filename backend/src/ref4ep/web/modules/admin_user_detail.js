@@ -1,4 +1,4 @@
-import { api, h } from "/portal/common.js";
+import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
 
 function isAdmin(me) {
   return me?.person?.platform_role === "admin";
@@ -198,16 +198,28 @@ function membershipRow(personId, m) {
 
 export async function render(container, ctx) {
   if (!isAdmin(ctx.me)) {
-    container.replaceChildren(h("h1", {}, "Person"), h("p", { class: "error" }, "Nur Admin."));
+    container.replaceChildren(h("h1", {}, "Person"), renderError("Nur Admin."));
     return;
   }
 
   const personId = ctx.params.id;
-  const [person, partners, workpackages] = await Promise.all([
-    api("GET", `/api/admin/persons/${personId}`),
-    api("GET", "/api/admin/partners"),
-    api("GET", "/api/workpackages"),
-  ]);
+  container.replaceChildren(
+    h("h1", {}, "Person"),
+    renderLoading("Personendaten werden geladen …"),
+  );
+  let person;
+  let partners;
+  let workpackages;
+  try {
+    [person, partners, workpackages] = await Promise.all([
+      api("GET", `/api/admin/persons/${personId}`),
+      api("GET", "/api/admin/partners"),
+      api("GET", "/api/workpackages"),
+    ]);
+  } catch (err) {
+    container.replaceChildren(h("h1", {}, "Person"), renderError(err));
+    return;
+  }
 
   const dialogContainer = h("div", {});
 
@@ -345,11 +357,7 @@ export async function render(container, ctx) {
             ...person.memberships.map((m) => membershipRow(personId, m)),
           ),
         )
-      : h(
-          "p",
-          { class: "muted" },
-          "Diese Person ist noch keinem Arbeitspaket zugeordnet.",
-        ),
+      : renderEmpty("Diese Person ist noch keinem Arbeitspaket zugeordnet."),
   );
 
   container.replaceChildren(
@@ -357,5 +365,6 @@ export async function render(container, ctx) {
     h("div", { class: "actions" }, ...actions),
     memberSection,
     dialogContainer,
+    crossNav(),
   );
 }

@@ -1,4 +1,4 @@
-import { api, h } from "/portal/common.js";
+import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
 
 const TYPE_LABELS = {
   deliverable: "Deliverable",
@@ -45,9 +45,7 @@ function badge(spec) {
 
 function renderVersionsTable(documentId, versions, releasedVersionId) {
   if (!versions.length) {
-    return h(
-      "p",
-      { class: "muted" },
+    return renderEmpty(
       "Noch keine Version hochgeladen — füg die erste über »Neue Version hochladen« hinzu.",
     );
   }
@@ -343,7 +341,17 @@ function renderDeleteConfirm(documentId, onSuccess) {
 export async function render(container, ctx) {
   const documentId = ctx.params.id;
   const me = ctx.me;
-  const doc = await api("GET", `/api/documents/${documentId}`);
+  container.replaceChildren(
+    h("h1", {}, "Dokument"),
+    renderLoading("Dokument wird geladen …"),
+  );
+  let doc;
+  try {
+    doc = await api("GET", `/api/documents/${documentId}`);
+  } catch (err) {
+    container.replaceChildren(h("h1", {}, "Dokument"), renderError(err));
+    return;
+  }
   const wpCode = doc.workpackage.code;
 
   const admin = isAdmin(me);
@@ -559,5 +567,6 @@ export async function render(container, ctx) {
     actionsBar || h("div", {}),
     versionsBlock,
     dialogContainer,
+    crossNav(),
   );
 }

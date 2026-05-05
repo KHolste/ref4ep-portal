@@ -5,7 +5,7 @@
 // WP-Lead des Partners). ``internal_note`` kommt nur für
 // Admins über die API.
 
-import { api, h } from "/portal/common.js";
+import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
 
 function nullIfBlank(value) {
   const v = (value || "").trim();
@@ -433,10 +433,7 @@ async function renderContactsSection(partner, container) {
         partner.can_edit ? api("GET", "/api/partner-contacts/functions") : Promise.resolve([]),
       ]);
     } catch (err) {
-      wrapper.replaceChildren(
-        h("h2", {}, "Kontaktpersonen"),
-        h("p", { class: "error" }, err.message),
-      );
+      wrapper.replaceChildren(h("h2", {}, "Kontaktpersonen"), renderError(err));
       return;
     }
 
@@ -519,7 +516,7 @@ async function renderContactsSection(partner, container) {
       ? contacts.map((c) =>
           renderContactCard(c, partner.can_edit, onEdit, onDeactivate, onReactivate),
         )
-      : [h("p", { class: "muted" }, "Noch keine Kontaktpersonen hinterlegt.")];
+      : [renderEmpty("Noch keine Kontaktpersonen hinterlegt.")];
 
     wrapper.replaceChildren(heading, intro, ...cards, dialogContainer);
   }
@@ -529,11 +526,15 @@ async function renderContactsSection(partner, container) {
 
 export async function render(container, ctx) {
   const partnerId = ctx.params.id;
+  container.replaceChildren(
+    h("h1", {}, "Partner"),
+    renderLoading("Partnerdaten werden geladen …"),
+  );
   let partner;
   try {
     partner = await api("GET", `/api/partners/${partnerId}`);
   } catch (err) {
-    container.replaceChildren(h("h1", {}, "Partner"), h("p", { class: "error" }, err.message));
+    container.replaceChildren(h("h1", {}, "Partner"), renderError(err));
     return;
   }
 
@@ -591,6 +592,7 @@ export async function render(container, ctx) {
     if (!editing) {
       await renderContactsSection(partner, container);
     }
+    container.append(crossNav());
   }
 
   await rerender();

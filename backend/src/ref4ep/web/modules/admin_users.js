@@ -1,4 +1,4 @@
-import { api, h } from "/portal/common.js";
+import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
 
 function isAdmin(me) {
   return me?.person?.platform_role === "admin";
@@ -129,14 +129,26 @@ function rowFor(person, navigate) {
 
 export async function render(container, ctx) {
   if (!isAdmin(ctx.me)) {
-    container.replaceChildren(h("h1", {}, "Personen"), h("p", { class: "error" }, "Nur Admin."));
+    container.replaceChildren(h("h1", {}, "Personen"), renderError("Nur Admin."));
     return;
   }
 
-  const [persons, partners] = await Promise.all([
-    api("GET", "/api/admin/persons"),
-    api("GET", "/api/admin/partners"),
-  ]);
+  container.replaceChildren(
+    h("h1", {}, "Personen"),
+    renderLoading("Personen werden geladen …"),
+  );
+
+  let persons;
+  let partners;
+  try {
+    [persons, partners] = await Promise.all([
+      api("GET", "/api/admin/persons"),
+      api("GET", "/api/admin/partners"),
+    ]);
+  } catch (err) {
+    container.replaceChildren(h("h1", {}, "Personen"), renderError(err));
+    return;
+  }
   const activePartners = partners.filter((p) => !p.is_deleted);
 
   const tbody = h(
@@ -188,5 +200,9 @@ export async function render(container, ctx) {
     h("button", { type: "button", onclick: showCreateForm }, "Person anlegen …"),
   );
 
-  container.replaceChildren(headerRow, table, dialogContainer);
+  const body = persons.length
+    ? table
+    : renderEmpty("Es sind noch keine Personen angelegt.");
+
+  container.replaceChildren(headerRow, body, dialogContainer, crossNav());
 }
