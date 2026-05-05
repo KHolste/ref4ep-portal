@@ -589,19 +589,8 @@ class MeetingService:
             )
         return action
 
-    def update_action(
-        self,
-        action_id: str,
-        *,
-        fields: dict[str, object],
-    ) -> MeetingAction:
-        action = self.session.get(MeetingAction, action_id)
-        if action is None:
-            raise LookupError(f"Aufgabe {action_id} nicht gefunden.")
-        meeting = action.meeting
-        if not self.can_edit_meeting(meeting):
-            raise PermissionError("Kein Schreibrecht für dieses Meeting.")
-        before = {
+    def _action_snapshot(self, action: MeetingAction) -> dict[str, object]:
+        return {
             "text": action.text,
             "status": action.status,
             "workpackage_id": action.workpackage_id,
@@ -609,6 +598,9 @@ class MeetingService:
             "due_date": action.due_date.isoformat() if action.due_date else None,
             "note": action.note,
         }
+
+    def _apply_action_fields(self, action: MeetingAction, fields: dict[str, object]) -> None:
+        """Setzt erlaubte Felder einer Aufgabe — Validierung, kein Permission-Check."""
         for key, raw in fields.items():
             if key not in {
                 "text",
@@ -633,15 +625,145 @@ class MeetingService:
                 if person is None or person.is_deleted:
                     raise LookupError(f"Person {value} nicht gefunden.")
             setattr(action, key, value if value != "" else None)
+
+    def update_action(
+        self,
+        action_id: str,
+        *,
+        fields: dict[str, object],
+    ) -> MeetingAction:
+        action = self.session.get(MeetingAction, action_id)
+        if action is None:
+            raise LookupError(f"Aufgabe {action_id} nicht gefunden.")
+        meeting = action.meeting
+        if not self.can_edit_meeting(meeting):
+            raise PermissionError("Kein Schreibrecht für dieses Meeting.")
+        before = self._action_snapshot(action)
+        self._apply_action_fields(action, fields)
         self.session.flush()
-        after = {
-            "text": action.text,
-            "status": action.status,
-            "workpackage_id": action.workpackage_id,
-            "responsible_person_id": action.responsible_person_id,
-            "due_date": action.due_date.isoformat() if action.due_date else None,
-            "note": action.note,
-        }
+        after = self._action_snapshot(action)
+        if self.audit is not None and after != before:
+            self.audit.log(
+                "meeting.action.update",
+                entity_type="meeting_action",
+                entity_id=action.id,
+                before=before,
+                after=after,
+            )
+        return action
+
+    # ---- Aufgaben-Übersicht (Block 0018) -------------------------------
+
+    def list_all_actions(
+        self,
+        *,
+        mine: bool = False,
+        status: str | None = None,
+        overdue: bool = False,
+        workpackage_code: str | None = None,
+        responsible_person_id: str | None = None,
+        today: date | None = None,
+    ) -> list[MeetingAction]:
+        """Globale Aufgabenliste mit Filteroptionen.
+
+        - ``mine=True`` filtert auf
+          ``responsible_person_id == self.person_id``.
+        - ``status`` filtert auf einen der MEETING_ACTION_STATUSES.
+        - ``overdue=True`` liefert offene/in_progress Aufgaben mit
+          ``due_date < today``.
+        - ``workpackage_code`` filtert auf ein WP.
+        - ``responsible_person_id`` setzt eine konkrete Verantwortliche.
+
+        Sortierung: Fälligkeit (NULL zuletzt), dann ``created_at``.
+        """
+        today = today or date.today()
+        stmt = select(MeetingAction)
+        if mine:
+            if not self.person_id:
+                return []
+            stmt = stmt.where(MeetingAction.responsible_person_id == self.person_id)
+        elif responsible_person_id is not None:
+            stmt = stmt.where(MeetingAction.responsible_person_id == responsible_person_id)
+        if status is not None:
+            if status not in MEETING_ACTION_STATUSES:
+                raise ValueError(f"status: ungültiger Wert {status!r}")
+            stmt = stmt.where(MeetingAction.status == status)
+        if overdue:
+            stmt = stmt.where(
+                MeetingAction.due_date.isnot(None),
+                MeetingAction.due_date < today,
+                MeetingAction.status.in_(("open", "in_progress")),
+            )
+        if workpackage_code is not None:
+            wp = self.session.scalars(
+                select(Workpackage).where(Workpackage.code == workpackage_code)
+            ).first()
+            if wp is None:
+                return []
+            stmt = stmt.where(MeetingAction.workpackage_id == wp.id)
+        # NULL-due_date hinten anstellen — SQLite unterstützt NULLS LAST nicht
+        # nativ, also sortieren wir über CASE.
+        from sqlalchemy import case
+
+        stmt = stmt.order_by(
+            case((MeetingAction.due_date.is_(None), 1), else_=0),
+            MeetingAction.due_date.asc(),
+            MeetingAction.created_at.asc(),
+        )
+        return list(self.session.scalars(stmt))
+
+    def can_edit_action(self, action: MeetingAction) -> bool:
+        """Wer darf eine MeetingAction bearbeiten?
+
+        - Admin: ja.
+        - Verantwortliche Person der Aufgabe: ja (Selbst-Service-Pfad
+          für status/note/due_date).
+        - WP-Lead aller Meeting-WPs (= ``can_edit_meeting``): ja.
+        - sonst: nein.
+        """
+        if self._is_admin():
+            return True
+        if self.person_id and action.responsible_person_id == self.person_id:
+            return True
+        return self.can_edit_meeting(action.meeting)
+
+    def update_action_compact(
+        self,
+        action_id: str,
+        *,
+        fields: dict[str, object],
+    ) -> MeetingAction:
+        """Update einer Aufgabe aus der zentralen Aufgabenübersicht.
+
+        Erlaubt drei Pfade (siehe ``can_edit_action``): Admin,
+        verantwortliche Person, WP-Lead. Verantwortliche Person darf
+        sich aber nicht selbst die Verantwortung entziehen — wenn nur
+        die responsible-self-Route greift, sind die Felder
+        ``text``, ``responsible_person_id`` und ``workpackage_id``
+        gesperrt; nur ``status``, ``note`` und ``due_date`` zählen.
+        """
+        action = self.session.get(MeetingAction, action_id)
+        if action is None:
+            raise LookupError(f"Aufgabe {action_id} nicht gefunden.")
+        if not self.can_edit_action(action):
+            raise PermissionError(
+                "Nur Admin, WP-Lead oder die verantwortliche Person darf diese Aufgabe ändern."
+            )
+        responsible_only = (
+            not self._is_admin()
+            and not self.can_edit_meeting(action.meeting)
+            and action.responsible_person_id == self.person_id
+        )
+        cleaned: dict[str, object]
+        if responsible_only:
+            allowed = {"status", "note", "due_date"}
+            cleaned = {k: v for k, v in fields.items() if k in allowed}
+        else:
+            cleaned = dict(fields)
+        before = self._action_snapshot(action)
+        self._apply_action_fields(action, cleaned)
+        self.session.flush()
+        after = self._action_snapshot(action)
         if self.audit is not None and after != before:
             self.audit.log(
                 "meeting.action.update",

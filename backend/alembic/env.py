@@ -9,12 +9,12 @@ from __future__ import annotations
 
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from alembic import context
 from ref4ep.api.config import get_settings
-from ref4ep.domain.base import Base
 from ref4ep.domain import models  # noqa: F401 — registriert Modelle bei Base.metadata
+from ref4ep.domain.base import Base
 
 config = context.config
 

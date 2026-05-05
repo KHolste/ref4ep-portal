@@ -960,7 +960,16 @@ export async function render(container, ctx) {
   const isAdmin = ctx?.me?.person?.platform_role === "admin";
 
   function rerender() {
-    const actionButtons = [];
+    const actionButtons = [
+      h(
+        "a",
+        {
+          href: `/portal/meetings/${meeting.id}/print`,
+          class: "button-like",
+        },
+        "Protokollansicht …",
+      ),
+    ];
     if (meeting.can_edit) {
       actionButtons.push(
         h("button", { type: "button", onclick: onEditMeeting }, "Meeting bearbeiten …"),

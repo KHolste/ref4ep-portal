@@ -4,7 +4,7 @@
 // in common.js zur Login-Seite umleiten. Anschließend einfaches
 // History-API-Routing für Cockpit, Workpackages, WP-Detail, Account.
 
-import { api } from "/portal/common.js";
+import { api, getAdminViewMode, setAdminViewMode } from "/portal/common.js";
 
 const ROUTES = [
   { pattern: /^\/portal\/?$/, module: "cockpit" },
@@ -14,7 +14,9 @@ const ROUTES = [
   { pattern: /^\/portal\/partners\/([^/]+)\/?$/, module: "partner_detail", param: "id" },
   { pattern: /^\/portal\/milestones\/?$/, module: "milestones" },
   { pattern: /^\/portal\/meetings\/?$/, module: "meetings" },
+  { pattern: /^\/portal\/meetings\/([^/]+)\/print\/?$/, module: "meeting_print", param: "id" },
   { pattern: /^\/portal\/meetings\/([^/]+)\/?$/, module: "meeting_detail", param: "id" },
+  { pattern: /^\/portal\/actions\/?$/, module: "actions" },
   { pattern: /^\/portal\/lead\/team\/?$/, module: "lead_team" },
   { pattern: /^\/portal\/account\/?$/, module: "account" },
   { pattern: /^\/portal\/admin\/audit\/?$/, module: "audit" },
@@ -51,7 +53,25 @@ function renderUserBox() {
   box.innerHTML = "";
   const span = document.createElement("span");
   span.textContent = `${currentMe.person.display_name} (${currentMe.person.partner.short_name})`;
-  const sep = document.createTextNode(" · ");
+  box.append(span, document.createTextNode(" · "));
+
+  // Admin-Ansicht-Toggle: nur für echte Plattform-Admins.
+  if (currentMe.person.platform_role === "admin") {
+    const mode = getAdminViewMode();
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "linklike admin-view-toggle";
+    toggle.textContent =
+      mode === "user"
+        ? "Zur Admin-Ansicht wechseln"
+        : "Zur Nutzeransicht wechseln";
+    toggle.addEventListener("click", () => {
+      setAdminViewMode(mode === "user" ? "admin" : "user");
+      window.location.reload();
+    });
+    box.append(toggle, document.createTextNode(" · "));
+  }
+
   const form = document.createElement("form");
   form.method = "post";
   form.action = "/logout";
@@ -69,7 +89,16 @@ function renderUserBox() {
   btn.textContent = "Abmelden";
   btn.className = "linklike";
   form.append(btn);
-  box.append(span, sep, form);
+  box.append(form);
+}
+
+function renderViewModeBanner() {
+  // Sichtbarer Hinweisbalken, wenn ein Admin auf Nutzeransicht
+  // umgeschaltet hat — Serverrechte bleiben unverändert.
+  const banner = document.getElementById("admin-view-banner");
+  if (!banner) return;
+  const isAdmin = currentMe?.person?.platform_role === "admin";
+  banner.hidden = !(isAdmin && getAdminViewMode() === "user");
 }
 
 async function dispatch(pathname) {
@@ -123,14 +152,17 @@ function attachLinkInterception() {
 }
 
 function applyRoleVisibility() {
-  const isAdmin = currentMe?.person?.platform_role === "admin";
+  const realAdmin = currentMe?.person?.platform_role === "admin";
+  // Effektive Rolle für die UI: wenn der Admin auf Nutzeransicht
+  // geschaltet hat, blenden wir Admin-Funktionen aus.
+  const effectiveAdmin = realAdmin && getAdminViewMode() !== "user";
   const isAnyWpLead = (currentMe?.memberships || []).some((m) => m.wp_role === "wp_lead");
-  // „Mein Team": sichtbar für WP-Leads und Admins.
-  if (isAdmin || isAnyWpLead) {
+  // „Mein Team": sichtbar für WP-Leads und (Admin in Admin-Ansicht).
+  if (effectiveAdmin || isAnyWpLead) {
     const lead = document.getElementById("nav-lead-team");
     if (lead) lead.hidden = false;
   }
-  if (!isAdmin) return;
+  if (!effectiveAdmin) return;
   for (const id of ["nav-admin-users", "nav-admin-partners", "nav-admin-audit"]) {
     const el = document.getElementById(id);
     if (el) el.hidden = false;
@@ -144,6 +176,7 @@ async function bootstrap() {
     return; // api() leitet bereits zu /login um.
   }
   renderUserBox();
+  renderViewModeBanner();
   applyRoleVisibility();
   attachLinkInterception();
   await dispatch(window.location.pathname);

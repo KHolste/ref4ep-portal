@@ -182,13 +182,23 @@ form.stacked textarea {
   margin: 1rem 0;
 }
 
-.actions button {
+.actions button,
+.actions a.button-like {
   background: #1c2c4c;
   color: #fff;
   border: none;
   padding: 0.4rem 0.75rem;
   border-radius: 3px;
   cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  line-height: 1.4;
+}
+
+.actions a.button-like {
+  background: #fff;
+  color: #1c2c4c;
+  border: 1px solid #1c2c4c;
 }
 
 /* Form-Action-Reihe (Speichern + Abbrechen) — gleicher Abstand und
@@ -289,6 +299,121 @@ details.collapsible[open] > summary {
   gap: 1rem;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   margin: 1rem 0;
+}
+
+/* Cockpit-UX-Pass: KPI-Streifen oben („Zahlen auf einen Blick"). */
+.cockpit-kpi-strip {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1.25rem;
+}
+
+@media (min-width: 540px) {
+  .cockpit-kpi-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .cockpit-kpi-strip {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.cockpit-kpi {
+  display: block;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #d6dfe9;
+  border-left: 4px solid #1c2c4c;
+  border-radius: 4px;
+  background: #fff;
+  color: #1c2c4c;
+  text-decoration: none;
+  text-align: left;
+}
+
+.cockpit-kpi-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.cockpit-kpi-label {
+  font-size: 0.85rem;
+  color: #555;
+  margin-top: 0.15rem;
+}
+
+.cockpit-kpi-danger {
+  border-left-color: #c0392b;
+  background: #fdecea;
+}
+
+.cockpit-kpi-danger .cockpit-kpi-value {
+  color: #c0392b;
+}
+
+a.cockpit-kpi:hover,
+a.cockpit-kpi:focus {
+  background: #f5f8fc;
+}
+
+a.cockpit-kpi.cockpit-kpi-danger:hover,
+a.cockpit-kpi.cockpit-kpi-danger:focus {
+  background: #fbdcd8;
+}
+
+/* Verdichtete WP-Statusübersicht — Sub-Heading + Mini-Tabelle. */
+.cockpit-subhead {
+  margin: 0.75rem 0 0.4rem;
+  font-size: 0.95rem;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cockpit-problem-wps {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cockpit-problem-wps th,
+.cockpit-problem-wps td {
+  text-align: left;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid #eef2f7;
+  font-size: 0.9rem;
+}
+
+/* „Mein Bereich"-WP-Karte: Counts + einklappbare Restliste. */
+.my-wp-counts {
+  margin: 0.1rem 0 0.4rem;
+  font-size: 0.85rem;
+}
+
+.my-wp-more {
+  margin-top: 0.3rem;
+}
+
+.my-wp-more > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #1c2c4c;
+}
+
+/* Screenreader-only Anker; bringt keine Optik mit, hält die DOM-Reihenfolge
+ * stabil, wenn ein Block ohne sichtbares h2 platziert wird. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .cockpit-card {
@@ -526,4 +651,139 @@ tr.row-released {
   border: 1px solid #e5c100;
   border-radius: 3px;
   word-break: break-all;
+}
+
+/* Admin-Ansichts-Toggle (Block 0018). */
+.admin-view-toggle {
+  font-size: 0.85rem;
+}
+
+.admin-view-banner {
+  background: #fef6dc;
+  border-bottom: 1px solid #e5c100;
+  padding: 0.4rem 1rem;
+  font-size: 0.9rem;
+  color: #5b4500;
+}
+
+/* „Mein Bereich"-Karten im Cockpit. */
+.my-area-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  margin: 0.75rem 0 1.5rem;
+}
+
+.my-area-card {
+  border: 1px solid #d6dfe9;
+  border-left: 3px solid #1c2c4c;
+  border-radius: 4px;
+  padding: 0.6rem 0.9rem;
+  background: #fff;
+}
+
+.my-area-card.danger {
+  border-left-color: #c0392b;
+}
+
+.my-area-card h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+}
+
+.my-area-card ul {
+  margin: 0.3rem 0;
+  padding-left: 1.1rem;
+}
+
+/* Aktivitätsbox „Seit deinem letzten Besuch". */
+.activity-box {
+  border: 1px solid #d6dfe9;
+  border-radius: 4px;
+  padding: 0.6rem 0.9rem;
+  background: #fafbfd;
+  margin: 0.75rem 0 1.5rem;
+}
+
+.activity-box h2 {
+  margin-top: 0;
+}
+
+.activity-box ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.activity-box li {
+  padding: 0.3rem 0;
+  border-bottom: 1px dashed #e1e7ef;
+}
+
+.activity-box li:last-child {
+  border-bottom: none;
+}
+
+.activity-box .activity-meta {
+  font-size: 0.8rem;
+  color: #555;
+}
+
+/* Druck-/Protokollansicht (Block 0018). */
+.meeting-print {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1rem;
+  background: #fff;
+  color: #111;
+}
+
+.meeting-print h1 {
+  margin-top: 0;
+}
+
+.meeting-print section {
+  margin-bottom: 1.2rem;
+  break-inside: avoid;
+}
+
+.meeting-print .print-card {
+  border: 1px solid #999;
+  padding: 0.5rem 0.75rem;
+  margin: 0.4rem 0;
+  break-inside: avoid;
+}
+
+.meeting-print-toolbar {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.preserve-line {
+  white-space: pre-line;
+}
+
+@media print {
+  /* Beim Browser-Druck unsichtbar: Header-Nav, Cross-Nav, Aktions-Buttons. */
+  .portal-header,
+  #admin-view-banner,
+  .cross-nav,
+  .actions,
+  .form-actions,
+  .no-print,
+  .meeting-print .no-print {
+    display: none !important;
+  }
+  body,
+  main {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .meeting-print {
+    padding: 0;
+  }
+  .meeting-print section,
+  .meeting-print .print-card {
+    page-break-inside: avoid;
+  }
 }

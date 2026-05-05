@@ -493,4 +493,89 @@ class MeetingDocumentLinkAddRequest(BaseModel):
     label: str = "other"
 
 
+# --------------------------------------------------------------------------- #
+# Block 0018 — zentrale Aufgabenübersicht                                     #
+# --------------------------------------------------------------------------- #
+
+
+class ActionListItemOut(BaseModel):
+    id: str
+    text: str
+    status: str
+    due_date: date | None = None
+    note: str | None = None
+    meeting_id: str
+    meeting_title: str
+    workpackage_code: str | None = None
+    workpackage_title: str | None = None
+    responsible_person: MeetingPersonOut | None = None
+    can_edit: bool = False
+    created_at: datetime
+    updated_at: datetime
+
+
+class ActionPatchRequest(BaseModel):
+    status: str | None = None
+    note: str | None = None
+    due_date: date | None = None
+    responsible_person_id: str | None = None
+    workpackage_id: str | None = None
+    text: str | None = Field(default=None, min_length=1)
+
+
+# --------------------------------------------------------------------------- #
+# Block 0018 — Aktivitäts-Feed                                                #
+# --------------------------------------------------------------------------- #
+
+
+class ActivityEntryOut(BaseModel):
+    timestamp: datetime
+    actor: str | None = None
+    type: str  # document/meeting/action/decision/workpackage/team/milestone/other
+    title: str
+    description: str | None = None
+    link: str | None = None
+
+
+# --------------------------------------------------------------------------- #
+# Block 0018 — personalisierte Cockpit-Sicht                                  #
+# --------------------------------------------------------------------------- #
+
+
+class MyWorkpackageOut(BaseModel):
+    code: str
+    title: str
+    wp_role: str  # wp_lead / wp_member
+    status: str
+
+
+class MyMeetingOut(BaseModel):
+    id: str
+    title: str
+    starts_at: datetime
+    ends_at: datetime | None = None
+    status: str
+    workpackage_codes: list[str] = Field(default_factory=list)
+
+
+class MyActionOut(BaseModel):
+    id: str
+    text: str
+    status: str
+    due_date: date | None = None
+    overdue: bool = False
+    meeting_id: str
+    meeting_title: str
+    workpackage_code: str | None = None
+
+
+class MyCockpitOut(BaseModel):
+    today: date
+    my_workpackages: list[MyWorkpackageOut] = Field(default_factory=list)
+    my_lead_workpackages: list[MyWorkpackageOut] = Field(default_factory=list)
+    my_open_actions: list[MyActionOut] = Field(default_factory=list)
+    my_overdue_actions: list[MyActionOut] = Field(default_factory=list)
+    my_next_meetings: list[MyMeetingOut] = Field(default_factory=list)
+
+
 WorkpackageDetailOut.model_rebuild()

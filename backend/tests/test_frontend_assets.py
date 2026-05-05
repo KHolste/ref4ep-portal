@@ -748,3 +748,228 @@ def test_no_javascript_string_spans_a_newline() -> None:
         for ln, quote, src_line in _broken_string_lines(path.read_text(encoding="utf-8")):
             failures.append(f"{path.name}:{ln} String {quote!r} unterminiert: {src_line!r}")
     assert not failures, "\n".join(failures)
+
+
+# ---- Block 0018 — Admin-View-Toggle + Aufgaben + Druckansicht + Cockpit
+
+
+def test_app_js_registers_actions_and_print_routes() -> None:
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    # /portal/actions als eigene Route.
+    assert "actions\\/?" in body
+    assert '"actions"' in body or 'module: "actions"' in body
+    # Druckansicht /portal/meetings/{id}/print → eigenes Modul.
+    assert "print" in body
+    assert "meeting_print" in body
+
+
+def test_index_html_has_actions_nav_and_view_banner() -> None:
+    body = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    # Aufgaben-Link in der Navi.
+    assert 'href="/portal/actions"' in body
+    assert ">Aufgaben<" in body
+    # Banner-Element für Admin-Ansichts-Umschaltung vorhanden + standardmäßig hidden.
+    assert 'id="admin-view-banner"' in body
+    banner_line = next(line for line in body.splitlines() if "admin-view-banner" in line)
+    assert "hidden" in banner_line
+
+
+def test_actions_module_has_list_and_filters() -> None:
+    body = (MODULES_DIR / "actions.js").read_text(encoding="utf-8")
+    # Filter-Box mit Legende.
+    assert "meeting-filterbox" in body
+    assert "Aufgaben filtern" in body
+    # Filteroptionen, die der Server kennt.
+    for term in ("Meine Aufgaben", "Überfällig", "Alle Status", "WP-Code"):
+        assert term in body, f"actions.js sollte {term!r} enthalten"
+    # Tabellen-Spalten.
+    for header in ("Frist", "Status", "Aufgabe", "Verantwortlich", "WP", "Quelle / Meeting"):
+        assert header in body, f"actions.js sollte Spalte {header!r} enthalten"
+    # API-Pfade.
+    assert "/api/actions" in body
+    # PATCH wird verwendet — direkter Statuswechsel aus der Liste.
+    assert 'api("PATCH"' in body
+    # Zentrale UX-Helfer + crossNav.
+    for helper in ("renderLoading", "renderError", "renderEmpty", "crossNav("):
+        assert helper in body, f"actions.js sollte {helper!r} verwenden"
+
+
+def test_meeting_print_module_renders_protocol_view() -> None:
+    body = (MODULES_DIR / "meeting_print.js").read_text(encoding="utf-8")
+    # Lädt das Meeting selbst.
+    assert "/api/meetings/" in body
+    # Eigene Klasse für die Druckansicht.
+    assert "meeting-print" in body
+    # Druckknopf + Rückkehr zur Detailseite.
+    assert "window.print" in body
+    assert "/portal/meetings/" in body
+    # Kerninhalte des Protokolls.
+    for section in ("Beschlüsse", "Aufgaben", "Teilnehmende", "Arbeitspakete", "Dokumente"):
+        assert section in body, f"meeting_print.js sollte Sektion {section!r} enthalten"
+
+
+def test_meeting_detail_links_to_print_view() -> None:
+    body = (MODULES_DIR / "meeting_detail.js").read_text(encoding="utf-8")
+    # Direkter Link zum Print-Modul.
+    assert "/print" in body
+    assert "Protokollansicht" in body
+
+
+def test_common_js_exports_admin_view_and_last_seen_helpers() -> None:
+    body = (WEB_DIR / "common.js").read_text(encoding="utf-8")
+    for fn in (
+        "export function getAdminViewMode",
+        "export function setAdminViewMode",
+        "export function effectivePlatformRole",
+        "export function getLastSeenAt",
+        "export function markSeenNow",
+    ):
+        assert fn in body, f"common.js sollte {fn!r} exportieren"
+    # localStorage-Schlüssel haben einen Namespace.
+    assert "ref4ep.admin_view_mode" in body
+    assert "ref4ep.last_seen_at" in body
+
+
+def test_app_js_renders_admin_view_toggle_and_banner() -> None:
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    # Toggle-Button (Klasse + Beschriftung).
+    assert "admin-view-toggle" in body
+    assert "Zur Admin-Ansicht wechseln" in body
+    assert "Zur Nutzeransicht wechseln" in body
+    # Sichtbarer Hinweisbalken.
+    assert "renderViewModeBanner" in body
+    # Effektive Rolle wird in der Sichtbarkeitslogik verwendet.
+    assert "getAdminViewMode" in body
+
+
+def test_cockpit_has_my_area_and_activity_box() -> None:
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    # „Mein Bereich"-Karten und ihre Datenquelle.
+    assert "Mein Bereich" in body
+    assert "Meine Arbeitspakete" in body
+    assert "Meine Aufgaben" in body
+    assert "Nächste Meetings" in body
+    assert "/api/cockpit/me" in body
+    # Aktivitätsbox.
+    assert "/api/activity/recent" in body
+    assert "Änderungen" in body
+    # markSeenNow wird nach dem Fetch aufgerufen.
+    assert "markSeenNow" in body
+    assert "getLastSeenAt" in body
+
+
+def test_style_css_has_block_0018_classes_and_print_rule() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (
+        ".admin-view-banner",
+        ".admin-view-toggle",
+        ".my-area-grid",
+        ".my-area-card",
+        ".activity-box",
+        ".meeting-print",
+    ):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+    # Die @media print-Regel blendet Header/Nav/Aktionen aus.
+    assert "@media print" in css
+    assert ".portal-header" in css
+    assert ".cross-nav" in css
+    assert ".actions" in css
+
+
+def test_actions_route_link_present_in_actions_module() -> None:
+    """Aufgaben-Liste verlinkt zurück auf das Quellen-Meeting."""
+    body = (MODULES_DIR / "actions.js").read_text(encoding="utf-8")
+    assert "/portal/meetings/" in body
+
+
+# ---- Cockpit-UX-Pass (Folge zu Block 0018) ---------------------------
+
+
+def test_cockpit_has_kpi_strip_with_labels() -> None:
+    """Oben im Cockpit liegt ein kompakter KPI-Streifen mit klaren Zählern."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    # Container-Klasse + Render-Funktion.
+    assert "cockpit-kpi-strip" in body
+    assert "renderKpiStrip" in body
+    assert "renderKpiTile" in body
+    # Die fünf Kennzahlen, die der Streifen anzeigen soll.
+    for label in (
+        "Überfällige Aufgaben",
+        "Offene Aufgaben",
+        "Nächste Meetings",
+        "Überfällige Meilensteine",
+        "WPs mit offenen Punkten",
+    ):
+        assert label in body, f"cockpit.js sollte KPI {label!r} anzeigen"
+
+
+def test_cockpit_kpi_styles_present() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (
+        ".cockpit-kpi-strip",
+        ".cockpit-kpi",
+        ".cockpit-kpi-value",
+        ".cockpit-kpi-label",
+        ".cockpit-kpi-danger",
+    ):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+    # Mobiles Default-Layout: einspaltig; ab 540 px zwei-, ab 900 px fünfspaltig.
+    assert "@media (min-width: 540px)" in css
+    assert "@media (min-width: 900px)" in css
+
+
+def test_cockpit_my_workpackages_are_capped_with_show_all_link() -> None:
+    """„Meine Arbeitspakete" zeigt nicht mehr alle WPs als lange Liste."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    # Begrenzungs-Konstante (kein magic number direkt im Render-Pfad).
+    assert "MY_WP_LIMIT" in body
+    # Sichtbarer Link zur vollständigen Sicht.
+    assert "Alle meine Arbeitspakete anzeigen" in body
+    # Lead/Member-Counts werden ausgegeben.
+    assert "my-wp-counts" in body
+    assert "Lead" in body
+    assert "Member" in body
+    # Restliste ist einklappbar (<details>).
+    assert "my-wp-more" in body
+    assert "weitere anzeigen" in body
+
+
+def test_cockpit_open_issues_are_capped_with_show_all_link() -> None:
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    assert "OPEN_ISSUE_LIMIT" in body
+    # „Alle Arbeitspakete anzeigen" ist die zentrale Brücke zur Vollsicht.
+    assert "Alle Arbeitspakete anzeigen" in body
+    # Hinweis auf weitere Einträge — als Suffix sichtbar.
+    assert "weitere" in body
+
+
+def test_cockpit_status_overview_shows_only_problem_wps() -> None:
+    """Die volle WP-Tabelle wird durch eine Mini-Tabelle der Problem-WPs ersetzt."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    # Filter-Set ist im Quelltext sichtbar.
+    assert "PROBLEM_WP_STATUSES" in body
+    for status in ("critical", "waiting_for_input", "in_progress"):
+        assert status in body
+    # Sub-Heading + dedizierte Tabellen-Klasse.
+    assert "cockpit-subhead" in body
+    assert "cockpit-problem-wps" in body
+    assert "Aufmerksamkeit nötig" in body
+    # Auch im Status-Overview gibt es den Brücken-Link zur Vollsicht.
+    assert "Alle Arbeitspakete anzeigen" in body
+
+
+def test_cockpit_does_not_iterate_full_overview_into_main_table() -> None:
+    """Die alte Variante mappte ``overview.map(...)`` direkt in eine
+    sichtbare Volltabelle — diese Form ist verschwunden. Stattdessen wird
+    ``overview.filter`` benutzt, um die Mini-Tabelle zu erzeugen."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    assert "overview.map" not in body
+    assert "overview.filter" in body
+
+
+def test_cockpit_uses_effective_platform_role_for_ordering() -> None:
+    """Die Reihenfolge ‚Mein Bereich' vs. ‚Projekt-Cockpit' richtet sich
+    nach der effektiven Plattformrolle (Admin-View-Toggle)."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    assert "effectivePlatformRole" in body
+    assert "isAdminView" in body

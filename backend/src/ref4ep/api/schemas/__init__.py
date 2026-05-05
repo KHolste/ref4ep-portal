@@ -1,6 +1,9 @@
 """Pydantic-Schemas für die HTTP-API."""
 
 from ref4ep.api.schemas.identity import (
+    ActionListItemOut,
+    ActionPatchRequest,
+    ActivityEntryOut,
     CockpitMilestoneOut,
     CockpitOpenIssueOut,
     CockpitWorkpackageStatusOut,
@@ -32,6 +35,10 @@ from ref4ep.api.schemas.identity import (
     MeOut,
     MilestoneOut,
     MilestonePatchRequest,
+    MyActionOut,
+    MyCockpitOut,
+    MyMeetingOut,
+    MyWorkpackageOut,
     PartnerContactCreateRequest,
     PartnerContactOut,
     PartnerContactPatchRequest,
@@ -52,6 +59,9 @@ from ref4ep.api.schemas.identity import (
 )
 
 __all__ = [
+    "ActionListItemOut",
+    "ActionPatchRequest",
+    "ActivityEntryOut",
     "CockpitMilestoneOut",
     "CockpitOpenIssueOut",
     "CockpitWorkpackageStatusOut",
@@ -80,6 +90,10 @@ __all__ = [
     "MeetingPersonOut",
     "MeetingWorkpackageOut",
     "MembershipOut",
+    "MyActionOut",
+    "MyCockpitOut",
+    "MyMeetingOut",
+    "MyWorkpackageOut",
     "MeOut",
     "MilestoneOut",
     "MilestonePatchRequest",
