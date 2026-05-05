@@ -882,3 +882,121 @@ tr.row-released {
     page-break-inside: avoid;
   }
 }
+
+/* Admin-Systemstatus (Block 0019) — sechs Karten, dezente Farbgebung. */
+.system-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+  margin: 1rem 0;
+}
+
+@media (min-width: 720px) {
+  .system-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.system-card {
+  border: 1px solid #d6dfe9;
+  border-top: 4px solid #1c2c4c;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  background: #fff;
+}
+
+.system-card h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.system-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+}
+
+.system-card-ok {
+  border-top-color: #2f7a3a;
+}
+
+.system-card-warning {
+  border-top-color: #c08a1e;
+  background: #fffaee;
+}
+
+.system-card-error {
+  border-top-color: #c0392b;
+  background: #fdecea;
+}
+
+.system-subhead {
+  margin: 0.6rem 0 0.3rem;
+  font-size: 0.85rem;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.system-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.2rem 0;
+  border-bottom: 1px dotted #eef2f7;
+  font-size: 0.9rem;
+}
+
+.system-row:last-child {
+  border-bottom: none;
+}
+
+.system-row-label {
+  color: #555;
+  flex-shrink: 0;
+}
+
+.system-row-value {
+  text-align: right;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.system-warnings {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
+}
+
+.system-warnings li {
+  margin: 0.15rem 0;
+}
+
+.system-logs {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+.system-badge {
+  font-size: 0.7rem;
+}
+
+.system-badge-ok {
+  background: #d8efd8;
+  color: #1a4f1a;
+}
+
+.system-badge-warning {
+  background: #fbedc4;
+  color: #5a4500;
+}
+
+.system-badge-error {
+  background: #f5c8c2;
+  color: #5e1a12;
+}

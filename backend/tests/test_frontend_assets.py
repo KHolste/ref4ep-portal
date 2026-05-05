@@ -1074,3 +1074,98 @@ def test_cockpit_open_issues_section_is_marked_as_excerpt() -> None:
     # Limit-Konstante + Brücken-Link sind weiterhin da.
     assert "OPEN_ISSUE_LIMIT" in body
     assert "Alle Arbeitspakete anzeigen" in body
+
+
+# ---- Block 0019 — Admin-Systemstatus-Seite ---------------------------
+
+
+def test_app_js_registers_system_status_route() -> None:
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    assert "admin\\/system" in body
+    assert "system_status" in body
+
+
+def test_index_html_has_system_nav_admin_only() -> None:
+    body = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    assert 'href="/portal/admin/system"' in body
+    assert 'id="nav-admin-system"' in body
+    assert ">System<" in body
+    # In der Default-HTML hidden — JS macht den Link nur in Admin-Ansicht sichtbar.
+    nav_line = next(line for line in body.splitlines() if "nav-admin-system" in line)
+    assert "hidden" in nav_line
+
+
+def test_app_js_unhides_system_link_only_for_admin_view() -> None:
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    # System steht in derselben Admin-Liste wie Users/Partners/Audit
+    # und wird damit nur in Admin-Ansicht sichtbar.
+    assert "nav-admin-system" in body
+    # Sicherheitskontext: effektive Admin-Rolle (User-Toggle).
+    assert "effectiveAdmin" in body
+
+
+def test_system_status_module_uses_central_helpers_and_cross_nav() -> None:
+    body = (MODULES_DIR / "system_status.js").read_text(encoding="utf-8")
+    for helper in ("renderLoading", "renderError", "crossNav("):
+        assert helper in body, f"system_status.js sollte {helper!r} verwenden"
+
+
+def test_system_status_module_renders_required_sections() -> None:
+    body = (MODULES_DIR / "system_status.js").read_text(encoding="utf-8")
+    for term in (
+        "Systemstatus",
+        "Datenbank",
+        "Backups",
+        "Speicherplatz",
+        "Objektzahlen",
+        "Letzte Fehler",
+        "Aktualisieren",
+    ):
+        assert term in body, f"system_status.js sollte {term!r} enthalten"
+    # Lädt vom Admin-only-Endpoint.
+    assert "/api/admin/system/status" in body
+
+
+def test_system_status_module_has_no_destructive_actions() -> None:
+    """Block 0019 erlaubt explizit nur Lesesicht — keine Backup-/
+    Restore-/Lösch-Trigger im Modul."""
+    body = (MODULES_DIR / "system_status.js").read_text(encoding="utf-8")
+    for forbidden in (
+        "Backup auslösen",
+        "Backup starten",
+        "Wiederherstellen",
+        "Restore",
+        "Löschen",
+        '"DELETE"',
+        '"POST"',
+    ):
+        assert forbidden not in body, f"system_status.js darf {forbidden!r} nicht enthalten"
+
+
+def test_system_status_module_does_not_print_env_or_secrets() -> None:
+    body = (MODULES_DIR / "system_status.js").read_text(encoding="utf-8")
+    # Keine Hinweise, dass das Modul Settings/.env-Werte direkt rendert.
+    for forbidden in (
+        ".env",
+        "session_secret",
+        "REF4EP_",
+        "DATABASE_URL",
+        "password",
+    ):
+        assert forbidden not in body, f"system_status.js darf {forbidden!r} nicht enthalten"
+
+
+def test_system_status_styles_are_present() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (
+        ".system-grid",
+        ".system-card",
+        ".system-card-warning",
+        ".system-card-error",
+        ".system-card-ok",
+        ".system-row",
+        ".system-badge-warning",
+        ".system-badge-error",
+        ".system-badge-ok",
+    ):
+        assert cls in css, f"style.css sollte {cls} enthalten"

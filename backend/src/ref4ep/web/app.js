@@ -23,6 +23,7 @@ const ROUTES = [
   { pattern: /^\/portal\/admin\/users\/?$/, module: "admin_users" },
   { pattern: /^\/portal\/admin\/users\/([^/]+)\/?$/, module: "admin_user_detail", param: "id" },
   { pattern: /^\/portal\/admin\/partners\/?$/, module: "admin_partners" },
+  { pattern: /^\/portal\/admin\/system\/?$/, module: "system_status" },
 ];
 
 let currentMe = null;
@@ -163,7 +164,12 @@ function applyRoleVisibility() {
     if (lead) lead.hidden = false;
   }
   if (!effectiveAdmin) return;
-  for (const id of ["nav-admin-users", "nav-admin-partners", "nav-admin-audit"]) {
+  for (const id of [
+    "nav-admin-users",
+    "nav-admin-partners",
+    "nav-admin-audit",
+    "nav-admin-system",
+  ]) {
     const el = document.getElementById(id);
     if (el) el.hidden = false;
   }

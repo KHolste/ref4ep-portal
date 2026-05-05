@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     max_upload_mb: int = 100
     public_base_url: str = "http://localhost:8000"
     log_format: Literal["text", "json"] = "text"
+    # Verzeichnis, in dem das Hostsystem die Backups ablegt
+    # (siehe systemd-Setup). Pfad muss nicht existieren — der
+    # SystemStatusService meldet ein Fehlen als Warning.
+    backup_dir: str = "/opt/ref4ep-backups"
 
     model_config = SettingsConfigDict(
         env_prefix="REF4EP_",
