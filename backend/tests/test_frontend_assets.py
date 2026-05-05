@@ -1169,3 +1169,76 @@ def test_system_status_styles_are_present() -> None:
         ".system-badge-ok",
     ):
         assert cls in css, f"style.css sollte {cls} enthalten"
+
+
+# ---- Block 0020 — Drag-and-Drop für Dokument-Uploads -----------------
+
+
+# Module, die echte Datei-Uploads anbieten (FormData + input[type=file]).
+REAL_UPLOAD_MODULES = ("document_detail.js",)
+
+
+def test_common_js_exports_create_file_dropzone() -> None:
+    body = (WEB_DIR / "common.js").read_text(encoding="utf-8")
+    assert "export function createFileDropzone" in body
+    # Hinweistext für Mehrfach-Drop ist im Helfer hartkodiert.
+    assert "Bitte nur eine Datei auswählen." in body
+    # Drei Drag-Handler sind verdrahtet.
+    for evt in ('"dragover"', '"dragleave"', '"drop"'):
+        assert evt in body, f"common.js sollte {evt}-Listener registrieren"
+
+
+def test_dropzone_styles_present() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (
+        ".file-dropzone",
+        ".file-dropzone-active",
+        ".file-dropzone-meta",
+        ".file-dropzone-warning",
+        ".file-dropzone-cta",
+    ):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+
+
+def test_real_upload_modules_use_dropzone_helper_and_keep_file_input() -> None:
+    """Echte Upload-Module nutzen den zentralen Dropzone-Helfer und
+    behalten das klassische ``<input type="file">`` als
+    Tastatur-/A11y-Pfad."""
+    for name in REAL_UPLOAD_MODULES:
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        assert "createFileDropzone" in body, f"{name} sollte createFileDropzone benutzen"
+        # Klassisches Auswahlfeld bleibt erhalten.
+        assert 'type: "file"' in body, f"{name} sollte input[type=file] behalten"
+        # Backend nimmt nur eine Datei — Submit liest weiterhin files[0].
+        assert "files[0]" in body, f"{name} sollte weiter files[0] verwenden"
+        # FormData bleibt der Pfad zum Backend.
+        assert "FormData" in body, f"{name} sollte FormData beibehalten"
+
+
+def test_meeting_detail_has_no_file_input_no_dropzone_no_formdata() -> None:
+    """Verschärfung: Meeting-Dokumentverknüpfung ist KEIN Datei-Upload —
+    weder als input[type=file] noch als Dropzone, und ohne FormData."""
+    body = (MODULES_DIR / "meeting_detail.js").read_text(encoding="utf-8")
+    assert 'type: "file"' not in body
+    assert 'type="file"' not in body
+    # Weder der Helfer noch eine Dropzone-Klasse.
+    assert "createFileDropzone" not in body
+    assert "file-dropzone" not in body
+    # Kein FormData irgendwo im Modul.
+    assert "FormData" not in body
+    # Verknüpfung bleibt JSON-POST mit document_id.
+    assert "document_id" in body
+    assert 'api("POST"' in body
+
+
+def test_no_other_module_introduces_unexpected_file_upload() -> None:
+    """Außer den deklarierten Upload-Modulen darf kein weiteres Modul
+    ein input[type=file] führen — z. B. nicht im Meeting-Bereich, im
+    Cockpit oder in Admin-Sub-Seiten."""
+    allowed = set(REAL_UPLOAD_MODULES)
+    for path in sorted(MODULES_DIR.glob("*.js")):
+        if path.name in allowed:
+            continue
+        body = path.read_text(encoding="utf-8")
+        assert 'type: "file"' not in body, f"{path.name} sollte kein input[type=file] enthalten"
+        assert 'type="file"' not in body, f"{path.name} sollte kein input[type=file] enthalten"

@@ -1,4 +1,12 @@
-import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
+import {
+  api,
+  createFileDropzone,
+  crossNav,
+  h,
+  renderEmpty,
+  renderError,
+  renderLoading,
+} from "/portal/common.js";
 
 const TYPE_LABELS = {
   deliverable: "Deliverable",
@@ -101,7 +109,14 @@ function renderVersionsTable(documentId, versions, releasedVersionId) {
 }
 
 function renderUploadDialog(documentId, onSuccess) {
+  // Klassisches Datei-Auswahlfeld bleibt erhalten (Tastatur-/A11y-Pfad);
+  // ``createFileDropzone`` legt eine zusätzliche Drag-and-Drop-Zone
+  // drumherum. Submit liest weiterhin ``fileInput.files[0]``.
   const fileInput = h("input", { type: "file", name: "file", required: true });
+  const fileDropzone = createFileDropzone({
+    input: fileInput,
+    ariaLabel: "Datei für neue Version",
+  });
   const noteInput = h("textarea", {
     name: "change_note",
     required: true,
@@ -159,7 +174,7 @@ function renderUploadDialog(documentId, onSuccess) {
   return h(
     "form",
     { class: "stacked", onsubmit: onSubmit, enctype: "multipart/form-data" },
-    h("label", {}, "Datei", fileInput),
+    h("label", {}, "Datei", fileDropzone),
     h("label", {}, "Änderungsnotiz (Pflicht)", noteInput),
     h("label", {}, "Versions-Label (optional)", labelInput),
     statusBox,

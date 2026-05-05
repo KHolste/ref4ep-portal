@@ -1000,3 +1000,67 @@ tr.row-released {
   background: #f5c8c2;
   color: #5e1a12;
 }
+
+/* Drag-and-Drop-Dropzone für Datei-Uploads (Block 0020).
+ * Wird vom ``createFileDropzone``-Helfer in common.js erzeugt und
+ * umhüllt das vorhandene ``<input type="file">``. Das Auswahlfeld
+ * bleibt sichtbar und tastaturbedienbar — die Dropzone ist eine
+ * zusätzliche Komfortfunktion. */
+.file-dropzone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.25rem 0;
+  padding: 0.75rem 0.9rem;
+  border: 2px dashed #c0c8d2;
+  border-radius: 4px;
+  background: #fafbfd;
+  transition: background-color 0.1s ease, border-color 0.1s ease;
+}
+
+.file-dropzone input[type="file"] {
+  /* Klassisches Auswahlfeld bleibt sichtbar — wir geben ihm nur einen
+   * etwas dezenteren Auftritt im Dropzone-Layout. */
+  font-size: 0.9rem;
+}
+
+.file-dropzone-cta {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.file-dropzone-meta {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #1c2c4c;
+  font-variant-numeric: tabular-nums;
+}
+
+.file-dropzone-warning {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #6c1f00;
+  background: #fdecea;
+  border-left: 3px solid #c0392b;
+  padding: 0.3rem 0.5rem;
+  border-radius: 3px;
+}
+
+/* Hervorhebung bei dragover — zusätzlicher Texthinweis kommt aus der
+ * cta-Zeile, damit das Feedback nicht rein farblich ist. */
+.file-dropzone-active {
+  background: #eef4fd;
+  border-color: #1c2c4c;
+}
+
+.file-dropzone-active .file-dropzone-cta {
+  color: #1c2c4c;
+  font-weight: 600;
+}
+
+@media (max-width: 540px) {
+  .file-dropzone {
+    padding: 0.6rem 0.7rem;
+  }
+}

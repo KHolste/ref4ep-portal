@@ -163,3 +163,118 @@ export function markSeenNow() {
     // Kein Speicher — Anzeige bleibt „letzte 14 Tage".
   }
 }
+
+// ---- Drag-and-Drop-Helfer für Dokument-Uploads (Block 0020) ------------
+//
+// ``createFileDropzone({ input, ariaLabel })`` umhüllt ein bereits
+// existierendes ``<input type="file">`` mit einer Dropzone:
+//
+//   - das klassische Auswahlfeld bleibt sichtbar und tastaturbedienbar;
+//   - per Drag-and-Drop kann zusätzlich eine Datei abgelegt werden;
+//   - mehrere Dateien werden bewusst abgelehnt (Hinweistext sichtbar),
+//     damit nicht versehentlich die falsche Datei hochgeladen wird;
+//   - bei Auswahl/Drop wird eine Meta-Zeile mit Name + Größe angezeigt.
+//
+// Der Submit-Pfad bleibt unverändert — das aufrufende Formular liest
+// weiterhin ``input.files[0]``.
+
+export function formatFileSize(bytes) {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n < 0) return "—";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KiB`;
+  return `${(n / (1024 * 1024)).toFixed(2)} MiB`;
+}
+
+export function createFileDropzone({ input, ariaLabel } = {}) {
+  if (!input) {
+    throw new Error("createFileDropzone benötigt ein input-Element.");
+  }
+  const cta = h(
+    "p",
+    { class: "file-dropzone-cta" },
+    "Datei hier ablegen oder auswählen.",
+  );
+  const meta = h(
+    "p",
+    { class: "file-dropzone-meta", "aria-live": "polite" },
+    "Keine Datei gewählt.",
+  );
+  const warning = h("p", { class: "file-dropzone-warning", role: "alert" }, "");
+  warning.style.display = "none";
+
+  const dropzone = h(
+    "div",
+    {
+      class: "file-dropzone",
+      role: "group",
+      "aria-label": ariaLabel || "Datei-Dropzone",
+    },
+    cta,
+    input,
+    meta,
+    warning,
+  );
+
+  function showWarning(text) {
+    warning.textContent = text || "";
+    warning.style.display = text ? "" : "none";
+  }
+
+  function describe(file) {
+    if (!file) {
+      meta.textContent = "Keine Datei gewählt.";
+      return;
+    }
+    meta.textContent = `Ausgewählt: ${file.name} (${formatFileSize(file.size)})`;
+  }
+
+  // Reagiert auf das klassische Datei-Auswahlfeld — Tastatur-/Klick-Pfad.
+  input.addEventListener("change", () => {
+    showWarning("");
+    describe(input.files && input.files[0] ? input.files[0] : null);
+  });
+
+  dropzone.addEventListener("dragover", (ev) => {
+    ev.preventDefault();
+    if (ev.dataTransfer) ev.dataTransfer.dropEffect = "copy";
+    dropzone.classList.add("file-dropzone-active");
+  });
+  dropzone.addEventListener("dragleave", (ev) => {
+    // Nur entfernen, wenn die Maus die Dropzone wirklich verlässt — sonst
+    // flackert die Markierung beim Wandern über Kindelemente.
+    if (ev.target === dropzone) {
+      dropzone.classList.remove("file-dropzone-active");
+    }
+  });
+  dropzone.addEventListener("drop", (ev) => {
+    ev.preventDefault();
+    dropzone.classList.remove("file-dropzone-active");
+    const files = ev.dataTransfer ? ev.dataTransfer.files : null;
+    if (!files || files.length === 0) {
+      return;
+    }
+    if (files.length > 1) {
+      // Bewusst ablehnen: keine implizite Auswahl der „ersten Datei".
+      showWarning("Bitte nur eine Datei auswählen.");
+      return;
+    }
+    try {
+      const dt = new DataTransfer();
+      dt.items.add(files[0]);
+      input.files = dt.files;
+    } catch {
+      // Älterer Browser ohne DataTransfer-Konstruktor — wir behalten
+      // die bisherige Auswahl bei und weisen darauf hin.
+      showWarning(
+        "Drag-and-Drop wird in diesem Browser nicht unterstützt. " +
+          "Bitte das Datei-Auswahlfeld benutzen.",
+      );
+      return;
+    }
+    showWarning("");
+    describe(files[0]);
+  });
+
+  return dropzone;
+}
