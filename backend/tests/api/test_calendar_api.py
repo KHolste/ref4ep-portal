@@ -273,6 +273,35 @@ def test_milestone_with_actual_date_but_not_achieved_keeps_planned_date(
     assert matching2 == []
 
 
+def test_calendar_returns_events_for_full_visible_grid_window(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """Regression: das Frontend fragt jetzt mit dem vollständigen
+    Mo–So-Rasterbereich an. Beispiel: Maiansicht → Raster vom
+    27.04.2026 bis 07.06.2026. Ein Meilenstein am 28.04.2026 muss
+    in dieser Abfrage enthalten sein."""
+    wp = _wp_id(seeded_session, "WP3.1")
+    ms = Milestone(
+        code="MS-GRID-EDGE",
+        title="Randtag-Meilenstein",
+        workpackage_id=wp,
+        planned_date=_date(2026, 4, 28),
+        status="planned",
+    )
+    seeded_session.add(ms)
+    seeded_session.commit()
+    # Ohne Grid-Range-Fix: from=2026-05-01&to=2026-05-31 → Treffer fehlt.
+    r_old = admin_client.get("/api/calendar/events?from=2026-05-01&to=2026-05-31")
+    assert all(e["source_id"] != ms.id for e in r_old.json()), (
+        "Sanity: am 28.04. liegt ausserhalb des reinen Mai-Fensters"
+    )
+    # Mit Grid-Range (so wie das Frontend jetzt anfragt) → Treffer dabei.
+    r_grid = admin_client.get("/api/calendar/events?from=2026-04-27&to=2026-06-07")
+    matching = [e for e in r_grid.json() if e["source_id"] == ms.id]
+    assert matching, "Meilenstein am 28.04. sollte in der Mai-Rasteransicht erscheinen"
+    assert matching[0]["starts_at"].startswith("2026-04-28")
+
+
 def test_actions_with_due_date_appear(
     admin_client: TestClient,
     seeded_session: Session,

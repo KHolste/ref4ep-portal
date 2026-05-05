@@ -249,6 +249,17 @@ function buildMonthCells(viewDate) {
   return cells;
 }
 
+function monthGridRange(viewDate) {
+  // Sichtbarer Rasterbereich (inkl. Randtage des Vor-/Folgemonats),
+  // damit die API-Abfrage genau das abdeckt, was im Raster erscheint.
+  // Vorher wurde fälschlich nur startOfMonth/endOfMonth verwendet —
+  // das führte dazu, dass z. B. ein Meilenstein am 28.04.2026 in der
+  // Maiansicht nicht geladen wurde, obwohl er dort als Randtag-Zelle
+  // angezeigt würde.
+  const cells = buildMonthCells(viewDate);
+  return { from: cells[0], to: cells[cells.length - 1] };
+}
+
 function renderDayCell(day, viewDate, today, expandedEntries, onMore) {
   const inMonth = day.getMonth() === viewDate.getMonth();
   const isToday = sameDay(day, today);
@@ -472,9 +483,12 @@ export async function render(container, _ctx) {
       h("h2", {}, "Agenda"),
       renderLoading("Termine werden geladen …"),
     );
+    // Sichtbarer Rasterbereich (Mo der ersten Zeile bis So der letzten
+    // Zeile) — schließt Randtage des Vor-/Folgemonats ein.
+    const gridRange = monthGridRange(viewDate);
     const params = new URLSearchParams();
-    params.set("from", isoDate(startOfMonth(viewDate)));
-    params.set("to", isoDate(endOfMonth(viewDate)));
+    params.set("from", isoDate(gridRange.from));
+    params.set("to", isoDate(gridRange.to));
     if (typeFilter.value) params.set("type", typeFilter.value);
     if (wpFilter.value.trim()) params.set("workpackage", wpFilter.value.trim());
     if (mineCheckbox.checked) params.set("mine", "true");

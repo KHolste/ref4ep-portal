@@ -1807,6 +1807,25 @@ def test_calendar_module_still_has_no_external_framework_or_writes() -> None:
         assert method not in body
 
 
+def test_calendar_api_request_uses_full_visible_grid_range() -> None:
+    """Regression: Bei der Maiansicht beginnt das Mo–So-Raster am
+    27.04. und endet am 07.06.; vorher hat ``refresh()`` die API nur
+    mit Monatsanfang/-ende abgefragt — Randtage des Vor-/Folgemonats
+    blieben leer. Der Fix nutzt ``monthGridRange(viewDate)`` und liest
+    die from/to-Werte aus den ersten/letzten Rasterzellen."""
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    # Helfer existiert und wird im Render-Pfad benutzt.
+    assert "function monthGridRange" in body
+    assert "monthGridRange(viewDate)" in body
+    # Die from/to-Parameter werden aus dem Grid-Range gesetzt.
+    assert 'params.set("from", isoDate(gridRange.from))' in body
+    assert 'params.set("to", isoDate(gridRange.to))' in body
+    # Der frühere fehlerhafte Pfad (startOfMonth/endOfMonth direkt in
+    # params.set) ist verschwunden.
+    assert 'params.set("from", isoDate(startOfMonth(viewDate)))' not in body
+    assert 'params.set("to", isoDate(endOfMonth(viewDate)))' not in body
+
+
 # ---- Arbeitspaket-Übersicht — Karten-Layout ---------------------------
 
 
