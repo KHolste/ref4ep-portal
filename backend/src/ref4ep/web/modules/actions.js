@@ -4,7 +4,15 @@
 // überfällig, Status, Arbeitspaket). Statusänderung direkt aus der
 // Liste, wenn ``can_edit=true``.
 
-import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
+import {
+  api,
+  crossNav,
+  h,
+  renderEmpty,
+  renderError,
+  renderLoading,
+  renderRichEmpty,
+} from "/portal/common.js";
 
 const STATUS_LABELS = {
   open: "offen",
@@ -70,6 +78,7 @@ function rowFor(action, onChangeStatus) {
 }
 
 export async function render(container, _ctx) {
+  container.classList.add("page-wide");
   const headerNodes = [
     h("h1", {}, "Aufgaben"),
     h(
@@ -93,15 +102,21 @@ export async function render(container, _ctx) {
   });
   const refreshBtn = h("button", { type: "button" }, "Filtern");
 
+  const resetBtn = h(
+    "button",
+    { type: "button", class: "secondary filter-reset" },
+    "Zurücksetzen",
+  );
   const filterBox = h(
     "fieldset",
-    { class: "meeting-filterbox" },
+    { class: "meeting-filterbox filterbox" },
     h("legend", {}, "Aufgaben filtern"),
     h("label", { class: "checkbox-row" }, mineCheckbox, h("span", {}, "Meine Aufgaben")),
     h("label", { class: "checkbox-row" }, overdueCheckbox, h("span", {}, "Überfällig")),
-    statusFilter,
-    wpFilter,
+    h("label", {}, "Status", statusFilter),
+    h("label", {}, "Arbeitspaket", wpFilter),
     refreshBtn,
+    resetBtn,
   );
 
   const tableSlot = h("div", {}, renderLoading("Aufgaben werden geladen …"));
@@ -122,7 +137,27 @@ export async function render(container, _ctx) {
       return;
     }
     if (!actions.length) {
-      tableSlot.replaceChildren(renderEmpty("Keine Aufgaben gefunden."));
+      const filtersActive =
+        mineCheckbox.checked ||
+        overdueCheckbox.checked ||
+        statusFilter.value ||
+        wpFilter.value.trim();
+      if (filtersActive) {
+        tableSlot.replaceChildren(
+          renderRichEmpty(
+            "Keine Aufgaben für die aktuelle Filterauswahl",
+            "Passe Filter an oder setze sie zurück, um wieder alle Aufgaben zu sehen.",
+          ),
+        );
+      } else {
+        tableSlot.replaceChildren(
+          renderRichEmpty(
+            "Keine Aufgaben vorhanden",
+            "Aufgaben entstehen aus Meeting-Protokollen und erscheinen hier, sobald sie " +
+              "mit einer Frist oder verantwortlichen Person angelegt wurden.",
+          ),
+        );
+      }
       return;
     }
     async function onChangeStatus(action, newStatus) {
@@ -156,6 +191,13 @@ export async function render(container, _ctx) {
   }
 
   refreshBtn.addEventListener("click", refresh);
+  resetBtn.addEventListener("click", () => {
+    mineCheckbox.checked = false;
+    overdueCheckbox.checked = false;
+    statusFilter.value = "";
+    wpFilter.value = "";
+    refresh();
+  });
 
   container.replaceChildren(...headerNodes, filterBox, tableSlot, crossNav());
   await refresh();

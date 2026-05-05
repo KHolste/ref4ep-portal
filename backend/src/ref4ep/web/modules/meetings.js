@@ -5,7 +5,15 @@
 // sichtbar für jede eingeloggte Person — der Server lehnt ab, wenn
 // die Berechtigung fehlt (Admin oder Lead aller gewählten WPs).
 
-import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
+import {
+  api,
+  crossNav,
+  h,
+  renderEmpty,
+  renderError,
+  renderLoading,
+  renderRichEmpty,
+} from "/portal/common.js";
 
 const FORMAT_LABELS = {
   online: "online",
@@ -160,6 +168,7 @@ function rowFor(meeting) {
 }
 
 export async function render(container, _ctx) {
+  container.classList.add("page-wide");
   const headerNodes = [
     h("h1", {}, "Meetings"),
     h(
@@ -190,7 +199,7 @@ export async function render(container, _ctx) {
   const refreshBtn = h("button", { type: "button" }, "Filtern");
   const filterBar = h(
     "fieldset",
-    { class: "meeting-filterbox" },
+    { class: "meeting-filterbox filterbox" },
     h("legend", {}, "Meetings filtern"),
     statusFilter,
     categoryFilter,
@@ -221,7 +230,27 @@ export async function render(container, _ctx) {
       return;
     }
     if (!meetings.length) {
-      tableSlot.replaceChildren(renderEmpty("Keine Meetings gefunden."));
+      // Wenn Filter gesetzt sind, ist „nichts gefunden" eine andere
+      // Aussage als „noch nichts angelegt".
+      const filtersActive =
+        statusFilter.value || categoryFilter.value || wpFilter.value.trim();
+      if (filtersActive) {
+        tableSlot.replaceChildren(
+          renderRichEmpty(
+            "Keine Meetings für die aktuelle Filterauswahl",
+            "Passe Status, Kategorie oder WP-Code an oder setze die Filter zurück.",
+          ),
+        );
+      } else {
+        tableSlot.replaceChildren(
+          renderRichEmpty(
+            "Noch keine Meetings angelegt",
+            "Meetings dienen zur Ablage von Protokollen, Beschlüssen und Aufgaben. " +
+              "WP-Leads und Admins können hier neue Meetings hinzufügen.",
+            { label: "Meeting anlegen …", onClick: openCreate },
+          ),
+        );
+      }
       return;
     }
     const table = h(

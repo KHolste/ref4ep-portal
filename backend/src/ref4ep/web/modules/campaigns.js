@@ -8,7 +8,15 @@
 // Wichtig: Kampagnen kennen KEINEN eigenen Datei-Upload. Dokumente
 // werden ausschließlich über das Dokumentenregister verlinkt.
 
-import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
+import {
+  api,
+  crossNav,
+  h,
+  renderEmpty,
+  renderError,
+  renderLoading,
+  renderRichEmpty,
+} from "/portal/common.js";
 
 const CATEGORY_LABELS = {
   ring_comparison: "Ringvergleich",
@@ -185,6 +193,7 @@ function renderCreateDialog(workpackages, onSaved, onCancel) {
 }
 
 export async function render(container, _ctx) {
+  container.classList.add("page-wide");
   const headerNodes = [
     h("h1", {}, "Testkampagnen"),
     h(
@@ -215,7 +224,7 @@ export async function render(container, _ctx) {
   const refreshBtn = h("button", { type: "button" }, "Filtern");
   const filterBar = h(
     "fieldset",
-    { class: "campaign-filterbox meeting-filterbox" },
+    { class: "campaign-filterbox meeting-filterbox filterbox" },
     h("legend", {}, "Testkampagnen filtern"),
     statusFilter,
     categoryFilter,
@@ -248,7 +257,27 @@ export async function render(container, _ctx) {
       return;
     }
     if (!campaigns.length) {
-      tableSlot.replaceChildren(renderEmpty("Keine Testkampagnen gefunden."));
+      const filtersActive =
+        statusFilter.value ||
+        categoryFilter.value ||
+        wpFilter.value.trim() ||
+        qFilter.value.trim();
+      const message = filtersActive
+        ? "Passe die Filter an oder setze sie zurück."
+        : "Testkampagnen bündeln experimentelle Durchführungen, Ringvergleiche und Facility-Tests. " +
+          "WP-Leads und Admins können hier neue Testkampagnen anlegen.";
+      const action = filtersActive
+        ? null
+        : { label: "Testkampagne anlegen …", onClick: openCreate };
+      tableSlot.replaceChildren(
+        renderRichEmpty(
+          filtersActive
+            ? "Keine Testkampagnen für die aktuelle Filterauswahl"
+            : "Noch keine Testkampagnen angelegt",
+          message,
+          action,
+        ),
+      );
       return;
     }
     // Karten-Grid statt Tabelle — bessere Lesbarkeit für lange Titel

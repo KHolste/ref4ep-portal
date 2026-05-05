@@ -62,6 +62,14 @@ main#app {
   margin: 0 auto;
 }
 
+/* Breite Arbeitsseiten (Cockpit, Listen, Kalender, Mein Team, …) — die
+ * Seite selbst entscheidet via ``container.classList.add("page-wide")``.
+ * Selektor-Spezifität entspricht ``main#app``, deshalb gewinnt der
+ * Modifier zuverlässig. */
+main#app.page-wide {
+  max-width: 1280px;
+}
+
 main#app table {
   border-collapse: collapse;
   width: 100%;
@@ -1814,4 +1822,442 @@ tr.row-released {
   margin-top: auto;
   text-align: right;
   font-size: 0.9rem;
+}
+
+/* =====================================================================
+ * Polish-Block — universelle Utility-Klassen.
+ *
+ * Buttons, Toolbar, Filterbox, Empty-State, Timeline; konsequent
+ * additiv, alte modulspezifische Klassen bleiben erhalten und werden
+ * Schritt für Schritt durch die generischen ergänzt.
+ * ===================================================================== */
+
+/* ---- Banner schmaler/dezenter -------------------------------------- */
+
+.admin-view-banner {
+  font-size: 0.85rem;
+  padding: 0.25rem 1rem;
+}
+
+/* ---- Navigation: Admin-Gruppe optisch trennen ---------------------- */
+
+.portal-header nav .nav-admin-spacer {
+  /* Schmaler vertikaler Trenner zwischen Nutzer- und Admin-Bereich. */
+  display: inline-block;
+  width: 1px;
+  height: 1.2em;
+  background: rgba(255, 255, 255, 0.35);
+  margin: 0 0.5rem 0 0.25rem;
+  vertical-align: middle;
+}
+
+.portal-header nav .nav-admin-label {
+  display: inline-block;
+  margin-right: 0.4rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+}
+
+/* ---- Universelle Buttons ------------------------------------------- */
+
+button.button-primary,
+button.button-secondary,
+button.button-danger,
+button.button-compact {
+  font-family: inherit;
+  font-size: 0.95rem;
+  border-radius: 3px;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+  line-height: 1.2;
+}
+
+button.button-primary {
+  background: #1c2c4c;
+  color: #fff;
+  border-color: #1c2c4c;
+}
+
+button.button-primary:hover {
+  background: #2a3d68;
+}
+
+button.button-secondary {
+  background: #fff;
+  color: #1c2c4c;
+  border-color: #1c2c4c;
+}
+
+button.button-secondary:hover {
+  background: #f5f8fc;
+}
+
+button.button-danger {
+  background: #fff;
+  color: #6c1f00;
+  border-color: #c0392b;
+}
+
+button.button-danger:hover {
+  background: #fdecea;
+}
+
+button.button-compact {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.85rem;
+}
+
+/* ---- Toolbar: Reihe mit konsistentem Abstand ----------------------- */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+/* ---- Universelle Filterbox ----------------------------------------- */
+
+.filterbox {
+  display: flex;
+  gap: 0.6rem 0.9rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 1rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid #d6dfe9;
+  border-radius: 4px;
+  background: #fafbfd;
+}
+
+.filterbox legend {
+  padding: 0 0.4rem;
+  font-size: 0.85rem;
+  color: #555;
+  font-weight: 600;
+}
+
+.filterbox label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.filterbox input[type="text"],
+.filterbox input[type="search"],
+.filterbox input[type="date"],
+.filterbox select {
+  font-size: 0.9rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #ccd;
+  border-radius: 3px;
+}
+
+.filterbox .filter-reset {
+  margin-left: auto;
+}
+
+@media (max-width: 540px) {
+  .filterbox {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filterbox label {
+    width: 100%;
+  }
+  .filterbox .filter-reset {
+    margin-left: 0;
+  }
+}
+
+/* ---- Strukturierter Empty-State ------------------------------------ */
+
+.empty-state {
+  margin: 1rem 0;
+  padding: 1rem 1.2rem;
+  border: 1px dashed #d6dfe9;
+  border-radius: 4px;
+  background: #fafbfd;
+  text-align: left;
+}
+
+.empty-state-title {
+  margin: 0 0 0.3rem;
+  font-size: 1rem;
+  color: #1c2c4c;
+}
+
+.empty-state-description {
+  margin: 0 0 0.6rem;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.empty-state-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* ---- Timeline (Meilensteine) -------------------------------------- */
+
+.timeline {
+  position: relative;
+  margin: 1rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline::before {
+  content: "";
+  position: absolute;
+  top: 0.6rem;
+  bottom: 0.6rem;
+  left: 0.6rem;
+  width: 2px;
+  background: #d6dfe9;
+}
+
+.timeline-item {
+  position: relative;
+  padding: 0.6rem 0.9rem 0.6rem 2.2rem;
+  margin-bottom: 0.7rem;
+}
+
+.timeline-item::before {
+  content: "";
+  position: absolute;
+  top: 0.85rem;
+  left: 0.25rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #1c2c4c;
+}
+
+.timeline-item-achieved::before {
+  background: #2f7a3a;
+  border-color: #2f7a3a;
+}
+
+.timeline-item-cancelled::before {
+  background: #999;
+  border-color: #999;
+}
+
+.timeline-card {
+  border: 1px solid #d6dfe9;
+  border-left: 4px solid #1c2c4c;
+  border-radius: 4px;
+  padding: 0.6rem 0.9rem;
+  background: #fff;
+}
+
+.timeline-item-achieved .timeline-card {
+  border-left-color: #2f7a3a;
+}
+
+.timeline-item-cancelled .timeline-card {
+  border-left-color: #999;
+  background: #f5f5f5;
+}
+
+.timeline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.3rem;
+}
+
+.timeline-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.timeline-title .timeline-code {
+  font-family: monospace;
+  margin-right: 0.25rem;
+}
+
+.timeline-meta {
+  margin: 0.1rem 0;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.timeline-note {
+  margin: 0.3rem 0 0;
+  font-size: 0.9rem;
+  white-space: pre-line;
+}
+
+.timeline-actions {
+  margin-top: 0.4rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* ---- Mein Team — Karten-Grid statt Tabellen-Wiederholung --------- */
+
+.lead-team-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.2rem;
+}
+
+@media (min-width: 960px) {
+  .lead-team-layout {
+    grid-template-columns: minmax(280px, 1fr) 2fr;
+  }
+}
+
+.lead-wp-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.9rem;
+}
+
+@media (min-width: 720px) {
+  .lead-wp-grid {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  }
+}
+
+.lead-wp-card {
+  border: 1px solid #d6dfe9;
+  border-left: 4px solid #1c2c4c;
+  border-radius: 4px;
+  padding: 0.6rem 0.85rem;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.lead-wp-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.lead-wp-card-title {
+  margin: 0;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.lead-wp-card-title a {
+  font-family: monospace;
+  margin-right: 0.25rem;
+}
+
+.lead-wp-member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.lead-wp-member-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.25rem 0.4rem;
+  border-bottom: 1px dotted #eef2f7;
+  font-size: 0.9rem;
+}
+
+.lead-wp-member-row:last-child {
+  border-bottom: none;
+}
+
+.lead-wp-member-name {
+  overflow-wrap: anywhere;
+}
+
+.lead-wp-member-email {
+  display: block;
+  color: #555;
+  font-size: 0.78rem;
+}
+
+.lead-wp-member-actions {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.lead-wp-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+/* ---- Calendar — Typ-Legende + Agenda-Karten ---------------------- */
+
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  margin: 0.5rem 0 0.75rem;
+  font-size: 0.85rem;
+  color: #555;
+  align-items: center;
+}
+
+.calendar-legend-title {
+  font-weight: 600;
+  margin-right: 0.3rem;
+}
+
+.calendar-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.calendar-legend-swatch {
+  display: inline-block;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 2px;
+  border-left: 3px solid #1c2c4c;
+  background: #eef4fd;
+}
+
+.calendar-legend-swatch.calendar-event-meeting {
+  border-left-color: #1c2c4c;
+  background: #eef4fd;
+}
+
+.calendar-legend-swatch.calendar-event-campaign {
+  border-left-color: #2f7a3a;
+  background: #e6f4e6;
+}
+
+.calendar-legend-swatch.calendar-event-milestone {
+  border-left-color: #c08a1e;
+  background: #fff7e0;
+}
+
+.calendar-legend-swatch.calendar-event-action {
+  border-left-color: #555;
+  background: #f0f2f5;
 }

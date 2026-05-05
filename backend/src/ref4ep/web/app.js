@@ -120,6 +120,10 @@ async function dispatch(pathname) {
     return dispatch("/portal/account");
   }
 
+  // ``className`` wird vor jedem Modul-Render zurückgesetzt — Module
+  // können dann optional ``container.classList.add("page-wide")``
+  // setzen, ohne dass das Layout der Vorgängerseite hängen bleibt.
+  main.className = "";
   main.innerHTML = "<p>Lade …</p>";
   try {
     const mod = await loadModule(matched.route.module);
@@ -168,6 +172,8 @@ function applyRoleVisibility() {
   }
   if (!effectiveAdmin) return;
   for (const id of [
+    "nav-admin-spacer",
+    "nav-admin-label",
     "nav-admin-users",
     "nav-admin-partners",
     "nav-admin-audit",

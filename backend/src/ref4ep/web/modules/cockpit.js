@@ -650,6 +650,7 @@ function renderProjectCockpit(cockpit) {
 // ---- Zusammenbau -------------------------------------------------------
 
 export async function render(container, ctx) {
+  container.classList.add("page-wide");
   const me = ctx.me;
   const isAdminView = effectivePlatformRole(me.person) === "admin";
 

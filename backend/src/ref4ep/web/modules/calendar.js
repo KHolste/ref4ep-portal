@@ -19,6 +19,7 @@ import {
   renderEmpty,
   renderError,
   renderLoading,
+  renderRichEmpty,
 } from "/portal/common.js";
 
 const TYPE_LABELS = {
@@ -353,14 +354,37 @@ function renderAgendaItem(event) {
 
 function renderAgenda(events) {
   if (!events.length) {
-    return renderEmpty("Keine Termine im gewählten Zeitraum.");
+    return renderRichEmpty(
+      "Keine Termine im gewählten Zeitraum",
+      "Der Kalender zeigt Meetings, Testkampagnen, Meilensteine und Aufgaben " +
+        "mit Frist. Wechsle den Monat oder passe die Filter an.",
+    );
   }
   return h("ul", { class: "calendar-agenda-list" }, ...events.map(renderAgendaItem));
 }
 
 // ---- Hauptrender ------------------------------------------------------
 
+function renderTypeLegend() {
+  // Sichtbare Typ-Legende über dem Raster — nicht nur Farbe, auch
+  // Klartext „Meeting / Kampagne / Meilenstein / Aufgabe".
+  return h(
+    "div",
+    { class: "calendar-legend", role: "group", "aria-label": "Typ-Legende" },
+    h("span", { class: "calendar-legend-title" }, "Legende:"),
+    ...["meeting", "campaign", "milestone", "action"].map((t) =>
+      h(
+        "span",
+        { class: "calendar-legend-item" },
+        h("span", { class: `calendar-legend-swatch calendar-event-${t}` }),
+        TYPE_LABELS[t] || t,
+      ),
+    ),
+  );
+}
+
 export async function render(container, _ctx) {
+  container.classList.add("page-wide");
   const today = new Date();
   let viewDate = startOfMonth(today);
   const typeFilter = h(
@@ -403,7 +427,7 @@ export async function render(container, _ctx) {
 
   const filterBox = h(
     "fieldset",
-    { class: "calendar-filterbox" },
+    { class: "calendar-filterbox filterbox" },
     h("legend", {}, "Kalender filtern"),
     h(
       "label",
@@ -513,6 +537,7 @@ export async function render(container, _ctx) {
     ),
     navBar,
     filterBox,
+    renderTypeLegend(),
     calendarSlot,
     agendaSlot,
     crossNav(),

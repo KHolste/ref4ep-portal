@@ -158,7 +158,7 @@ function renderFilterBox({
   }
   return h(
     "fieldset",
-    { class: "wp-filterbox" },
+    { class: "wp-filterbox filterbox" },
     h("legend", {}, "Arbeitspakete filtern"),
     ...labels,
     resetBtn,
@@ -290,6 +290,7 @@ function renderGrid(filtered, mineSet, originalGrouped) {
 // ---- Hauptrender --------------------------------------------------------
 
 export async function render(container, ctx) {
+  container.classList.add("page-wide");
   const headerNodes = [h("h1", {}, "Arbeitspakete")];
   appendChildren(
     container,

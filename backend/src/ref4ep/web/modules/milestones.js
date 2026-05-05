@@ -1,9 +1,18 @@
-// Meilensteinübersicht (Block 0009).
+// Meilensteinübersicht (Block 0009 + UX-Polish).
 //
-// Tabelle aller Projekt-Meilensteine. Berechtigte (Admin oder
-// WP-Lead des MS-Arbeitspakets) bekommen einen Bearbeiten-Dialog.
+// Vertikale Timeline aller Projekt-Meilensteine — Status, Zeiträume und
+// Notizen sind als Karte pro Meilenstein lesbar. Berechtigte (Admin
+// oder WP-Lead des MS-Arbeitspakets) bekommen einen Bearbeiten-Dialog.
 
-import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
+import {
+  api,
+  crossNav,
+  h,
+  renderEmpty,
+  renderError,
+  renderLoading,
+  renderRichEmpty,
+} from "/portal/common.js";
 
 const STATUS_LABELS = {
   planned: "geplant",
@@ -110,41 +119,78 @@ function renderEditForm(milestone, onSaved, onCancel) {
   );
 }
 
-function rowFor(milestone, onEdit) {
-  const wpCell = milestone.workpackage_code
+function timelineItem(milestone, onEdit) {
+  const wpLink = milestone.workpackage_code
     ? h(
         "a",
         { href: `/portal/workpackages/${milestone.workpackage_code}` },
-        `${milestone.workpackage_code} — ${milestone.workpackage_title}`,
+        `${milestone.workpackage_code} — ${milestone.workpackage_title || ""}`,
       )
     : h("span", { class: "muted" }, "Gesamtprojekt");
-  return h(
-    "tr",
-    {},
-    h("td", {}, milestone.code),
-    h("td", {}, milestone.title),
-    h("td", {}, wpCell),
-    h("td", {}, formatDate(milestone.planned_date) || "—"),
+
+  const itemClasses = ["timeline-item"];
+  if (milestone.status === "achieved") itemClasses.push("timeline-item-achieved");
+  if (milestone.status === "cancelled") itemClasses.push("timeline-item-cancelled");
+
+  const metaLines = [
     h(
-      "td",
-      {},
+      "p",
+      { class: "timeline-meta" },
+      "Plandatum: ",
+      h("strong", {}, formatDate(milestone.planned_date) || "—"),
       milestone.actual_date
-        ? formatDate(milestone.actual_date)
-        : h("span", { class: "muted" }, "—"),
+        ? h(
+            "span",
+            {},
+            " · Istdatum: ",
+            h("strong", {}, formatDate(milestone.actual_date)),
+          )
+        : null,
     ),
-    h("td", {}, statusBadge(milestone.status)),
-    h("td", {}, milestone.note || h("span", { class: "muted" }, "—")),
+    h("p", { class: "timeline-meta" }, "Arbeitspaket: ", wpLink),
+  ];
+
+  return h(
+    "li",
+    { class: itemClasses.join(" ") },
     h(
-      "td",
-      {},
+      "article",
+      { class: "timeline-card" },
+      h(
+        "div",
+        { class: "timeline-head" },
+        h(
+          "h3",
+          { class: "timeline-title" },
+          h("span", { class: "timeline-code" }, milestone.code),
+          " — ",
+          h("span", {}, milestone.title),
+        ),
+        statusBadge(milestone.status),
+      ),
+      ...metaLines,
+      milestone.note ? h("p", { class: "timeline-note" }, milestone.note) : null,
       milestone.can_edit
-        ? h("button", { type: "button", onclick: () => onEdit(milestone) }, "Bearbeiten …")
+        ? h(
+            "div",
+            { class: "timeline-actions" },
+            h(
+              "button",
+              {
+                type: "button",
+                class: "button-secondary button-compact",
+                onclick: () => onEdit(milestone),
+              },
+              "Bearbeiten …",
+            ),
+          )
         : null,
     ),
   );
 }
 
 export async function render(container, _ctx) {
+  container.classList.add("page-wide");
   const dialogContainer = h("div", {});
 
   function clearDialog() {
@@ -190,29 +236,22 @@ export async function render(container, _ctx) {
       );
     }
 
-    const body = milestones.length
+    // Sortiere Meilensteine nach Plandatum (aufsteigend) — das ergibt
+    // einen lesbaren Projektverlauf von links/oben nach unten.
+    const sorted = milestones
+      .slice()
+      .sort((a, b) => (a.planned_date || "").localeCompare(b.planned_date || ""));
+    const body = sorted.length
       ? h(
-          "table",
-          {},
-          h(
-            "thead",
-            {},
-            h(
-              "tr",
-              {},
-              h("th", {}, "Code"),
-              h("th", {}, "Titel"),
-              h("th", {}, "Arbeitspaket"),
-              h("th", {}, "Plandatum"),
-              h("th", {}, "Istdatum"),
-              h("th", {}, "Status"),
-              h("th", {}, "Notiz"),
-              h("th", {}, ""),
-            ),
-          ),
-          h("tbody", {}, ...milestones.map((ms) => rowFor(ms, onEdit))),
+          "ol",
+          { class: "timeline" },
+          ...sorted.map((ms) => timelineItem(ms, onEdit)),
         )
-      : renderEmpty("Es sind noch keine Meilensteine angelegt.");
+      : renderRichEmpty(
+          "Noch keine Meilensteine angelegt",
+          "Meilensteine markieren wichtige Projekttermine. Sie kommen aus dem Antrag und " +
+            "werden vom Admin oder vom WP-Lead des zugehörigen Arbeitspakets gepflegt.",
+        );
 
     container.replaceChildren(
       ...header(),

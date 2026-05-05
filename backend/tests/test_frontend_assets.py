@@ -129,16 +129,20 @@ def test_navigation_includes_milestones_link() -> None:
     assert "milestones" in app_js
 
 
-def test_milestones_page_renders_table() -> None:
+def test_milestones_page_renders_timeline() -> None:
+    """UX-Polish: Meilensteine werden als vertikale Timeline statt
+    Tabelle dargestellt — die Labels für Edit-Form / Card-Meta bleiben
+    aber sichtbar im Source."""
     body = (MODULES_DIR / "milestones.js").read_text(encoding="utf-8")
-    for term in ("Code", "Titel", "Arbeitspaket", "Plandatum", "Istdatum", "Status", "Notiz"):
-        assert term in body
+    # Edit-Form-/Karten-Labels.
+    for term in ("Titel", "Arbeitspaket", "Plandatum", "Istdatum", "Status", "Notiz"):
+        assert term in body, f"milestones.js sollte Begriff {term!r} enthalten"
     # Status-Übersetzungen
-    assert "geplant" in body
-    assert "erreicht" in body
-    assert "verschoben" in body
-    assert "gefährdet" in body
-    assert "entfallen" in body
+    for status_de in ("geplant", "erreicht", "verschoben", "gefährdet", "entfallen"):
+        assert status_de in body, f"milestones.js sollte Status {status_de!r} mappen"
+    # Timeline-spezifische Klassen.
+    assert "timeline-item" in body
+    assert "timeline-card" in body
 
 
 def test_no_deliverable_term_introduced_as_main_function(all_web_text: str) -> None:
@@ -620,8 +624,10 @@ def test_meetings_filter_box_has_legend_and_better_placeholder() -> None:
     """Block 0015 / Bugfix-UX: Filterzeile als eigene Box mit Legende
     und klarem Placeholder — visuell vom Anlage-Dialog abgesetzt."""
     body = (MODULES_DIR / "meetings.js").read_text(encoding="utf-8")
-    # Filterbox ist ein <fieldset class="meeting-filterbox"> mit <legend>.
-    assert '"meeting-filterbox"' in body
+    # Filterbox ist ein <fieldset> mit Klassen ``meeting-filterbox filterbox``
+    # (UX-Polish: zusätzliche generische Klasse, alte bleibt erhalten).
+    assert "meeting-filterbox" in body
+    assert "filterbox" in body
     assert "Meetings filtern" in body
     # Klarerer Placeholder.
     assert "WP-Code filtern, z. B. WP3.1" in body
@@ -630,6 +636,8 @@ def test_meetings_filter_box_has_legend_and_better_placeholder() -> None:
     # CSS-Klasse vorhanden.
     css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
     assert ".meeting-filterbox" in css
+    # Generische Klasse ist auch im CSS verfügbar.
+    assert ".filterbox" in css
 
 
 def test_meetings_create_form_has_clearer_wp_label_and_help() -> None:
@@ -1895,3 +1903,193 @@ def test_workpackages_module_has_no_destructive_actions_or_upload() -> None:
     body = (MODULES_DIR / "workpackages.js").read_text(encoding="utf-8")
     for forbidden in ('"POST"', '"PATCH"', '"DELETE"', "FormData", 'type: "file"'):
         assert forbidden not in body, f"workpackages.js darf {forbidden!r} nicht enthalten"
+
+
+# ---- UX-Polish-Block: globale Layout-/Button-/Empty-State-Konsolidierung
+
+
+WIDE_PAGE_MODULES = (
+    "cockpit.js",
+    "workpackages.js",
+    "milestones.js",
+    "meetings.js",
+    "actions.js",
+    "campaigns.js",
+    "calendar.js",
+    "lead_team.js",
+)
+
+
+def test_main_page_wide_class_in_css() -> None:
+    """``main#app.page-wide`` ist als breitere Variante definiert."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert "main#app.page-wide" in css
+
+
+def test_wide_modules_set_page_wide_classlist() -> None:
+    """Arbeitsseiten setzen ``container.classList.add("page-wide")`` —
+    der Dispatcher in app.js setzt className vor jedem Render zurück."""
+    for name in WIDE_PAGE_MODULES:
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        assert 'container.classList.add("page-wide")' in body, f"{name} sollte page-wide setzen"
+
+
+def test_app_js_resets_main_classname_on_dispatch() -> None:
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    assert 'main.className = ""' in body
+
+
+def test_universal_button_classes_in_css() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (
+        "button.button-primary",
+        "button.button-secondary",
+        "button.button-danger",
+        "button.button-compact",
+    ):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+
+
+def test_universal_filterbox_class_in_css() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert ".filterbox" in css
+    # Filterbox-Inputs konsistent gestaltet.
+    assert ".filterbox label" in css
+
+
+def test_filterbox_class_used_across_modules() -> None:
+    """Modul-Filterboxen tragen zusätzlich die generische ``filterbox``-
+    Klasse — ohne ihre modulspezifische zu verlieren."""
+    for name in (
+        "meetings.js",
+        "actions.js",
+        "campaigns.js",
+        "calendar.js",
+        "workpackages.js",
+        "lead_team.js",
+    ):
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        assert "filterbox" in body, f"{name} sollte 'filterbox' verwenden"
+
+
+def test_common_js_exports_render_rich_empty() -> None:
+    body = (WEB_DIR / "common.js").read_text(encoding="utf-8")
+    assert "export function renderRichEmpty" in body
+    # Strukturierter Empty-State mit eigener Klasse.
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert ".empty-state" in css
+    assert ".empty-state-title" in css
+    assert ".empty-state-description" in css
+    assert ".empty-state-actions" in css
+
+
+def test_meetings_actions_calendar_use_rich_empty_state() -> None:
+    """Erklärende Empty-States statt karger Einzeiler."""
+    for name in ("meetings.js", "actions.js", "calendar.js", "milestones.js"):
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        assert "renderRichEmpty(" in body, f"{name} sollte renderRichEmpty nutzen"
+
+
+def test_meetings_empty_state_explains_purpose() -> None:
+    body = (MODULES_DIR / "meetings.js").read_text(encoding="utf-8")
+    assert "Meetings dienen zur Ablage von Protokollen" in body
+    # Anlegen-Button im Empty-State, wenn keine Filter aktiv sind.
+    assert "Meeting anlegen …" in body
+
+
+def test_actions_empty_state_explains_origin() -> None:
+    body = (MODULES_DIR / "actions.js").read_text(encoding="utf-8")
+    assert "Aufgaben entstehen aus Meeting-Protokollen" in body
+    # Reset-Button für Filter.
+    assert "Zurücksetzen" in body
+
+
+def test_calendar_empty_state_explains_calendar_scope() -> None:
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    assert "Keine Termine im gewählten Zeitraum" in body
+    assert "Meetings, Testkampagnen, Meilensteine und Aufgaben" in body
+
+
+def test_milestones_module_uses_timeline_layout() -> None:
+    body = (MODULES_DIR / "milestones.js").read_text(encoding="utf-8")
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Render-Helfer + Klassen.
+    assert "function timelineItem" in body
+    assert "timeline-item" in body
+    assert "timeline-card" in body
+    # Status-spezifische Achievement/Cancel-Klassen.
+    assert "timeline-item-achieved" in body
+    assert "timeline-item-cancelled" in body
+    # CSS-Definition vorhanden.
+    for cls in (".timeline", ".timeline-item", ".timeline-card"):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+    # Negative: keine Tabellen-Zeile mehr im Render-Pfad.
+    assert "function rowFor" not in body
+
+
+def test_calendar_type_legend_present_in_module_and_css() -> None:
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert "function renderTypeLegend" in body
+    assert "renderTypeLegend()" in body
+    for cls in (".calendar-legend", ".calendar-legend-item", ".calendar-legend-swatch"):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+    # Klartextlabels statt nur Farbe.
+    for label in ("Meeting", "Kampagne", "Meilenstein", "Aufgabe"):
+        assert label in body
+
+
+def test_lead_team_redesigned_with_grid_and_filters() -> None:
+    body = (MODULES_DIR / "lead_team.js").read_text(encoding="utf-8")
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Karten-Grid statt vieler Tabellen.
+    assert "lead-wp-grid" in body
+    assert "lead-wp-card" in body
+    assert "renderWorkpackageCard" in body
+    # Filterbox + Such-/Filter-Felder.
+    assert "Mein Team filtern" in body
+    assert "Person suchen" in body
+    assert "Arbeitspaket suchen" in body
+    assert "Nur WPs mit mir als Lead" in body
+    # Layout: zwei Spalten auf Desktop.
+    assert "lead-team-layout" in body
+    for cls in (
+        ".lead-team-layout",
+        ".lead-wp-grid",
+        ".lead-wp-card",
+        ".lead-wp-member-row",
+    ):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+    # Funktionen bleiben vorhanden.
+    for fn in ("renderCreatePersonForm", "renderAddMemberForm", "renderMemberRow"):
+        assert fn in body, f"lead_team.js sollte {fn!r} behalten"
+    # Negative: keine Admin-Endpunkte.
+    assert "/api/admin/" not in body
+    # Empty-State für „kein Lead-WP" vorhanden.
+    assert "Du leitest aktuell kein Arbeitspaket" in body
+
+
+def test_navigation_admin_group_marker_in_index_and_app_js() -> None:
+    index = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    app_js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    assert 'id="nav-admin-spacer"' in index
+    assert 'id="nav-admin-label"' in index
+    assert ">Admin<" in index
+    # app.js entblendet Spacer + Label im Admin-Modus.
+    assert "nav-admin-spacer" in app_js
+    assert "nav-admin-label" in app_js
+    # CSS für Spacer + Label.
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert ".nav-admin-spacer" in css
+    assert ".nav-admin-label" in css
+
+
+def test_admin_view_banner_is_dezenter() -> None:
+    """Das Banner soll deutlich kleiner werden als vorher — der UX-
+    Polish-Block überschreibt die ursprüngliche Größe per späterer
+    Regel mit ``font-size: 0.85rem``."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Wir nehmen das LETZTE Vorkommen — das ist die Override-Regel.
+    last_start = css.rindex(".admin-view-banner")
+    snippet = css[last_start : last_start + 400]
+    assert "font-size: 0.85rem" in snippet or "font-size:0.85rem" in snippet

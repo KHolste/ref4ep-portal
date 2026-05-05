@@ -100,6 +100,41 @@ export function renderEmpty(message) {
   return h("p", { class: "empty muted", "data-empty": "true" }, message);
 }
 
+/**
+ * Strukturierter Empty-State mit Titel, Beschreibung und optionalem
+ * Aktions-Button. Verwendet das ``.empty-state``-Layout aus style.css.
+ *
+ * @param title Kurzer Titel, z. B. „Noch keine Meetings angelegt".
+ * @param description Erklärsatz, was die Seite tut bzw. wie Daten
+ *   entstehen. Optional — fällt auf null zurück.
+ * @param action Optionales Objekt ``{ label, onClick, primary? }`` —
+ *   wird als Button (primär oder sekundär) gerendert.
+ */
+export function renderRichEmpty(title, description = null, action = null) {
+  const actionsRow = action
+    ? h(
+        "div",
+        { class: "empty-state-actions" },
+        h(
+          "button",
+          {
+            type: "button",
+            class: action.primary === false ? "button-secondary" : "button-primary",
+            onclick: action.onClick,
+          },
+          action.label,
+        ),
+      )
+    : null;
+  return h(
+    "div",
+    { class: "empty-state", "data-empty": "true", role: "status" },
+    h("h3", { class: "empty-state-title" }, title),
+    description ? h("p", { class: "empty-state-description" }, description) : null,
+    actionsRow,
+  );
+}
+
 const CROSS_NAV_LINKS = [
   { href: "/portal/", label: "Projektcockpit" },
   { href: "/portal/workpackages", label: "Arbeitspakete" },
