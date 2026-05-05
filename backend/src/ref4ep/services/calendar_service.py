@@ -10,11 +10,14 @@ Datenmodell, keine Migration:
 
 Entscheidungen, die der Service trifft:
 
-- **Meilensteine** werden konsistent über ``planned_date`` einsortiert,
-  auch wenn ``actual_date`` und ``status='achieved'`` gesetzt sind. So
-  bleibt der Kalender als Plansicht stabil; das tatsächliche Datum
-  steht in der Beschreibung. (Begründung: würde sich beim Wechsel auf
-  ``actual_date`` der Eintrag verschieben, wäre die Plansicht unruhig.)
+- **Meilensteine** werden grundsätzlich über ``planned_date``
+  einsortiert. **Ausnahme**: Wenn ``status == 'achieved'`` UND
+  ``actual_date`` gesetzt ist, gilt ``actual_date`` als Kalenderdatum —
+  fachlich liegt der Meilenstein dann am echten Erreichungstag, nicht
+  am ursprünglichen Plandatum. Die Description enthält in dem Fall
+  beide Daten („Plandatum: …  ·  Ist-Datum: …"), damit die
+  Verschiebung nachvollziehbar bleibt. Es gibt nie zwei Einträge für
+  denselben Meilenstein.
 - **Abgesagte / abgebrochene Events** (Meeting ``status='cancelled'``,
   Campaign ``status='cancelled'``) bleiben **sichtbar**, aber mit
   unverändertem Status — die UI hängt eine ``calendar-event-cancelled``-
@@ -378,11 +381,24 @@ class CalendarService:
         mine: bool,
         own_wps: set[str],
     ) -> list[CalendarEvent]:
-        # Konsistent über planned_date einsortieren — siehe Modul-Docstring.
-        stmt = select(Milestone).where(
-            Milestone.planned_date >= from_,
-            Milestone.planned_date <= to,
+        # Effektives Kalenderdatum:
+        #   - status='achieved' UND actual_date gesetzt → actual_date
+        #   - sonst                                       → planned_date
+        # Damit verschiebt sich ein „erreichter" Meilenstein im Kalender
+        # auf seinen tatsächlichen Erreichungstag — bei einem Meilenstein
+        # wird also nie zweimal gerendert.
+        achieved_in_window = (
+            (Milestone.status == "achieved")
+            & Milestone.actual_date.is_not(None)
+            & (Milestone.actual_date >= from_)
+            & (Milestone.actual_date <= to)
         )
+        planned_in_window = (
+            ((Milestone.status != "achieved") | Milestone.actual_date.is_(None))
+            & (Milestone.planned_date >= from_)
+            & (Milestone.planned_date <= to)
+        )
+        stmt = select(Milestone).where(or_(achieved_in_window, planned_in_window))
         if wp_filter_id is not None:
             stmt = stmt.where(Milestone.workpackage_id == wp_filter_id)
         if mine:
@@ -401,8 +417,19 @@ class CalendarService:
         out: list[CalendarEvent] = []
         for ms in self.session.scalars(stmt):
             wp_codes = [ms.workpackage.code] if ms.workpackage is not None else []
+            uses_actual = ms.status == "achieved" and ms.actual_date is not None
+            effective_date = ms.actual_date if uses_actual else ms.planned_date
             description_parts: list[str] = []
-            if ms.actual_date is not None:
+            if uses_actual:
+                # Beide Daten in der Description, damit die Verschiebung
+                # vom Plan- zum Ist-Termin nachvollziehbar bleibt.
+                description_parts.append(
+                    f"Plandatum: {_format_date_de(ms.planned_date)} "
+                    f"· Ist-Datum: {_format_date_de(ms.actual_date)}"
+                )
+            elif ms.actual_date is not None:
+                # Ist-Datum gesetzt, aber nicht „achieved" → trotzdem
+                # transparent als Zusatzinfo zeigen.
                 description_parts.append(f"Ist-Datum: {_format_date_de(ms.actual_date)}")
             if not wp_codes:
                 description_parts.append("Gesamtprojekt")
@@ -412,7 +439,7 @@ class CalendarService:
                     source_id=ms.id,
                     type="milestone",
                     title=f"{ms.code} — {ms.title}",
-                    starts_at=_start_of_day_utc(ms.planned_date),
+                    starts_at=_start_of_day_utc(effective_date),
                     ends_at=None,
                     all_day=True,
                     status=ms.status,

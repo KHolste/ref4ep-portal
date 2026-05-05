@@ -131,6 +131,148 @@ def test_milestones_appear_in_range_via_planned_date(
     assert e["workpackage_codes"] == ["WP3.1"]
 
 
+# ---- Achieved milestones use actual_date ------------------------------
+
+
+def test_achieved_milestone_uses_actual_date_in_calendar(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """``status='achieved'`` UND ``actual_date`` gesetzt → Kalender
+    sortiert auf actual_date statt planned_date ein."""
+    wp = _wp_id(seeded_session, "WP3.1")
+    ms = Milestone(
+        code="MS-ACT-01",
+        title="Kick-off Meeting",
+        workpackage_id=wp,
+        planned_date=_date(2026, 3, 2),
+        actual_date=_date(2026, 3, 28),
+        status="achieved",
+    )
+    seeded_session.add(ms)
+    seeded_session.commit()
+    # Fenster, das nur das Ist-Datum (28.03.) enthält, NICHT das Plan-Datum (02.03.):
+    r = admin_client.get("/api/calendar/events?from=2026-03-15&to=2026-03-31")
+    body = r.json()
+    matching = [e for e in body if e["source_id"] == ms.id]
+    assert matching, "achieved milestone sollte am actual_date erscheinen"
+    e = matching[0]
+    assert e["type"] == "milestone"
+    assert e["status"] == "achieved"
+    # starts_at ist Mitternacht UTC am 28.03.2026.
+    assert e["starts_at"].startswith("2026-03-28")
+    # Description enthält BEIDE Daten.
+    assert e["description"] is not None
+    assert "Plandatum: 02.03.2026" in e["description"]
+    assert "Ist-Datum: 28.03.2026" in e["description"]
+
+
+def test_achieved_milestone_does_not_appear_at_planned_date(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """Wenn die Plansicht (Plandatum-Fenster) das Ist-Datum nicht
+    enthält, darf der erreichte Meilenstein dort NICHT auftauchen —
+    sonst würde er doppelt erscheinen."""
+    wp = _wp_id(seeded_session, "WP3.1")
+    ms = Milestone(
+        code="MS-ACT-02",
+        title="Schon erreicht",
+        workpackage_id=wp,
+        planned_date=_date(2026, 3, 2),
+        actual_date=_date(2026, 3, 28),
+        status="achieved",
+    )
+    seeded_session.add(ms)
+    seeded_session.commit()
+    # Fenster, das nur das Plan-Datum enthält, NICHT das Ist-Datum:
+    r = admin_client.get("/api/calendar/events?from=2026-03-01&to=2026-03-15")
+    body = r.json()
+    matching = [e for e in body if e["source_id"] == ms.id]
+    assert matching == [], (
+        "achieved milestone darf nicht am planned_date erscheinen, "
+        "wenn das Ist-Datum verschoben ist"
+    )
+
+
+def test_achieved_milestone_appears_only_once_when_window_covers_both(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """Wenn das Fenster sowohl planned_date als auch actual_date enthält,
+    erscheint der Meilenstein genau **einmal** — am actual_date."""
+    wp = _wp_id(seeded_session, "WP3.1")
+    ms = Milestone(
+        code="MS-ACT-03",
+        title="Beide im Fenster",
+        workpackage_id=wp,
+        planned_date=_date(2026, 3, 2),
+        actual_date=_date(2026, 3, 28),
+        status="achieved",
+    )
+    seeded_session.add(ms)
+    seeded_session.commit()
+    r = admin_client.get("/api/calendar/events?from=2026-03-01&to=2026-03-31")
+    body = r.json()
+    matching = [e for e in body if e["source_id"] == ms.id]
+    assert len(matching) == 1
+    assert matching[0]["starts_at"].startswith("2026-03-28")
+
+
+def test_planned_milestone_without_actual_date_still_uses_planned_date(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """Regression: nicht-erreichte Meilensteine bleiben am planned_date.
+    (Diese Variante mit actual_date=None ist der Default-Pfad.)"""
+    wp = _wp_id(seeded_session, "WP3.1")
+    ms = Milestone(
+        code="MS-ACT-04",
+        title="Noch geplant",
+        workpackage_id=wp,
+        planned_date=_date(2026, 6, 18),
+        actual_date=None,
+        status="planned",
+    )
+    seeded_session.add(ms)
+    seeded_session.commit()
+    r = admin_client.get("/api/calendar/events?from=2026-06-01&to=2026-06-30")
+    matching = [e for e in r.json() if e["source_id"] == ms.id]
+    assert matching
+    assert matching[0]["starts_at"].startswith("2026-06-18")
+    # Description nennt KEIN Ist-Datum (es gibt keines).
+    desc = matching[0]["description"] or ""
+    assert "Ist-Datum" not in desc
+
+
+def test_milestone_with_actual_date_but_not_achieved_keeps_planned_date(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """Defensive: nur ``status='achieved'`` löst die Datums-Verschiebung
+    aus. Ein Meilenstein im Status ``postponed`` mit gesetztem
+    actual_date bleibt am planned_date — das Ist-Datum erscheint nur
+    als Zusatzinfo in der Description."""
+    wp = _wp_id(seeded_session, "WP3.1")
+    ms = Milestone(
+        code="MS-ACT-05",
+        title="Zwischenstand",
+        workpackage_id=wp,
+        planned_date=_date(2026, 6, 18),
+        actual_date=_date(2026, 6, 25),
+        status="postponed",
+    )
+    seeded_session.add(ms)
+    seeded_session.commit()
+    # Fenster nur am planned_date:
+    r1 = admin_client.get("/api/calendar/events?from=2026-06-15&to=2026-06-20")
+    matching1 = [e for e in r1.json() if e["source_id"] == ms.id]
+    assert matching1
+    assert matching1[0]["starts_at"].startswith("2026-06-18")
+    desc = matching1[0]["description"] or ""
+    # Ist-Datum erscheint informativ in der Description.
+    assert "Ist-Datum: 25.06.2026" in desc
+    # Fenster nur am actual_date (nicht „achieved" → nicht enthalten):
+    r2 = admin_client.get("/api/calendar/events?from=2026-06-22&to=2026-06-28")
+    matching2 = [e for e in r2.json() if e["source_id"] == ms.id]
+    assert matching2 == []
+
+
 def test_actions_with_due_date_appear(
     admin_client: TestClient,
     seeded_session: Session,
