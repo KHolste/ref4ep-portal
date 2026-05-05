@@ -13,6 +13,7 @@ const ROUTES = [
   { pattern: /^\/portal\/documents\/([^/]+)\/?$/, module: "document_detail", param: "id" },
   { pattern: /^\/portal\/partners\/([^/]+)\/?$/, module: "partner_detail", param: "id" },
   { pattern: /^\/portal\/milestones\/?$/, module: "milestones" },
+  { pattern: /^\/portal\/lead\/team\/?$/, module: "lead_team" },
   { pattern: /^\/portal\/account\/?$/, module: "account" },
   { pattern: /^\/portal\/admin\/audit\/?$/, module: "audit" },
   { pattern: /^\/portal\/admin\/users\/?$/, module: "admin_users" },
@@ -120,7 +121,14 @@ function attachLinkInterception() {
 }
 
 function applyRoleVisibility() {
-  if (currentMe?.person?.platform_role !== "admin") return;
+  const isAdmin = currentMe?.person?.platform_role === "admin";
+  const isAnyWpLead = (currentMe?.memberships || []).some((m) => m.wp_role === "wp_lead");
+  // „Mein Team": sichtbar für WP-Leads und Admins.
+  if (isAdmin || isAnyWpLead) {
+    const lead = document.getElementById("nav-lead-team");
+    if (lead) lead.hidden = false;
+  }
+  if (!isAdmin) return;
   for (const id of ["nav-admin-users", "nav-admin-partners", "nav-admin-audit"]) {
     const el = document.getElementById(id);
     if (el) el.hidden = false;

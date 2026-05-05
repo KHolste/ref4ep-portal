@@ -296,4 +296,58 @@ class PasswordChangeRequest(BaseModel):
     new_password: str = Field(min_length=10)
 
 
+# --------------------------------------------------------------------------- #
+# Block 0013 — „Mein Team" für WP-Leads                                       #
+# --------------------------------------------------------------------------- #
+
+
+class LeadPersonOut(BaseModel):
+    """Schmale Personen-Sicht für die Lead-Team-Seite — kein password_hash."""
+
+    id: str
+    email: str
+    display_name: str
+    is_active: bool
+    must_change_password: bool
+
+
+class LeadPersonCreateRequest(BaseModel):
+    """Anlegen einer Person durch WP-Lead. Partner und Plattformrolle
+    werden serverseitig erzwungen — Client darf hier nichts mitschicken."""
+
+    email: str = Field(min_length=3)
+    display_name: str = Field(min_length=1)
+    initial_password: str | None = Field(default=None, min_length=10)
+
+
+class LeadPersonCreatedOut(BaseModel):
+    person: LeadPersonOut
+    initial_password: str = Field(
+        description="Klartext, einmalig nach Anlage. Nicht erneut abrufbar."
+    )
+
+
+class LeadWorkpackageMemberOut(BaseModel):
+    person_id: str
+    email: str
+    display_name: str
+    wp_role: str
+
+
+class LeadWorkpackageOut(BaseModel):
+    code: str
+    title: str
+    my_role: str
+    members: list[LeadWorkpackageMemberOut] = Field(default_factory=list)
+
+
+class LeadAddMembershipRequest(BaseModel):
+    person_id: str = Field(min_length=36, max_length=36)
+    wp_role: str = Field(default="wp_member")
+
+
+class LeadSetMembershipRoleRequest(BaseModel):
+    wp_role: str
+
+
 WorkpackageDetailOut.model_rebuild()

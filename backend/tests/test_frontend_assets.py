@@ -445,6 +445,70 @@ def test_smoke_test_doc_does_not_introduce_deliverables() -> None:
     assert "/portal/deliverables" not in text
 
 
+# ---- Block 0013 — „Mein Team" für WP-Leads --------------------------
+
+
+def test_app_js_registers_lead_team_route() -> None:
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    # Route ist als regex hinterlegt — prüfe charakteristische Bestandteile.
+    assert "lead\\/team" in body
+    assert "lead_team" in body
+
+
+def test_index_html_has_lead_team_nav_hidden_by_default() -> None:
+    body = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    assert 'id="nav-lead-team"' in body
+    assert "Mein Team" in body
+    # Hidden im HTML — JS macht den Link sichtbar, wenn die Person Lead/Admin ist.
+    # Der `hidden`-Marker steht im selben Tag wie id=nav-lead-team.
+    nav_line = next(line for line in body.splitlines() if "nav-lead-team" in line)
+    assert "hidden" in nav_line
+
+
+def test_app_js_unhides_nav_for_admin_or_lead_only() -> None:
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    # Sichtbarkeitscheck prüft sowohl Admin als auch Lead-Membership.
+    assert "wp_role" in body
+    assert "wp_lead" in body
+    assert "nav-lead-team" in body
+
+
+def test_lead_team_module_uses_central_helpers_and_cross_nav() -> None:
+    body = (MODULES_DIR / "lead_team.js").read_text(encoding="utf-8")
+    for helper in ("renderLoading", "renderError", "renderEmpty", "crossNav("):
+        assert helper in body, f"lead_team.js sollte {helper!r} verwenden"
+
+
+def test_lead_team_uses_lead_endpoints() -> None:
+    body = (MODULES_DIR / "lead_team.js").read_text(encoding="utf-8")
+    assert "/api/lead/persons" in body
+    assert "/api/lead/workpackages" in body
+
+
+def test_lead_team_does_not_call_admin_endpoints_or_use_admin_label() -> None:
+    body = (MODULES_DIR / "lead_team.js").read_text(encoding="utf-8")
+    # WP-Lead-Seite darf keine Admin-API anfassen.
+    assert "/api/admin/" not in body
+    # „Admin" darf nicht als Funktionsbezeichnung für Lead-Aktionen auftauchen.
+    # Erlaubt sind Erwähnungen im Hilfetext (z. B. „ändert nur ein Admin").
+    # Wir prüfen: keine Plattformrollen-Auswahl ``role: admin`` o. ä.
+    assert '"admin"' not in body
+    assert "platform_role" not in body
+
+
+def test_lead_team_has_no_partner_select_in_create_form() -> None:
+    body = (MODULES_DIR / "lead_team.js").read_text(encoding="utf-8")
+    # Es gibt keine Partner-Auswahl im Anlage-Formular.
+    assert "partner_id" not in body
+    assert "partner_select" not in body.lower()
+
+
+def test_lead_team_has_initial_password_notice() -> None:
+    body = (MODULES_DIR / "lead_team.js").read_text(encoding="utf-8")
+    assert "Initialpasswort" in body
+    assert "wird nicht erneut angezeigt" in body
+
+
 def test_no_javascript_string_spans_a_newline() -> None:
     """Regressionstest für ‚missing ) after argument list'.
 

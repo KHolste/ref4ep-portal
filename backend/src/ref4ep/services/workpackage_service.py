@@ -302,3 +302,187 @@ class WorkpackageService:
                 entity_id=membership_id,
                 before=snapshot,
             )
+
+    # ---- WP-Lead-Mitgliedschaftsverwaltung (Block 0013) ---------------
+
+    def list_lead_workpackages(self, person_id: str) -> list[Workpackage]:
+        """Alle nicht-gelöschten Workpackages, in denen ``person_id`` wp_lead ist."""
+        stmt = (
+            select(Workpackage)
+            .join(Membership, Membership.workpackage_id == Workpackage.id)
+            .where(
+                Membership.person_id == person_id,
+                Membership.wp_role == "wp_lead",
+                Workpackage.is_deleted.is_(False),
+            )
+            .order_by(Workpackage.sort_order, Workpackage.code)
+        )
+        return list(self.session.scalars(stmt))
+
+    def add_membership_by_wp_lead(
+        self,
+        *,
+        actor_person_id: str,
+        actor_partner_id: str,
+        workpackage_id: str,
+        target_person_id: str,
+        wp_role: str = "wp_member",
+    ) -> Membership:
+        """Fügt eine Person des eigenen Partners dem eigenen WP hinzu.
+
+        Schutz auf Service-Ebene (zusätzlich zur Routen-Prüfung):
+        - Aufrufer muss in diesem WP ``wp_lead`` sein.
+        - Zielperson muss zum gleichen Partner gehören wie der Aufrufer.
+        - ``wp_role`` ∈ {wp_member, wp_lead}.
+        """
+        if wp_role not in WP_ROLES:
+            raise ValueError(f"Unbekannte WP-Rolle: {wp_role}")
+        if not self.is_wp_lead(actor_person_id, workpackage_id):
+            raise PermissionError("Nur WP-Lead dieses Arbeitspakets darf Mitglieder hinzufügen.")
+        target = self.session.get(Person, target_person_id)
+        if target is None or target.is_deleted:
+            raise LookupError(f"Person {target_person_id} nicht gefunden.")
+        if target.partner_id != actor_partner_id:
+            raise PermissionError("WP-Lead darf nur Personen des eigenen Partners hinzufügen.")
+        existing = self.session.scalars(
+            select(Membership).where(
+                Membership.person_id == target_person_id,
+                Membership.workpackage_id == workpackage_id,
+            )
+        ).first()
+        if existing is not None:
+            raise ValueError("Mitgliedschaft existiert bereits.")
+        membership = Membership(
+            person_id=target_person_id,
+            workpackage_id=workpackage_id,
+            wp_role=wp_role,
+        )
+        self.session.add(membership)
+        self.session.flush()
+        if self.audit is not None:
+            self.audit.log(
+                "membership.add_by_wp_lead",
+                entity_type="membership",
+                entity_id=membership.id,
+                after={
+                    "person_id": membership.person_id,
+                    "workpackage_id": membership.workpackage_id,
+                    "wp_role": membership.wp_role,
+                    "actor_person_id": actor_person_id,
+                },
+            )
+        return membership
+
+    def set_membership_role_by_wp_lead(
+        self,
+        *,
+        actor_person_id: str,
+        workpackage_id: str,
+        target_person_id: str,
+        wp_role: str,
+    ) -> Membership:
+        """Rolle einer Mitgliedschaft im eigenen WP ändern.
+
+        Sicherheits-Constraint: ein WP muss mindestens einen
+        ``wp_lead`` behalten. Der letzte verbliebene Lead darf sich
+        nicht selbst herabstufen — sonst gäbe es keinen Lead mehr,
+        der das WP weiter verwalten könnte.
+        """
+        if wp_role not in WP_ROLES:
+            raise ValueError(f"Unbekannte WP-Rolle: {wp_role}")
+        if not self.is_wp_lead(actor_person_id, workpackage_id):
+            raise PermissionError("Nur WP-Lead dieses Arbeitspakets darf Rollen ändern.")
+        membership = self.session.scalars(
+            select(Membership).where(
+                Membership.person_id == target_person_id,
+                Membership.workpackage_id == workpackage_id,
+            )
+        ).first()
+        if membership is None:
+            raise LookupError("Mitgliedschaft nicht gefunden.")
+        if membership.wp_role == wp_role:
+            return membership
+        # Mindestens ein wp_lead muss bleiben.
+        if membership.wp_role == "wp_lead" and wp_role != "wp_lead":
+            other_leads = self.session.scalars(
+                select(Membership.id).where(
+                    Membership.workpackage_id == workpackage_id,
+                    Membership.wp_role == "wp_lead",
+                    Membership.person_id != target_person_id,
+                )
+            ).first()
+            if other_leads is None:
+                raise ValueError(
+                    "Letzter WP-Lead darf nicht herabgestuft werden — bitte zuerst "
+                    "eine andere Person zum wp_lead machen."
+                )
+        before = {"wp_role": membership.wp_role}
+        membership.wp_role = wp_role
+        self.session.flush()
+        if self.audit is not None:
+            self.audit.log(
+                "membership.set_role_by_wp_lead",
+                entity_type="membership",
+                entity_id=membership.id,
+                before=before,
+                after={
+                    "wp_role": membership.wp_role,
+                    "actor_person_id": actor_person_id,
+                },
+            )
+        return membership
+
+    def remove_membership_by_wp_lead(
+        self,
+        *,
+        actor_person_id: str,
+        workpackage_id: str,
+        target_person_id: str,
+    ) -> None:
+        """Entfernt eine Mitgliedschaft aus dem eigenen WP.
+
+        Person bleibt erhalten (kein Hard-Delete, keine Deaktivierung).
+        Wenn die Mitgliedschaft nicht existiert, ist die Operation
+        idempotent (kein Fehler).
+        Letzter wp_lead darf sich nicht selbst entfernen — sonst stünde
+        das WP ohne Lead da.
+        """
+        if not self.is_wp_lead(actor_person_id, workpackage_id):
+            raise PermissionError("Nur WP-Lead dieses Arbeitspakets darf Mitglieder entfernen.")
+        membership = self.session.scalars(
+            select(Membership).where(
+                Membership.person_id == target_person_id,
+                Membership.workpackage_id == workpackage_id,
+            )
+        ).first()
+        if membership is None:
+            return
+        if membership.wp_role == "wp_lead":
+            other_leads = self.session.scalars(
+                select(Membership.id).where(
+                    Membership.workpackage_id == workpackage_id,
+                    Membership.wp_role == "wp_lead",
+                    Membership.person_id != target_person_id,
+                )
+            ).first()
+            if other_leads is None:
+                raise ValueError(
+                    "Letzter WP-Lead darf nicht entfernt werden — bitte zuerst "
+                    "eine andere Person zum wp_lead machen."
+                )
+        snapshot = {
+            "person_id": membership.person_id,
+            "workpackage_id": membership.workpackage_id,
+            "wp_role": membership.wp_role,
+            "actor_person_id": actor_person_id,
+        }
+        membership_id = membership.id
+        self.session.delete(membership)
+        self.session.flush()
+        if self.audit is not None:
+            self.audit.log(
+                "membership.remove_by_wp_lead",
+                entity_type="membership",
+                entity_id=membership_id,
+                before=snapshot,
+            )

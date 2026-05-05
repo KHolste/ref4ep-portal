@@ -231,6 +231,61 @@ class PersonService:
                 after={"is_active": False},
             )
 
+    # ---- write (WP-Lead) ------------------------------------------------
+
+    def create_by_wp_lead(
+        self,
+        *,
+        actor_partner_id: str,
+        email: str,
+        display_name: str,
+        password: str,
+    ) -> Person:
+        """Anlegen einer Person durch eine WP-Lead-Person (Block 0013).
+
+        Server erzwingt:
+        - Plattformrolle ``member`` (Lead darf keine Admins erzeugen).
+        - Partner gleich dem eigenen Partner der aufrufenden Person —
+          ``actor_partner_id`` wird vom Routen-Layer aus dem
+          eingeloggten Account bezogen, **nicht** aus dem Request.
+
+        Audit-Aktion: ``person.create_by_wp_lead``. Klartextpasswort
+        landet **nicht** im Audit; der Aufrufer erhält es einmalig
+        zurück.
+        """
+        # Mindestpasswort-Schutz schon hier (verhindert eine Person
+        # mit triviallem Passwort, falls Routen-Validierung umgangen wird).
+        if len(password) < MIN_PASSWORD_LEN:
+            raise ValueError(
+                f"Initialpasswort muss mindestens {MIN_PASSWORD_LEN} Zeichen lang sein."
+            )
+        person = Person(
+            email=_norm_email(email),
+            display_name=display_name,
+            partner_id=actor_partner_id,
+            password_hash=hash_password(password),
+            platform_role="member",
+            is_active=True,
+            must_change_password=True,
+        )
+        self.session.add(person)
+        self.session.flush()
+        if self.audit is not None:
+            self.audit.log(
+                "person.create_by_wp_lead",
+                entity_type="person",
+                entity_id=person.id,
+                after={
+                    "email": person.email,
+                    "display_name": person.display_name,
+                    "partner_id": person.partner_id,
+                    "platform_role": person.platform_role,
+                    "is_active": person.is_active,
+                    "must_change_password": person.must_change_password,
+                },
+            )
+        return person
+
     # ---- write (eigene) -------------------------------------------------
 
     def change_password(self, person_id: str, old: str, new: str) -> None:
