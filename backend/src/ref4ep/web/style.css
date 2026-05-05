@@ -1333,3 +1333,255 @@ tr.row-released {
   color: #3a1c5c;
   white-space: nowrap;
 }
+
+/* ---- Aggregierter Projektkalender (Block 0023) ---------------------- */
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.5rem;
+  flex-wrap: wrap;
+}
+
+.calendar-month-label {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 0 0.5rem;
+  min-width: 11rem;
+}
+
+.calendar-filterbox {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d6dfe9;
+  border-radius: 4px;
+  background: #fafbfd;
+}
+
+.calendar-filterbox legend {
+  padding: 0 0.4rem;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.calendar-filterbox label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.calendar-grid-wrap {
+  margin: 0 0 1rem;
+}
+
+.calendar-grid-head {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: #d6dfe9;
+  border: 1px solid #d6dfe9;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+}
+
+.calendar-weekday {
+  background: #f1f4f9;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
+  color: #555;
+  text-align: center;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: #d6dfe9;
+  border: 1px solid #d6dfe9;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+}
+
+.calendar-cell {
+  background: #fff;
+  min-height: 110px;
+  padding: 0.3rem 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  overflow: hidden;
+}
+
+.calendar-cell-other-month {
+  background: #f7f9fc;
+  color: #999;
+}
+
+.calendar-cell-today {
+  background: #fdf6cf;
+}
+
+.calendar-day-number {
+  font-size: 0.78rem;
+  color: #555;
+  margin-bottom: 0.1rem;
+}
+
+.calendar-event {
+  display: block;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 2px;
+  border-left: 3px solid #1c2c4c;
+  background: #eef4fd;
+  color: #1c2c4c;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+.calendar-event:hover {
+  filter: brightness(0.95);
+}
+
+.calendar-event-type {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #555;
+  margin-right: 0.2rem;
+}
+
+.calendar-event-meeting {
+  border-left-color: #1c2c4c;
+  background: #eef4fd;
+}
+
+.calendar-event-campaign {
+  border-left-color: #2f7a3a;
+  background: #e6f4e6;
+}
+
+.calendar-event-milestone {
+  border-left-color: #c08a1e;
+  background: #fff7e0;
+}
+
+.calendar-event-action {
+  border-left-color: #555;
+  background: #f0f2f5;
+}
+
+.calendar-event-overdue {
+  background: #fdecea;
+  border-left-color: #c0392b;
+  color: #6c1f00;
+}
+
+.calendar-event-overdue .calendar-event-type {
+  color: #6c1f00;
+}
+
+.calendar-event-cancelled {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.calendar-more-link {
+  font-size: 0.72rem;
+  color: #1c2c4c;
+  text-align: left;
+  margin-top: 0.15rem;
+}
+
+/* Mobiles Layout: Tageszellen niedriger und horizontal scrollbar
+ * vermeiden — der Raster bleibt 7-spaltig, aber Chips brechen um. */
+@media (max-width: 720px) {
+  .calendar-cell {
+    min-height: 70px;
+    padding: 0.2rem;
+  }
+  .calendar-event {
+    font-size: 0.7rem;
+  }
+}
+
+/* Agenda-Liste unter dem Raster — bleibt auf jedem Bildschirm lesbar. */
+.calendar-agenda-section {
+  margin-top: 1rem;
+}
+
+.calendar-agenda-section h2 {
+  font-size: 1.05rem;
+  margin: 0 0 0.4rem;
+}
+
+.calendar-agenda-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.calendar-agenda-item {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.1rem;
+  padding: 0.4rem 0.6rem;
+  border-left: 3px solid #1c2c4c;
+  background: #fff;
+  border-bottom: 1px solid #eef2f7;
+}
+
+@media (min-width: 720px) {
+  .calendar-agenda-item {
+    grid-template-columns: 13rem 1fr;
+    gap: 0.4rem;
+    align-items: baseline;
+  }
+}
+
+.calendar-agenda-period {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  color: #1c2c4c;
+}
+
+.calendar-agenda-type {
+  display: inline-block;
+  padding: 0 0.4rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #555;
+  background: #f1f4f9;
+  border-radius: 2px;
+  margin-right: 0.3rem;
+}
+
+.calendar-agenda-title {
+  font-weight: 500;
+  color: #1c2c4c;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.calendar-agenda-desc {
+  font-size: 0.8rem;
+  margin-top: 0.15rem;
+}
+
+/* Kurzes Highlight nach „+N weitere"-Sprung — visuelles Echo, aber
+ * dezent. */
+.calendar-agenda-flash {
+  outline: 2px solid #c08a1e;
+  outline-offset: 2px;
+  transition: outline-color 0.6s ease;
+}

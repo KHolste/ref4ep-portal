@@ -1563,3 +1563,129 @@ def test_campaign_modules_still_have_no_upload_path_after_refactor() -> None:
     body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
     assert "/api/documents?include_archived=false" in body
     assert "document_id" in body
+
+
+# ---- Block 0023 — Aggregierter Projektkalender ------------------------
+
+
+def test_app_js_registers_calendar_route() -> None:
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    assert "calendar\\/?" in body
+    assert '"calendar"' in body or 'module: "calendar"' in body
+
+
+def test_index_html_has_calendar_nav_link() -> None:
+    body = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    assert 'href="/portal/calendar"' in body
+    assert ">Kalender<" in body
+
+
+def test_calendar_module_uses_central_helpers_and_cross_nav() -> None:
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    for helper in ("renderLoading", "renderError", "renderEmpty", "crossNav("):
+        assert helper in body, f"calendar.js sollte {helper!r} verwenden"
+
+
+def test_calendar_module_renders_navigation_filters_and_grid() -> None:
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    # Monatsnavigation + „Heute"-Button.
+    assert "Vorheriger Monat" in body
+    assert "Nächster Monat" in body
+    assert "Heute" in body
+    # Filter sind sichtbar verdrahtet.
+    assert "Alle Typen" in body
+    assert "Meine Einträge" in body
+    assert "WP-Code" in body
+    # Monatsraster + Agenda als getrennte Slots.
+    assert "calendar-grid-wrap" in body
+    assert "calendar-agenda-section" in body
+    assert "renderMonthGrid" in body
+    assert "renderAgenda" in body
+
+
+def test_calendar_chip_classes_for_all_event_types_in_module() -> None:
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    # Typkürzel als Text — nicht nur Farbe.
+    for label in ("Meeting", "Kampagne", "Meilenstein", "Aufgabe"):
+        assert label in body, f"calendar.js sollte Typ-Label {label!r} anzeigen"
+    # Die Typ-Klasse wird dynamisch konstruiert — wir suchen nach den
+    # Template-Strings, die den Klassen-Präfix tragen.
+    assert "calendar-event-${event.type}" in body or "calendar-event-${e.type}" in body, (
+        "calendar.js sollte typabhängige CSS-Klassen pro Event setzen"
+    )
+    # Spezielle Marker bleiben als statische Strings im Modul vorhanden.
+    for marker in ("calendar-event-overdue", "calendar-event-cancelled"):
+        assert marker in body, f"calendar.js sollte {marker!r} setzen können"
+
+
+def test_calendar_event_type_classes_in_css() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (
+        ".calendar-grid",
+        ".calendar-cell",
+        ".calendar-event",
+        ".calendar-event-meeting",
+        ".calendar-event-campaign",
+        ".calendar-event-milestone",
+        ".calendar-event-action",
+        ".calendar-event-overdue",
+        ".calendar-event-cancelled",
+        ".calendar-agenda-list",
+    ):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+
+
+def test_calendar_module_links_to_existing_detail_routes() -> None:
+    """Chips/Agenda-Einträge sollen zu den vorhandenen Detailseiten
+    verlinken — der Server liefert die Links bereits, wir prüfen, dass
+    das Modul ``event.link`` benutzt (statt etwa eigene URLs zu basteln)."""
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    assert "event.link" in body
+    # Backend-Endpunkt wird verwendet, kein eigener „events"-Endpoint.
+    assert "/api/calendar/events" in body
+
+
+def test_calendar_module_has_no_external_framework_or_ics_or_drag() -> None:
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    # Kein externes Kalender-/UI-Framework eingebunden.
+    for forbidden_import in (
+        "FullCalendar",
+        "fullcalendar",
+        "react",
+        "vue",
+        "luxon",
+        "moment",
+        "jquery",
+    ):
+        assert forbidden_import not in body, (
+            f"calendar.js darf nichts wie {forbidden_import!r} importieren"
+        )
+    # Keine ICS/iCal-Erzeugung.
+    assert "BEGIN:VCALENDAR" not in body
+    assert ".ics" not in body
+    # Keine Drag-and-Drop-Handler.
+    for evt in ("dragstart", "dragover", "dragend", "drop"):
+        # Wir suchen Event-Listener-Strings — nicht Substrings im Doc-Comment.
+        assert f'"{evt}"' not in body, f"calendar.js darf keine Drag-Events nutzen ({evt})"
+    # Keine Mailto-/E-Mail-Erinnerungen.
+    assert "mailto:" not in body
+
+
+def test_calendar_module_has_no_file_upload_or_formdata() -> None:
+    """Kalender ist Lesesicht — keine Schreibpfade, kein Upload."""
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    assert 'type: "file"' not in body
+    assert "FormData" not in body
+    assert "createFileDropzone" not in body
+    assert "file-dropzone" not in body
+    # Auch kein POST/PATCH/DELETE — reines GET.
+    for method in ('"POST"', '"PATCH"', '"DELETE"'):
+        assert method not in body, f"calendar.js darf {method} nicht aufrufen"
+
+
+def test_calendar_responsive_layout_breakpoint_present() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Mobile-Tweak ist im Stylesheet vorhanden.
+    assert "@media (max-width: 720px)" in css
+    # Agenda klappt auf Desktop in zwei Spalten (Datum-Spalte + Body).
+    assert "@media (min-width: 720px)" in css
