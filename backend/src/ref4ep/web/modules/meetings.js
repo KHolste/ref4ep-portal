@@ -84,7 +84,7 @@ function renderCreateDialog(workpackages, onSaved, onCancel) {
   const wpHelp = h(
     "small",
     { class: "field-hint" },
-    "Mehrfachauswahl möglich (Strg/Cmd-Klick). WP-Lead muss bei allen gewählten WPs Lead sein.",
+    "Mehrfachauswahl möglich. WP-Leads dürfen nur eigene Arbeitspakete auswählen.",
   );
   const errorBox = h("p", { class: "error", style: "display:none" }, "");
 
@@ -126,7 +126,7 @@ function renderCreateDialog(workpackages, onSaved, onCancel) {
     h("label", {}, "Ort / Online-Link", locationInput),
     h("label", {}, "Zusammenfassung (optional)", summaryInput),
     h("label", {}, "Zusätzliche Teilnehmende (optional)", extraInput),
-    h("label", {}, "Arbeitspakete", wpSelect, wpHelp),
+    h("label", {}, "Zugehörige Arbeitspakete", wpSelect, wpHelp),
     errorBox,
     h(
       "div",
@@ -183,11 +183,15 @@ export async function render(container, _ctx) {
     h("option", { value: "" }, "Alle Kategorien"),
     ...Object.entries(CATEGORY_LABELS).map(([v, l]) => h("option", { value: v }, l)),
   );
-  const wpFilter = h("input", { type: "text", placeholder: "WP-Code (z. B. WP3.1)" });
+  const wpFilter = h("input", {
+    type: "text",
+    placeholder: "WP-Code filtern, z. B. WP3.1",
+  });
   const refreshBtn = h("button", { type: "button" }, "Filtern");
   const filterBar = h(
-    "div",
-    { class: "audit-filters" },
+    "fieldset",
+    { class: "meeting-filterbox" },
+    h("legend", {}, "Meetings filtern"),
     statusFilter,
     categoryFilter,
     wpFilter,

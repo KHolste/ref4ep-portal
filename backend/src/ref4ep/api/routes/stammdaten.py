@@ -88,6 +88,7 @@ def list_workpackages(
             parent_code = parent.code if parent else None
         out.append(
             WorkpackageOut(
+                id=wp.id,
                 code=wp.code,
                 title=wp.title,
                 parent_code=parent_code,

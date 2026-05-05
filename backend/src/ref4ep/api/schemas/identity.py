@@ -139,6 +139,7 @@ class WorkpackageRefOut(BaseModel):
 
 
 class WorkpackageOut(BaseModel):
+    id: str
     code: str
     title: str
     parent_code: str | None = None

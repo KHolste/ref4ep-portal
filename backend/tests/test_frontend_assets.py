@@ -616,6 +616,45 @@ def test_meetings_have_no_judgmental_phrases() -> None:
             assert phrase not in body, f"{name} sollte ‚{phrase}‘ nicht enthalten"
 
 
+def test_meetings_filter_box_has_legend_and_better_placeholder() -> None:
+    """Block 0015 / Bugfix-UX: Filterzeile als eigene Box mit Legende
+    und klarem Placeholder — visuell vom Anlage-Dialog abgesetzt."""
+    body = (MODULES_DIR / "meetings.js").read_text(encoding="utf-8")
+    # Filterbox ist ein <fieldset class="meeting-filterbox"> mit <legend>.
+    assert '"meeting-filterbox"' in body
+    assert "Meetings filtern" in body
+    # Klarerer Placeholder.
+    assert "WP-Code filtern, z. B. WP3.1" in body
+    # Alter Placeholder ist verschwunden.
+    assert "WP-Code (z. B. WP3.1)" not in body
+    # CSS-Klasse vorhanden.
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert ".meeting-filterbox" in css
+
+
+def test_meetings_create_form_has_clearer_wp_label_and_help() -> None:
+    body = (MODULES_DIR / "meetings.js").read_text(encoding="utf-8")
+    assert "Zugehörige Arbeitspakete" in body
+    assert "Mehrfachauswahl möglich. WP-Leads dürfen nur eigene Arbeitspakete auswählen." in body
+
+
+def test_meeting_wp_options_use_id_as_value_not_label() -> None:
+    """Block 0015 / Bugfix: ``<option value="…">`` muss die WP-ID
+    bekommen, nicht den zusammengesetzten Anzeigetext."""
+    for name in ("meetings.js", "meeting_detail.js"):
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        # Korrekt: value: wp.id, Anzeige separat aus code + title.
+        assert "value: wp.id" in body, f"{name} sollte value: wp.id verwenden"
+        # Negativ-Probe: kein Pattern, das den Anzeigetext als value setzt.
+        assert "value: `${wp.code}" not in body
+        assert 'value: wp.code + " — "' not in body
+
+
+def test_meeting_detail_edit_form_uses_clearer_wp_label() -> None:
+    body = (MODULES_DIR / "meeting_detail.js").read_text(encoding="utf-8")
+    assert "Zugehörige Arbeitspakete" in body
+
+
 def test_meetings_have_no_direct_file_upload() -> None:
     """Block 0015 erlaubt explizit keinen direkten Datei-Upload im Meeting-Dialog."""
     for name in ("meetings.js", "meeting_detail.js"):

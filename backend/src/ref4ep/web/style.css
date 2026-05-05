@@ -472,6 +472,34 @@ tr.row-released {
   border-radius: 3px;
 }
 
+/* Filterbox auf der Meeting-Liste — visuell deutlich vom späteren
+ * Anlage-Dialog abgesetzt. */
+.meeting-filterbox {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d6dfe9;
+  border-radius: 4px;
+  background: #fafbfd;
+}
+
+.meeting-filterbox legend {
+  padding: 0 0.4rem;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.meeting-filterbox input,
+.meeting-filterbox select {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #ccd;
+  border-radius: 3px;
+  font: inherit;
+}
+
 .audit-details {
   background: #f4f4f8;
   border: 1px solid #ddd;

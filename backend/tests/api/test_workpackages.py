@@ -14,6 +14,18 @@ def test_list_returns_35_entries(admin_client: TestClient) -> None:
     assert len(parents) == 8
 
 
+def test_list_items_carry_id_for_select_value(admin_client: TestClient) -> None:
+    """Block 0015 / Bugfix: Das Meeting-Anlageformular nutzt
+    ``WorkpackageOut.id`` als ``<option value=...>``. Fehlt das Feld,
+    fällt HTML auf den Anzeigetext zurück und schickt z. B.
+    ``WP1.1 — Projektmanagement`` als „WP-ID" zurück."""
+    response = admin_client.get("/api/workpackages")
+    items = response.json()
+    for item in items:
+        assert "id" in item, f"WorkpackageOut sollte id liefern: {item}"
+        assert isinstance(item["id"], str) and len(item["id"]) >= 8
+
+
 def test_parent_only_filter(admin_client: TestClient) -> None:
     response = admin_client.get("/api/workpackages", params={"parent_only": "true"})
     assert response.status_code == 200

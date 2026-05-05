@@ -514,3 +514,48 @@ def test_seeded_meeting_count_consistent(admin_client: TestClient, seeded_sessio
     assert seeded_session.query(Meeting).count() == 0
     assert seeded_session.query(MeetingDecision).count() == 0
     assert seeded_session.query(MeetingAction).count() == 0
+
+
+# ---- Block 0015 / Bugfix: WP-Round-Trip --------------------------------
+
+
+def test_meeting_create_uses_id_from_workpackage_listing(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """Reproduziert den Praxistest-Bug: Anlegen eines Meetings mit
+    WP1.1, indem die ID aus dem Listen-Response wirklich akzeptiert
+    wird. Vorher fehlte ``id`` im Schema, das Frontend übermittelte
+    den Anzeigetext, und der Server lehnte mit ``LookupError`` ab."""
+    listing = admin_client.get("/api/workpackages").json()
+    wp11 = next(w for w in listing if w["code"] == "WP1.1")
+    r = admin_client.post(
+        "/api/meetings",
+        json={
+            "title": "WP1.1-Treffen",
+            "starts_at": _starts_at(),
+            "category": "workpackage",
+            "workpackage_ids": [wp11["id"]],
+        },
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert [w["code"] for w in body["workpackages"]] == ["WP1.1"]
+
+
+def test_meeting_create_rejects_composite_label_as_workpackage_id(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """Symptom des Bugs: das Frontend hatte den Anzeigetext geschickt.
+    Der Server muss das mit 404 ablehnen — keine schleichende Akzeptanz."""
+    r = admin_client.post(
+        "/api/meetings",
+        json={
+            "title": "Falscher Wert",
+            "starts_at": _starts_at(),
+            "workpackage_ids": ["WP1.1 — Projektmanagement"],
+        },
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 404
+    assert "WP1.1" in r.json()["detail"]["error"]["message"]

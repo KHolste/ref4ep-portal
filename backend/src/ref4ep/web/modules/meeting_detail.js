@@ -184,7 +184,17 @@ function renderEditMeetingForm(meeting, workpackages, onSaved, onCancel) {
     h("label", {}, "Ort / Online-Link", locationInput),
     h("label", {}, "Zusammenfassung", summaryInput),
     h("label", {}, "Zusätzliche Teilnehmende", extraInput),
-    h("label", {}, "Arbeitspakete", wpSelect),
+    h(
+      "label",
+      {},
+      "Zugehörige Arbeitspakete",
+      wpSelect,
+      h(
+        "small",
+        { class: "field-hint" },
+        "Mehrfachauswahl möglich. WP-Leads dürfen nur eigene Arbeitspakete auswählen.",
+      ),
+    ),
     errorBox,
     h(
       "div",
