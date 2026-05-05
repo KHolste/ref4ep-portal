@@ -331,6 +331,9 @@ details.collapsible[open] > summary {
   color: #1c2c4c;
   text-decoration: none;
   text-align: left;
+  /* Position relativ, damit die ``cockpit-kpi-cta``-Andeutung sich
+   * unten rechts platzieren kann. */
+  position: relative;
 }
 
 .cockpit-kpi-value {
@@ -345,6 +348,7 @@ details.collapsible[open] > summary {
   margin-top: 0.15rem;
 }
 
+/* Tönung „Echter Problemfall" — z. B. überfällige Aufgaben/Meilensteine. */
 .cockpit-kpi-danger {
   border-left-color: #c0392b;
   background: #fdecea;
@@ -354,14 +358,55 @@ details.collapsible[open] > summary {
   color: #c0392b;
 }
 
-a.cockpit-kpi:hover,
-a.cockpit-kpi:focus {
-  background: #f5f8fc;
+/* Tönung „Hinweis/warning" — z. B. WPs mit offenen Punkten. Ruhiger als
+ * danger, aber visuell vom Neutralfall abgesetzt. */
+.cockpit-kpi-warning {
+  border-left-color: #c08a1e;
+  background: #fff8e6;
 }
 
-a.cockpit-kpi.cockpit-kpi-danger:hover,
-a.cockpit-kpi.cockpit-kpi-danger:focus {
+.cockpit-kpi-warning .cockpit-kpi-value {
+  color: #8a5a00;
+}
+
+/* Klickbare KPI-Variante (``<a>`` mit Klasse ``cockpit-kpi-link``) bekommt
+ * Cursor, Hover, sichtbaren Focus-Ring und einen dezenten „Anzeigen →"-
+ * Hinweis. Nicht-klickbare KPIs (reine ``<div>``) bleiben neutral. */
+a.cockpit-kpi-link {
+  cursor: pointer;
+  transition: background-color 0.1s ease, box-shadow 0.1s ease;
+}
+
+a.cockpit-kpi-link:hover {
+  background: #f5f8fc;
+  box-shadow: 0 1px 3px rgba(28, 44, 76, 0.12);
+}
+
+a.cockpit-kpi-link.cockpit-kpi-danger:hover {
   background: #fbdcd8;
+  box-shadow: 0 1px 3px rgba(192, 57, 43, 0.18);
+}
+
+a.cockpit-kpi-link.cockpit-kpi-warning:hover {
+  background: #fbedc4;
+  box-shadow: 0 1px 3px rgba(192, 138, 30, 0.18);
+}
+
+a.cockpit-kpi-link:focus-visible {
+  outline: 2px solid #1c2c4c;
+  outline-offset: 2px;
+}
+
+.cockpit-kpi-cta {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  color: #1c2c4c;
+  letter-spacing: 0.02em;
+}
+
+a.cockpit-kpi-link:hover .cockpit-kpi-cta {
+  text-decoration: underline;
 }
 
 /* Verdichtete WP-Statusübersicht — Sub-Heading + Mini-Tabelle. */
@@ -386,10 +431,49 @@ a.cockpit-kpi.cockpit-kpi-danger:focus {
   font-size: 0.9rem;
 }
 
-/* „Mein Bereich"-WP-Karte: Counts + einklappbare Restliste. */
+/* „Mein Bereich"-WP-Karte: Counts + Mini-Tabelle + einklappbare Restliste. */
 .my-wp-counts {
   margin: 0.1rem 0 0.4rem;
   font-size: 0.85rem;
+}
+
+.my-wp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  table-layout: auto;
+}
+
+.my-wp-table th,
+.my-wp-table td {
+  text-align: left;
+  padding: 0.25rem 0.4rem;
+  border-bottom: 1px solid #eef2f7;
+  vertical-align: top;
+}
+
+.my-wp-table th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #555;
+}
+
+.my-wp-table .my-wp-code {
+  white-space: nowrap;
+  width: 1%;
+}
+
+.my-wp-table .my-wp-title {
+  /* Lange Titel umbrechen lassen statt zu kappen. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.my-wp-table .my-wp-role {
+  white-space: nowrap;
+  width: 1%;
 }
 
 .my-wp-more {
@@ -400,6 +484,17 @@ a.cockpit-kpi.cockpit-kpi-danger:focus {
   cursor: pointer;
   font-size: 0.85rem;
   color: #1c2c4c;
+}
+
+/* Rollen-Badges Lead/Member — visuell konsistent mit anderen Badges. */
+.badge-lead {
+  background: #d6e4f5;
+  color: #1c2c4c;
+}
+
+.badge-member {
+  background: #e8edf3;
+  color: #555;
 }
 
 /* Screenreader-only Anker; bringt keine Optik mit, hält die DOM-Reihenfolge

@@ -98,19 +98,37 @@ function wpLinkOrSpan(code, title) {
 }
 
 // ---- KPI-Streifen ------------------------------------------------------
+//
+// Tönung (``tone``):
+//   - ``"danger"``  — echte Problemfälle (überfällig, kritisch).
+//   - ``"warning"`` — informativer Hinweis (z. B. WPs mit offenen Punkten —
+//                     normaler Arbeitsstand, aber gut zu wissen).
+//   - undefined     — neutral (Zahlen, die selten alarmieren sollen).
+//
+// Klickbare Kacheln werden als ``<a>`` gerendert und tragen zusätzlich die
+// Klasse ``cockpit-kpi-link`` (für Hover/Focus/Cursor + dezenten Pfeil).
 
-function renderKpiTile({ value, label, href, danger }) {
-  const cls = danger ? "cockpit-kpi cockpit-kpi-danger" : "cockpit-kpi";
+function renderKpiTile({ value, label, href, tone }) {
+  const classes = ["cockpit-kpi"];
+  if (tone === "danger") classes.push("cockpit-kpi-danger");
+  if (tone === "warning") classes.push("cockpit-kpi-warning");
+  if (href) classes.push("cockpit-kpi-link");
   const valueNode = h("div", { class: "cockpit-kpi-value" }, String(value));
   const labelNode = h("div", { class: "cockpit-kpi-label" }, label);
   if (href) {
-    return h("a", { class: cls, href }, valueNode, labelNode);
+    return h(
+      "a",
+      { class: classes.join(" "), href, "aria-label": `${label}: ${value} — Anzeigen` },
+      valueNode,
+      labelNode,
+      h("span", { class: "cockpit-kpi-cta", "aria-hidden": "true" }, "Anzeigen →"),
+    );
   }
-  return h("div", { class: cls }, valueNode, labelNode);
+  return h("div", { class: classes.join(" ") }, valueNode, labelNode);
 }
 
 function renderKpiStrip(myCockpit, projectCockpit) {
-  // Beide Quellen können fehlen — wir füllen mit „—".
+  // Beide Quellen können fehlen — wir füllen mit 0.
   const my = myCockpit || {};
   const proj = projectCockpit || {};
   const overdueActions = (my.my_overdue_actions || []).length;
@@ -125,12 +143,14 @@ function renderKpiStrip(myCockpit, projectCockpit) {
       value: overdueActions,
       label: "Überfällige Aufgaben",
       href: "/portal/actions?overdue=true",
-      danger: overdueActions > 0,
+      // Echter Problemfall — eskaliert auch farblich.
+      tone: overdueActions > 0 ? "danger" : undefined,
     }),
     renderKpiTile({
       value: openActions,
       label: "Offene Aufgaben",
       href: "/portal/actions?mine=true",
+      // Bewusst neutral — offene Aufgaben sind Normalbetrieb.
     }),
     renderKpiTile({
       value: nextMeetings,
@@ -141,18 +161,65 @@ function renderKpiStrip(myCockpit, projectCockpit) {
       value: overdueMs,
       label: "Überfällige Meilensteine",
       href: "/portal/milestones",
-      danger: overdueMs > 0,
+      tone: overdueMs > 0 ? "danger" : undefined,
     }),
     renderKpiTile({
       value: wpsWithIssues,
       label: "WPs mit offenen Punkten",
       href: "/portal/workpackages",
-      danger: wpsWithIssues > 0,
+      // Hinweisfarbe (warning), kein „danger" — offene Punkte sind oft
+      // normaler Arbeitsstand und sollen nicht rot wirken.
+      tone: wpsWithIssues > 0 ? "warning" : undefined,
     }),
   );
 }
 
 // ---- „Mein Bereich" — kompakt -----------------------------------------
+
+function roleBadge(wpRole) {
+  // Rolle als kleines Badge — visuell konsistent mit anderen Badges.
+  if (wpRole === "wp_lead") {
+    return h("span", { class: "badge badge-lead" }, "Lead");
+  }
+  return h("span", { class: "badge badge-member" }, "Member");
+}
+
+function renderMyWpRows(workpackages) {
+  // Eine kompakte Tabellenzeile pro WP — Code/Titel/Rolle. Lange Titel
+  // brechen über die ``my-wp-title``-Klasse sauber um.
+  return workpackages.map((wp) =>
+    h(
+      "tr",
+      {},
+      h(
+        "td",
+        { class: "my-wp-code" },
+        h("a", { href: `/portal/workpackages/${wp.code}` }, wp.code),
+      ),
+      h("td", { class: "my-wp-title" }, wp.title),
+      h("td", { class: "my-wp-role" }, roleBadge(wp.wp_role)),
+    ),
+  );
+}
+
+function renderMyWpTable(workpackages) {
+  return h(
+    "table",
+    { class: "my-wp-table" },
+    h(
+      "thead",
+      {},
+      h(
+        "tr",
+        {},
+        h("th", {}, "Code"),
+        h("th", {}, "Titel"),
+        h("th", {}, "Rolle"),
+      ),
+    ),
+    h("tbody", {}, ...renderMyWpRows(workpackages)),
+  );
+}
 
 function renderMyWpCard(myCockpit) {
   const lead = myCockpit.my_lead_workpackages || [];
@@ -184,26 +251,16 @@ function renderMyWpCard(myCockpit) {
     );
   }
 
-  function wpItem(wp) {
-    return h(
-      "li",
-      {},
-      h("a", { href: `/portal/workpackages/${wp.code}` }, wp.code),
-      ` — ${wp.title}`,
-      wp.wp_role === "wp_lead" ? h("strong", {}, " (Lead)") : "",
-    );
-  }
-
   const visible = ordered.slice(0, MY_WP_LIMIT);
   const remaining = ordered.slice(MY_WP_LIMIT);
-  const visibleList = h("ul", {}, ...visible.map(wpItem));
+  const visibleTable = renderMyWpTable(visible);
   const moreBlock =
     remaining.length > 0
       ? h(
           "details",
           { class: "my-wp-more" },
           h("summary", {}, `+ ${remaining.length} weitere anzeigen`),
-          h("ul", {}, ...remaining.map(wpItem)),
+          renderMyWpTable(remaining),
         )
       : null;
 
@@ -212,7 +269,7 @@ function renderMyWpCard(myCockpit) {
     { class: "my-area-card" },
     h("h3", {}, "Meine Arbeitspakete"),
     counts,
-    visibleList,
+    visibleTable,
     moreBlock,
     h(
       "p",
@@ -492,34 +549,33 @@ function renderIssueCard(issue) {
 }
 
 function renderOpenIssuesCard(issues) {
+  // Auf der Startseite bewusst nur ein Auszug — die Vollsicht lebt im
+  // WP-Detail bzw. unter /portal/workpackages.
+  const heading = "Offene Punkte aus Arbeitspaketen — Auszug";
   if (!issues.length) {
     return h(
       "section",
       { class: "cockpit-card" },
-      h("h2", {}, "Offene Punkte aus Arbeitspaketen"),
+      h("h2", {}, heading),
       renderEmpty("Aktuell sind keine offenen Punkte in den Arbeitspaketen vermerkt."),
     );
   }
-  // Cockpit zeigt nur die ersten N Karten; Rest hängt am WP-Detail.
   const visible = issues.slice(0, OPEN_ISSUE_LIMIT);
   const hidden = issues.length - visible.length;
+  const link = h("a", { href: "/portal/workpackages" }, "Alle Arbeitspakete anzeigen");
   const footer =
     hidden > 0
       ? h(
           "p",
           { class: "muted" },
-          `… ${hidden} weitere — `,
-          h("a", { href: "/portal/workpackages" }, "Alle Arbeitspakete anzeigen"),
+          `Weitere offene Punkte vorhanden (${hidden} weitere). `,
+          link,
         )
-      : h(
-          "p",
-          { class: "muted" },
-          h("a", { href: "/portal/workpackages" }, "Alle Arbeitspakete anzeigen"),
-        );
+      : h("p", { class: "muted" }, link);
   return h(
     "section",
     { class: "cockpit-card cockpit-card-wide" },
-    h("h2", {}, "Offene Punkte aus Arbeitspaketen"),
+    h("h2", {}, heading),
     ...visible.map(renderIssueCard),
     footer,
   );
@@ -609,19 +665,30 @@ export async function render(container, ctx) {
     ),
   );
 
-  // Slots: KPIs zuerst, dann je nach Rolle „Mein Bereich" oder „Projekt-Cockpit"
-  // weiter oben — die Aktivitätsbox liegt zwischen den beiden Bereichen.
+  // Slots werden in einer Reihenfolge zusammengesteckt, die sich nach der
+  // effektiven Plattformrolle richtet:
+  //
+  //   Nutzeransicht (effectivePlatformRole === "member"):
+  //     greeting → partnerLine → KPI-Streifen → „Mein Bereich" →
+  //     Projekt-Cockpit → Aktivitätsbox → crossNav
+  //
+  //   Admin-Ansicht (effectivePlatformRole === "admin"):
+  //     greeting → partnerLine → KPI-Streifen → Projekt-Cockpit →
+  //     „Mein Bereich" → Aktivitätsbox → crossNav
+  //
+  // KPI-Zahlen sind global und stehen in beiden Modi oben — sie verdrängen
+  // den persönlichen Bereich aber nicht, weil „Mein Bereich" in der
+  // Nutzeransicht direkt darunter folgt.
   const kpiSlot = h("div", {}, renderLoading("Kennzahlen werden geladen …"));
   const myAreaSlot = h("div", {}, renderLoading("Mein Bereich wird geladen …"));
   const activitySlot = h("div", {}, renderLoading("Aktivitäten werden geladen …"));
   const projectSlot = h("div", {}, renderLoading("Projekt-Cockpit wird geladen …"));
   const projectHeader = h("h2", {}, "Projekt-Cockpit");
+  // ``myAreaHeader`` ist ein unsichtbarer Anker für Screenreader, damit die
+  // Sektionsreihenfolge in der Admin-Ansicht semantisch stabil bleibt.
   const myAreaHeader = h("h2", { class: "sr-only" }, "Mein Bereich (Übersicht)");
 
   const nav = crossNav("/portal/");
-  // Header (h2) wird von renderMyArea bzw. dem Projekt-Cockpit-Block selbst
-  // gesetzt. ``myAreaHeader`` ist ein unsichtbarer Anker für Screenreader,
-  // damit die Reihenfolge stabil bleibt — er bringt keine Optik mit.
   const orderedBlocks = isAdminView
     ? [projectHeader, projectSlot, myAreaHeader, myAreaSlot]
     : [myAreaSlot, projectHeader, projectSlot];

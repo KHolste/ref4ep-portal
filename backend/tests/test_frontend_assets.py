@@ -973,3 +973,104 @@ def test_cockpit_uses_effective_platform_role_for_ordering() -> None:
     body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
     assert "effectivePlatformRole" in body
     assert "isAdminView" in body
+
+
+# ---- Cockpit-UX-Folgepass: Tönung, Mini-Tabelle, Klickbarkeit --------
+
+
+def test_cockpit_kpi_warning_tone_is_distinct_from_danger() -> None:
+    """„WPs mit offenen Punkten" verwendet die ruhige warning-Tönung,
+    nicht die alarmistische danger-Tönung. Die danger-Tönung bleibt für
+    überfällige Aufgaben/Meilensteine."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    # tone-Property statt früherer danger-Boolean.
+    assert "tone:" in body
+    assert '"warning"' in body
+    assert '"danger"' in body
+    # Konkret: WPs-mit-offenen-Punkten-Block bekommt warning, nicht danger.
+    assert 'wpsWithIssues > 0 ? "warning"' in body
+    # Konkret: Überfälligkeiten dürfen weiterhin danger sein.
+    assert 'overdueActions > 0 ? "danger"' in body
+    assert 'overdueMs > 0 ? "danger"' in body
+
+
+def test_cockpit_kpi_warning_styles_are_present() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert ".cockpit-kpi-warning" in css
+    # Warning-Tönung muss von danger optisch abweichen — also mindestens
+    # eine eigene Hintergrundregel.
+    assert "cockpit-kpi-warning" in css
+    # Danger bleibt erhalten (Regression).
+    assert ".cockpit-kpi-danger" in css
+
+
+def test_cockpit_kpi_link_styles_indicate_clickability() -> None:
+    """Klickbare KPI-Karten haben Hover-, Focus- und Cursor-Affordanzen
+    sowie einen sichtbaren ‚Anzeigen →'-Hinweis."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    # Klasse auf <a>-Variante.
+    assert ".cockpit-kpi-link" in css
+    # Cursor pointer + Hover + Focus-ring.
+    assert "cursor: pointer" in css
+    assert "a.cockpit-kpi-link:hover" in css
+    assert "a.cockpit-kpi-link:focus-visible" in css
+    # Pfeil-/CTA-Andeutung in HTML + CSS.
+    assert ".cockpit-kpi-cta" in css
+    assert "Anzeigen" in body
+    # aria-label setzt einen sinnvollen Screenreader-Text.
+    assert "aria-label" in body
+
+
+def test_cockpit_my_workpackages_use_compact_table_with_role_badge() -> None:
+    """„Meine Arbeitspakete" wird nicht mehr als einfache Bullet-Liste
+    gerendert, sondern als kompakte Tabelle mit Code/Titel/Rolle und
+    Lead/Member als Badge."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Render-Helfer für Tabelle und Badge sind sichtbar.
+    assert "renderMyWpTable" in body
+    assert "roleBadge" in body
+    # Klassen für Tabelle + Spalten + Badges.
+    assert "my-wp-table" in body
+    assert "my-wp-code" in body
+    assert "my-wp-title" in body
+    assert "my-wp-role" in body
+    assert "badge-lead" in body
+    assert "badge-member" in body
+    # CSS für Tabelle + Badges.
+    assert ".my-wp-table" in css
+    assert ".badge-lead" in css
+    assert ".badge-member" in css
+    # Lange Titel müssen umbrechen können.
+    assert "overflow-wrap" in css or "word-break" in css
+    # Die alte Bullet-Item-Funktion ist verschwunden.
+    assert "function wpItem" not in body
+    # Spaltenüberschriften (Kontextbeweis: echte Tabelle).
+    assert ">Code<" in body or '"Code"' in body
+    assert "Titel" in body
+    assert "Rolle" in body
+    # Beschriftung der Rolle als Badge-Text — nicht mehr „(Lead)" als Suffix.
+    assert "(Lead)" not in body
+
+
+def test_cockpit_member_view_orders_my_area_before_project_cockpit() -> None:
+    """In der Nutzeransicht steht ``myAreaSlot`` *vor* ``projectSlot``
+    in der Slot-Reihenfolge. Die Quelle dafür ist der Ternary-Ausdruck,
+    der die Reihenfolge auf Basis von ``isAdminView`` bestimmt."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    # Member-Reihenfolge: myAreaSlot, projectHeader, projectSlot
+    assert "[myAreaSlot, projectHeader, projectSlot]" in body
+    # Admin-Reihenfolge: projectHeader, projectSlot, …, myAreaSlot
+    assert "[projectHeader, projectSlot, myAreaHeader, myAreaSlot]" in body
+
+
+def test_cockpit_open_issues_section_is_marked_as_excerpt() -> None:
+    """Der Auszug-Charakter wird in der Überschrift sichtbar; bei
+    weiteren Einträgen erscheint zusätzlich ein erklärender Satz."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    assert "Offene Punkte aus Arbeitspaketen — Auszug" in body
+    assert "Weitere offene Punkte vorhanden" in body
+    # Limit-Konstante + Brücken-Link sind weiterhin da.
+    assert "OPEN_ISSUE_LIMIT" in body
+    assert "Alle Arbeitspakete anzeigen" in body
