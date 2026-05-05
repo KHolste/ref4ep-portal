@@ -17,6 +17,8 @@ const ROUTES = [
   { pattern: /^\/portal\/meetings\/([^/]+)\/print\/?$/, module: "meeting_print", param: "id" },
   { pattern: /^\/portal\/meetings\/([^/]+)\/?$/, module: "meeting_detail", param: "id" },
   { pattern: /^\/portal\/actions\/?$/, module: "actions" },
+  { pattern: /^\/portal\/campaigns\/?$/, module: "campaigns" },
+  { pattern: /^\/portal\/campaigns\/([^/]+)\/?$/, module: "campaign_detail", param: "id" },
   { pattern: /^\/portal\/lead\/team\/?$/, module: "lead_team" },
   { pattern: /^\/portal\/account\/?$/, module: "account" },
   { pattern: /^\/portal\/admin\/audit\/?$/, module: "audit" },

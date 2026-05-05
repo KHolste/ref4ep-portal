@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0010_meetings"
+CURRENT_HEAD = "0011_test_campaigns"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -569,7 +569,131 @@ def test_downgrade_to_0009_drops_meeting_tables(tmp_db_path: Path) -> None:
     db_url = f"sqlite:///{tmp_db_path}"
     cfg = _make_config(db_url)
     command.upgrade(cfg, "head")
+    # Erst die Test-Kampagnen-Tabellen wegräumen, sonst hängen sie an meeting/workpackage.
+    command.downgrade(cfg, "0010_meetings")
     command.downgrade(cfg, "0009_wp_ms")
     inspector = inspect(create_engine(db_url))
     tables = set(inspector.get_table_names())
     assert tables.isdisjoint(MEETING_TABLES)
+
+
+# ---- Block 0022 — Testkampagnenregister -------------------------------
+
+
+TEST_CAMPAIGN_TABLES = {
+    "test_campaign",
+    "test_campaign_workpackage",
+    "test_campaign_participant",
+    "test_campaign_document_link",
+}
+
+TEST_CAMPAIGN_COLUMNS = {
+    "id",
+    "code",
+    "title",
+    "category",
+    "status",
+    "starts_on",
+    "ends_on",
+    "facility",
+    "location",
+    "short_description",
+    "objective",
+    "test_matrix",
+    "expected_measurements",
+    "boundary_conditions",
+    "success_criteria",
+    "risks_or_open_points",
+    "created_by_id",
+    "created_at",
+    "updated_at",
+}
+
+
+def test_test_campaign_tables_exist(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    tables = set(inspector.get_table_names())
+    assert TEST_CAMPAIGN_TABLES.issubset(tables)
+
+
+def test_test_campaign_table_has_expected_columns(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    cols = {c["name"] for c in inspector.get_columns("test_campaign")}
+    assert TEST_CAMPAIGN_COLUMNS == cols
+
+
+def test_test_campaign_code_is_unique(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    uqs = inspector.get_unique_constraints("test_campaign")
+    cols = [tuple(uq["column_names"]) for uq in uqs]
+    assert ("code",) in cols
+
+
+def test_test_campaign_workpackage_is_link_table(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    cols = {c["name"] for c in inspector.get_columns("test_campaign_workpackage")}
+    assert cols == {"campaign_id", "workpackage_id"}
+    fks = inspector.get_foreign_keys("test_campaign_workpackage")
+    referred = {fk.get("referred_table") for fk in fks}
+    assert {"test_campaign", "workpackage"}.issubset(referred)
+
+
+def test_test_campaign_document_link_columns(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    cols = {c["name"] for c in inspector.get_columns("test_campaign_document_link")}
+    assert cols == {"campaign_id", "document_id", "label"}
+    fks = inspector.get_foreign_keys("test_campaign_document_link")
+    referred = {fk.get("referred_table") for fk in fks}
+    assert {"test_campaign", "document"}.issubset(referred)
+
+
+def test_test_campaign_participant_has_surrogate_id(tmp_db_path: Path) -> None:
+    """``role`` ist per PATCH änderbar — die Tabelle hat einen
+    Surrogat-PK plus eindeutigem Paar (campaign_id, person_id)."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    cols = {c["name"] for c in inspector.get_columns("test_campaign_participant")}
+    assert {"id", "campaign_id", "person_id", "role", "note"}.issubset(cols)
+    pks = inspector.get_pk_constraint("test_campaign_participant")
+    assert pks["constrained_columns"] == ["id"]
+    uqs = inspector.get_unique_constraints("test_campaign_participant")
+    pairs = [tuple(uq["column_names"]) for uq in uqs]
+    assert ("campaign_id", "person_id") in pairs
+
+
+def test_no_test_campaign_upload_or_file_table(tmp_db_path: Path) -> None:
+    """Block 0022 baut keinen eigenen Datei-/Upload-Pfad für Kampagnen."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    tables = set(inspector.get_table_names())
+    for forbidden in (
+        "test_campaign_file",
+        "test_campaign_upload",
+        "test_campaign_attachment",
+        "campaign_file",
+    ):
+        assert forbidden not in tables
+
+
+def test_downgrade_to_0010_drops_test_campaign_tables(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0010_meetings")
+    inspector = inspect(create_engine(db_url))
+    tables = set(inspector.get_table_names())
+    assert tables.isdisjoint(TEST_CAMPAIGN_TABLES)
+    # Meeting-Tabellen müssen aber noch da sein.
+    assert MEETING_TABLES.issubset(tables)

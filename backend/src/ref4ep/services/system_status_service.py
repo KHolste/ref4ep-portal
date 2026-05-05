@@ -18,7 +18,9 @@ Sicherheits-Filter:
 
 from __future__ import annotations
 
+import os
 import shutil
+import tarfile
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -94,11 +96,36 @@ class HealthInfo:
 
 
 @dataclass(frozen=True)
+class UploadStorageInfo:
+    """Trennung Metadaten ↔ Dateispeicher sichtbar machen.
+
+    Felder mit ``None`` zeigen explizit „unbekannt" an (z. B. wenn das
+    Backup gar nicht existiert oder das Dokument-Unterverzeichnis fehlt)
+    — sie sind nicht 0/false, damit die UI „nein" und „unbekannt"
+    auseinanderhalten kann.
+    """
+
+    storage_dir: str
+    storage_dir_exists: bool
+    storage_total_bytes: int
+    storage_file_count: int
+    data_dir: str
+    data_dir_total_bytes: int
+    data_file_count: int
+    document_storage_file_count: int | None
+    document_storage_total_bytes: int | None
+    backup_contains_storage: bool | None
+    backup_contains_database: bool | None
+    backup_checked_name: str | None
+
+
+@dataclass(frozen=True)
 class SystemStatus:
     app: AppInfo
     database: DatabaseInfo
     backups: BackupInfo
     storage: StorageInfo
+    uploads: UploadStorageInfo
     counts: CountsInfo
     health: HealthInfo
     # logs ist absichtlich None — siehe Bericht/offene Punkte.
@@ -241,6 +268,150 @@ def _collect_storage(data_dir_str: str) -> StorageInfo:
     )
 
 
+def _walk_files(root: Path) -> tuple[int, int, list[str]]:
+    """Liefert ``(file_count, total_bytes, walk_warnings)``.
+
+    Folgt KEINEN Symlinks (verhindert Endlosschleifen und überraschende
+    Größen). Einzel-Errors (z. B. ``PermissionError`` auf einer Datei)
+    werden gesammelt und durchgereicht; die Iteration läuft weiter.
+    """
+    if not root.is_dir():
+        return 0, 0, []
+    file_count = 0
+    total_bytes = 0
+    walk_warnings: list[str] = []
+    stack: list[Path] = [root]
+    while stack:
+        current = stack.pop()
+        try:
+            it = os.scandir(current)
+        except OSError as exc:
+            walk_warnings.append(f"Verzeichnis {current} nicht lesbar: {exc}.")
+            continue
+        with it:
+            for entry in it:
+                try:
+                    if entry.is_symlink():
+                        # Nicht folgen.
+                        continue
+                    if entry.is_dir(follow_symlinks=False):
+                        stack.append(Path(entry.path))
+                    elif entry.is_file(follow_symlinks=False):
+                        file_count += 1
+                        try:
+                            total_bytes += entry.stat(follow_symlinks=False).st_size
+                        except OSError as exc:
+                            walk_warnings.append(f"Größe von {entry.path} nicht lesbar: {exc}.")
+                except OSError as exc:
+                    walk_warnings.append(f"Eintrag {entry.path} nicht lesbar: {exc}.")
+    return file_count, total_bytes, walk_warnings
+
+
+def _normalize_member_name(name: str) -> str:
+    """Vereinheitlicht Tar-Mitgliederpfade — Backslashes, ``./``-Präfix,
+    führende Slashes — damit Substring-Tests robust greifen."""
+    n = name.replace("\\", "/").lstrip("/")
+    while n.startswith("./"):
+        n = n[2:]
+    return n
+
+
+def _inspect_backup_contents(
+    backup_path: Path,
+) -> tuple[bool | None, bool | None, str | None]:
+    """Prüft ein tar.gz-Archiv, ob es ``data/ref4ep.db`` und einen
+    ``data/storage``-Eintrag enthält.
+
+    Liest die Mitgliederliste sequentiell (ohne komplette Extraktion)
+    und bricht ab, sobald beide gefunden wurden.
+
+    Liefert ``(contains_database, contains_storage, error_message)``.
+    Bei Lesefehler ist die Rückgabe ``(None, None, msg)``.
+    """
+    try:
+        with tarfile.open(str(backup_path), mode="r:gz") as tf:
+            db_found = False
+            storage_found = False
+            for member in tf:
+                name = _normalize_member_name(member.name)
+                if not db_found and (
+                    "data/ref4ep.db" in name or name.endswith("/ref4ep.db") or name == "ref4ep.db"
+                ):
+                    db_found = True
+                if not storage_found and "data/storage" in name:
+                    storage_found = True
+                if db_found and storage_found:
+                    break
+            return db_found, storage_found, None
+    except (OSError, tarfile.TarError, EOFError) as exc:
+        return (
+            None,
+            None,
+            f"Backup-Archiv konnte nicht gelesen werden: {exc}.",
+        )
+
+
+def _collect_uploads(
+    storage_dir_str: str, backups: BackupInfo
+) -> tuple[UploadStorageInfo, list[str]]:
+    storage_dir = Path(storage_dir_str)
+    data_dir = storage_dir.parent
+    extra_warnings: list[str] = []
+
+    storage_exists = storage_dir.is_dir()
+    if storage_exists:
+        s_count, s_bytes, s_walk = _walk_files(storage_dir)
+        extra_warnings.extend(s_walk)
+    else:
+        s_count, s_bytes = 0, 0
+
+    if data_dir.is_dir():
+        d_count, d_bytes, d_walk = _walk_files(data_dir)
+        extra_warnings.extend(d_walk)
+    else:
+        d_count, d_bytes = 0, 0
+
+    documents_dir = storage_dir / "documents"
+    if documents_dir.is_dir():
+        doc_count, doc_bytes, doc_walk = _walk_files(documents_dir)
+        extra_warnings.extend(doc_walk)
+        document_storage_file_count: int | None = doc_count
+        document_storage_total_bytes: int | None = doc_bytes
+    else:
+        document_storage_file_count = None
+        document_storage_total_bytes = None
+
+    backup_contains_database: bool | None = None
+    backup_contains_storage: bool | None = None
+    backup_checked_name: str | None = None
+    if backups.backup_dir_exists and backups.latest_backup_name:
+        backup_path = Path(backups.backup_dir) / backups.latest_backup_name
+        backup_checked_name = backups.latest_backup_name
+        contains_db, contains_storage, err = _inspect_backup_contents(backup_path)
+        backup_contains_database = contains_db
+        backup_contains_storage = contains_storage
+        if err:
+            extra_warnings.append(err)
+
+    return (
+        UploadStorageInfo(
+            storage_dir=str(storage_dir),
+            storage_dir_exists=storage_exists,
+            storage_total_bytes=s_bytes,
+            storage_file_count=s_count,
+            data_dir=str(data_dir),
+            data_dir_total_bytes=d_bytes,
+            data_file_count=d_count,
+            document_storage_file_count=document_storage_file_count,
+            document_storage_total_bytes=document_storage_total_bytes,
+            backup_contains_storage=backup_contains_storage,
+            backup_contains_database=backup_contains_database,
+            backup_checked_name=backup_checked_name,
+        ),
+        extra_warnings,
+    )
+
+
 def _collect_counts(session: Session, today: datetime | None = None) -> CountsInfo:
     today_date = (today or datetime.now(tz=UTC)).date()
     persons = session.scalar(select(func.count(Person.id)).where(Person.is_deleted.is_(False)))
@@ -283,8 +454,10 @@ def _derive_health(
     database: DatabaseInfo,
     backups: BackupInfo,
     storage: StorageInfo,
+    uploads: UploadStorageInfo,
     *,
     now: datetime,
+    extra_warnings: list[str] | None = None,
 ) -> HealthInfo:
     warnings: list[str] = []
     has_error = False
@@ -314,6 +487,23 @@ def _derive_health(
             warnings.append(f"Freier Speicherplatz niedrig ({storage.free_percent} %).")
     elif storage.total_bytes is None:
         warnings.append("Speicherplatz konnte nicht ermittelt werden.")
+
+    # Upload-Speicher (Block 0021) — Trennung Metadaten / Dateien.
+    if not uploads.storage_dir_exists:
+        warnings.append("Upload-Speicherverzeichnis nicht gefunden.")
+    elif uploads.storage_file_count == 0:
+        # Bewusst nur warning, kein error: ein neues System ist legitim leer.
+        warnings.append("Keine Upload-Dateien im Storage gefunden.")
+
+    # Backup-Inhaltsprüfung — nur wenn überhaupt ein Archiv geprüft wurde.
+    if uploads.backup_checked_name is not None:
+        if uploads.backup_contains_database is False:
+            warnings.append("Neuestes Backup enthält keine Datenbankdatei.")
+        if uploads.backup_contains_storage is False:
+            warnings.append("Neuestes Backup enthält keinen Upload-Speicher.")
+
+    if extra_warnings:
+        warnings.extend(extra_warnings)
 
     if has_error:
         status_label = "error"
@@ -360,8 +550,16 @@ class SystemStatusService:
         database = _collect_database(self.engine, self.database_url)
         backups = _collect_backups(self.backup_dir)
         storage = _collect_storage(self.storage_dir)
+        uploads, upload_warnings = _collect_uploads(self.storage_dir, backups)
         counts = _collect_counts(self.session, today=current_time)
-        health = _derive_health(database, backups, storage, now=current_time)
+        health = _derive_health(
+            database,
+            backups,
+            storage,
+            uploads,
+            now=current_time,
+            extra_warnings=upload_warnings,
+        )
         return SystemStatus(
             app=AppInfo(
                 name=self.app_name,
@@ -371,6 +569,7 @@ class SystemStatusService:
             database=database,
             backups=backups,
             storage=storage,
+            uploads=uploads,
             counts=counts,
             health=health,
             logs=None,

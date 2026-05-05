@@ -1242,3 +1242,175 @@ def test_no_other_module_introduces_unexpected_file_upload() -> None:
         body = path.read_text(encoding="utf-8")
         assert 'type: "file"' not in body, f"{path.name} sollte kein input[type=file] enthalten"
         assert 'type="file"' not in body, f"{path.name} sollte kein input[type=file] enthalten"
+
+
+# ---- Block 0021 — Upload-/Storage-Details auf Systemstatus-Seite ----
+
+
+def test_system_status_module_renders_uploads_card() -> None:
+    body = (MODULES_DIR / "system_status.js").read_text(encoding="utf-8")
+    assert "Upload-Speicher" in body
+    # Render-Funktion + ynUnknown-Helfer für den dreiwertigen Status.
+    assert "renderUploadsCard" in body
+    assert "ynUnknown" in body
+
+
+def test_system_status_uploads_card_has_explanation_text() -> None:
+    body = (MODULES_DIR / "system_status.js").read_text(encoding="utf-8")
+    # Der Block soll betrieblich klar machen, was wo liegt.
+    assert "Datenbank enthält Metadaten" in body
+    assert "Storage" in body
+
+
+def test_system_status_uploads_card_shows_backup_contents_lines() -> None:
+    body = (MODULES_DIR / "system_status.js").read_text(encoding="utf-8")
+    for label in (
+        "Storage-Pfad",
+        "Storage vorhanden",
+        "Upload-Dateien",
+        "Upload-Speichergröße",
+        "data/ gesamt (Größe)",
+        "data/ gesamt (Dateien)",
+        "Backup-Datei (geprüft)",
+        "Backup enthält Datenbank",
+        "Backup enthält Upload-Speicher",
+    ):
+        assert label in body, f"system_status.js sollte {label!r} anzeigen"
+    # Dreiwertige Anzeige (ja/nein/unbekannt) explizit als Text.
+    for term in ('"ja"', '"nein"', '"unbekannt"'):
+        assert term in body, f"system_status.js sollte {term!r} enthalten"
+
+
+def test_system_status_card_order_keeps_existing_cards_and_adds_uploads() -> None:
+    body = (MODULES_DIR / "system_status.js").read_text(encoding="utf-8")
+    # Alle bisherigen Karten sind weiterhin im Render-Tree verdrahtet.
+    for fn in (
+        "renderHealthCard(status)",
+        "renderDatabaseCard(status)",
+        "renderBackupCard(status)",
+        "renderStorageCard(status)",
+        "renderCountsCard(status)",
+        "renderLogsCard(status)",
+    ):
+        assert fn in body, f"{fn!r} fehlt im Render-Tree"
+    # Die neue Karte hängt zwischen Backups und Speicherplatz. Wir
+    # vergleichen die letzten Vorkommen — die liegen im Render-Tree, die
+    # ersten Vorkommen wären die Funktionsdefinitionen weiter oben.
+    backup_pos = body.rindex("renderBackupCard(status)")
+    uploads_pos = body.rindex("renderUploadsCard(status)")
+    storage_pos = body.rindex("renderStorageCard(status)")
+    assert backup_pos < uploads_pos < storage_pos
+
+
+def test_system_status_module_still_has_no_destructive_actions() -> None:
+    """Block 0021 fügt keine Schreibpfade hinzu — Regression-Sicherung."""
+    body = (MODULES_DIR / "system_status.js").read_text(encoding="utf-8")
+    for forbidden in (
+        "Backup auslösen",
+        "Backup starten",
+        "Wiederherstellen",
+        "Restore",
+        "Löschen",
+        '"DELETE"',
+        '"POST"',
+    ):
+        assert forbidden not in body, f"system_status.js darf {forbidden!r} nicht enthalten"
+
+
+# ---- Block 0022 — Testkampagnenregister ------------------------------
+
+
+CAMPAIGN_MODULES = ("campaigns.js", "campaign_detail.js")
+
+
+def test_app_js_registers_campaign_routes() -> None:
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    # /portal/campaigns  und /portal/campaigns/{id}
+    assert "campaigns\\/?" in body
+    assert "campaign_detail" in body
+
+
+def test_index_html_has_campaigns_nav_link() -> None:
+    body = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    assert 'href="/portal/campaigns"' in body
+    assert ">Testkampagnen<" in body
+
+
+def test_campaign_modules_use_central_helpers_and_cross_nav() -> None:
+    for name in CAMPAIGN_MODULES:
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        for helper in ("renderLoading", "renderError", "renderEmpty", "crossNav("):
+            assert helper in body, f"{name} sollte {helper!r} verwenden"
+
+
+def test_campaigns_list_module_uses_filter_box_and_create_button() -> None:
+    body = (MODULES_DIR / "campaigns.js").read_text(encoding="utf-8")
+    assert "campaign-filterbox" in body
+    assert "Testkampagnen filtern" in body
+    # Die wichtigsten Filter sind sichtbar verdrahtet.
+    for label in ("Alle Status", "Alle Kategorien", "WP-Code", "Suche"):
+        assert label in body, f"campaigns.js sollte Filter {label!r} anbieten"
+    # Anlegen-Button.
+    assert "Testkampagne anlegen" in body
+    # Kategorien-Übersetzung mindestens im Modul referenziert.
+    for label in ("Ringvergleich", "Kalibrierung", "Diagnostiktest"):
+        assert label in body
+
+
+def test_campaign_detail_renders_required_sections() -> None:
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    for section in (
+        "Arbeitspakete",
+        "Ziel und Zweck",
+        "Testmatrix",
+        "Erwartete Messgrößen",
+        "Randbedingungen",
+        "Erfolgskriterien",
+        "Risiken / offene Punkte",
+        "Beteiligte Personen",
+        "Dokumente",
+    ):
+        assert section in body, f"campaign_detail.js sollte Sektion {section!r} enthalten"
+    # can_edit-abhängige Aktionen.
+    for action in (
+        "Kampagne bearbeiten",
+        "Kampagne abbrechen",
+        "Person hinzufügen",
+        "Dokument verknüpfen",
+    ):
+        assert action in body, f"campaign_detail.js sollte Aktion {action!r} bieten"
+
+
+def test_campaign_modules_have_no_file_upload_no_dropzone_no_formdata() -> None:
+    """Block 0022: Kampagnen sind ausdrücklich kein Upload-Pfad."""
+    for name in CAMPAIGN_MODULES:
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        assert 'type: "file"' not in body, f"{name} darf kein input[type=file] enthalten"
+        assert 'type="file"' not in body, f"{name} darf kein input[type=file] enthalten"
+        assert "createFileDropzone" not in body, f"{name} darf den Dropzone-Helfer nicht benutzen"
+        assert "file-dropzone" not in body, f"{name} darf keine file-dropzone-Klasse enthalten"
+        assert "FormData" not in body, f"{name} darf kein FormData verwenden"
+
+
+def test_campaign_detail_uses_existing_document_listing() -> None:
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    # Verwendet den globalen internen Dokumentlisten-Endpunkt.
+    assert "/api/documents?include_archived=false" in body
+    # Verknüpfung sendet document_id + label per JSON-POST.
+    assert "document_id" in body
+    assert 'api("POST"' in body
+
+
+def test_campaigns_have_no_judgmental_phrases() -> None:
+    for name in CAMPAIGN_MODULES:
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        for phrase in ("gut so", "prima", "super", "alles im Griff"):
+            assert phrase not in body, f"{name} sollte ‚{phrase}‘ nicht enthalten"
+
+
+def test_real_upload_modules_whitelist_does_not_include_campaigns() -> None:
+    """Regression: Kampagnen-Module dürfen NICHT in der
+    REAL_UPLOAD_MODULES-Whitelist landen — sonst hätte das System sie
+    als Upload-Pfade akzeptiert."""
+    assert "campaigns.js" not in REAL_UPLOAD_MODULES
+    assert "campaign_detail.js" not in REAL_UPLOAD_MODULES

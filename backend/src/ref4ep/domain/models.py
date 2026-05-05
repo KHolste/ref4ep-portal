@@ -158,6 +158,91 @@ MEETING_DOCUMENT_LABEL_LABELS_DE = {
     "other": "Sonstiges",
 }
 
+# Block 0022 — Testkampagnenregister.
+TEST_CAMPAIGN_CATEGORIES = (
+    "ring_comparison",
+    "reference_measurement",
+    "diagnostics_test",
+    "calibration",
+    "facility_characterization",
+    "endurance_test",
+    "acceptance_test",
+    "other",
+)
+TEST_CAMPAIGN_CATEGORY_LABELS_DE = {
+    "ring_comparison": "Ringvergleich",
+    "reference_measurement": "Referenzmessung",
+    "diagnostics_test": "Diagnostiktest",
+    "calibration": "Kalibrierung",
+    "facility_characterization": "Facility-Charakterisierung",
+    "endurance_test": "Langzeittest",
+    "acceptance_test": "Abnahmetest",
+    "other": "Sonstiges",
+}
+
+TEST_CAMPAIGN_STATUSES = (
+    "planned",
+    "preparing",
+    "running",
+    "completed",
+    "evaluated",
+    "cancelled",
+    "postponed",
+)
+TEST_CAMPAIGN_STATUS_LABELS_DE = {
+    "planned": "geplant",
+    "preparing": "in Vorbereitung",
+    "running": "laufend",
+    "completed": "abgeschlossen",
+    "evaluated": "ausgewertet",
+    "cancelled": "abgebrochen",
+    "postponed": "verschoben",
+}
+
+TEST_CAMPAIGN_PARTICIPANT_ROLES = (
+    "campaign_lead",
+    "facility_responsible",
+    "diagnostics",
+    "data_analysis",
+    "operation",
+    "safety",
+    "observer",
+    "other",
+)
+TEST_CAMPAIGN_PARTICIPANT_ROLE_LABELS_DE = {
+    "campaign_lead": "Kampagnenleitung",
+    "facility_responsible": "Facility-Verantwortung",
+    "diagnostics": "Diagnostik",
+    "data_analysis": "Datenanalyse",
+    "operation": "Betrieb",
+    "safety": "Sicherheit",
+    "observer": "Beobachtung",
+    "other": "Sonstiges",
+}
+
+TEST_CAMPAIGN_DOCUMENT_LABELS = (
+    "test_plan",
+    "setup_plan",
+    "safety_document",
+    "raw_data_description",
+    "protocol",
+    "analysis",
+    "presentation",
+    "attachment",
+    "other",
+)
+TEST_CAMPAIGN_DOCUMENT_LABEL_LABELS_DE = {
+    "test_plan": "Messplan",
+    "setup_plan": "Aufbauplan",
+    "safety_document": "Sicherheitsunterlage",
+    "raw_data_description": "Rohdatenbeschreibung",
+    "protocol": "Protokoll",
+    "analysis": "Auswertung",
+    "presentation": "Präsentation",
+    "attachment": "Anlage",
+    "other": "Sonstiges",
+}
+
 # Dokument-Enums (Sprint 2). status und visibility sind im Schema komplett
 # vorgesehen, in Sprint 2 aber konstant 'draft' / 'workpackage'. Release- und
 # Sichtbarkeits-Workflows folgen Sprint 3, öffentliche Bibliothek Sprint 4.
@@ -716,4 +801,134 @@ class MeetingDocumentLink(Base):
     label: Mapped[str] = mapped_column(String, nullable=False, default="other")
 
     meeting: Mapped[Meeting] = relationship(back_populates="document_links")
+    document: Mapped[Document] = relationship()
+
+
+# --------------------------------------------------------------------------- #
+# Block 0022 — Testkampagnenregister                                          #
+# --------------------------------------------------------------------------- #
+
+
+class TestCampaign(Base):
+    __tablename__ = "test_campaign"
+    # pytest sammelt sonst diese Klasse als Test-Klasse ein (Name beginnt mit „Test").
+    __test__ = False
+    __table_args__ = (
+        UniqueConstraint("code", name="uq_test_campaign_code"),
+        CheckConstraint(
+            "category IN ('ring_comparison','reference_measurement','diagnostics_test',"
+            "'calibration','facility_characterization','endurance_test',"
+            "'acceptance_test','other')",
+            name="ck_test_campaign_category",
+        ),
+        CheckConstraint(
+            "status IN ('planned','preparing','running','completed','evaluated',"
+            "'cancelled','postponed')",
+            name="ck_test_campaign_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    code: Mapped[str] = mapped_column(String, nullable=False)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    category: Mapped[str] = mapped_column(String, nullable=False, default="other")
+    status: Mapped[str] = mapped_column(String, nullable=False, default="planned")
+    starts_on: Mapped[date] = mapped_column(Date, nullable=False)
+    ends_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    facility: Mapped[str | None] = mapped_column(String, nullable=True)
+    location: Mapped[str | None] = mapped_column(String, nullable=True)
+    short_description: Mapped[str | None] = mapped_column(String, nullable=True)
+    objective: Mapped[str | None] = mapped_column(String, nullable=True)
+    test_matrix: Mapped[str | None] = mapped_column(String, nullable=True)
+    expected_measurements: Mapped[str | None] = mapped_column(String, nullable=True)
+    boundary_conditions: Mapped[str | None] = mapped_column(String, nullable=True)
+    success_criteria: Mapped[str | None] = mapped_column(String, nullable=True)
+    risks_or_open_points: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_by_id: Mapped[str] = mapped_column(String(36), ForeignKey("person.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc, onupdate=_now_utc
+    )
+
+    created_by: Mapped[Person] = relationship()
+    workpackage_links: Mapped[list[TestCampaignWorkpackage]] = relationship(
+        back_populates="campaign", cascade="all, delete-orphan"
+    )
+    participant_links: Mapped[list[TestCampaignParticipant]] = relationship(
+        back_populates="campaign",
+        cascade="all, delete-orphan",
+        order_by="TestCampaignParticipant.created_at",
+    )
+    document_links: Mapped[list[TestCampaignDocumentLink]] = relationship(
+        back_populates="campaign", cascade="all, delete-orphan"
+    )
+
+
+class TestCampaignWorkpackage(Base):
+    __tablename__ = "test_campaign_workpackage"
+
+    campaign_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("test_campaign.id", ondelete="CASCADE"), primary_key=True
+    )
+    workpackage_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("workpackage.id"), primary_key=True
+    )
+
+    campaign: Mapped[TestCampaign] = relationship(back_populates="workpackage_links")
+    workpackage: Mapped[Workpackage] = relationship()
+
+
+class TestCampaignParticipant(Base):
+    __tablename__ = "test_campaign_participant"
+    __table_args__ = (
+        UniqueConstraint("campaign_id", "person_id", name="uq_test_campaign_participant_pair"),
+        CheckConstraint(
+            "role IN ('campaign_lead','facility_responsible','diagnostics',"
+            "'data_analysis','operation','safety','observer','other')",
+            name="ck_test_campaign_participant_role",
+        ),
+    )
+
+    # Surrogate-PK, weil ``role`` per PATCH änderbar ist und der Endpunkt
+    # ``/api/campaign-participants/{id}`` einen stabilen, kurzen Schlüssel
+    # braucht (analog zu MeetingDecision/MeetingAction).
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    campaign_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("test_campaign.id", ondelete="CASCADE"), nullable=False
+    )
+    person_id: Mapped[str] = mapped_column(String(36), ForeignKey("person.id"), nullable=False)
+    role: Mapped[str] = mapped_column(String, nullable=False, default="other")
+    note: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc, onupdate=_now_utc
+    )
+
+    campaign: Mapped[TestCampaign] = relationship(back_populates="participant_links")
+    person: Mapped[Person] = relationship()
+
+
+class TestCampaignDocumentLink(Base):
+    __tablename__ = "test_campaign_document_link"
+    __table_args__ = (
+        CheckConstraint(
+            "label IN ('test_plan','setup_plan','safety_document','raw_data_description',"
+            "'protocol','analysis','presentation','attachment','other')",
+            name="ck_test_campaign_document_link_label",
+        ),
+    )
+
+    campaign_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("test_campaign.id", ondelete="CASCADE"), primary_key=True
+    )
+    document_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("document.id"), primary_key=True
+    )
+    label: Mapped[str] = mapped_column(String, nullable=False, default="other")
+
+    campaign: Mapped[TestCampaign] = relationship(back_populates="document_links")
     document: Mapped[Document] = relationship()

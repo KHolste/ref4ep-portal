@@ -110,6 +110,52 @@ function renderDatabaseCard(status) {
   );
 }
 
+function ynUnknown(value) {
+  if (value === true) return "ja";
+  if (value === false) return "nein";
+  return "unbekannt";
+}
+
+function renderUploadsCard(status) {
+  const u = status.uploads;
+  const items = [
+    row("Storage-Pfad", u.storage_dir),
+    row("Storage vorhanden", u.storage_dir_exists ? "ja" : "nein"),
+    row("Upload-Dateien", String(u.storage_file_count)),
+    row("Upload-Speichergröße", formatBytes(u.storage_total_bytes)),
+    row("data/ gesamt (Größe)", formatBytes(u.data_dir_total_bytes)),
+    row("data/ gesamt (Dateien)", String(u.data_file_count)),
+  ];
+  if (
+    u.document_storage_file_count !== null &&
+    u.document_storage_file_count !== undefined
+  ) {
+    items.push(
+      row(
+        "Dokument-Uploads",
+        `${u.document_storage_file_count} · ${formatBytes(u.document_storage_total_bytes)}`,
+      ),
+    );
+  }
+  items.push(
+    row("Backup-Datei (geprüft)", u.backup_checked_name || "—"),
+    row("Backup enthält Datenbank", ynUnknown(u.backup_contains_database)),
+    row("Backup enthält Upload-Speicher", ynUnknown(u.backup_contains_storage)),
+  );
+  return h(
+    "section",
+    { class: "system-card" },
+    h("h2", {}, "Upload-Speicher"),
+    h(
+      "p",
+      { class: "muted" },
+      "Die Datenbank enthält Metadaten. Hochgeladene Dateien liegen im " +
+        "Storage-Verzeichnis und werden zusammen mit data/ gesichert.",
+    ),
+    ...items,
+  );
+}
+
 function renderBackupCard(status) {
   const b = status.backups;
   const items = [
@@ -200,6 +246,7 @@ function renderAll(container, status, onRefresh) {
       renderHealthCard(status),
       renderDatabaseCard(status),
       renderBackupCard(status),
+      renderUploadsCard(status),
       renderStorageCard(status),
       renderCountsCard(status),
       renderLogsCard(status),

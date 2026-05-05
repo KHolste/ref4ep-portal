@@ -256,3 +256,233 @@ def test_response_does_not_leak_session_secret_or_passwords(
     assert "session_secret" not in lower
     # Kein Database-URL-Schema („sqlite:///") als Volltext.
     assert "sqlite:///" not in body_text
+
+
+# ---- Block 0021 — Upload-Speicher-Sektion ----------------------------
+
+
+import tarfile  # noqa: E402 — bewusst lokal importiert für die Block-Tests.
+
+
+@pytest.fixture
+def setup_backup_archive(admin_client: TestClient, tmp_path: Path, with_backup_dir):
+    """Hilfsfixture: legt ein Backup-Verzeichnis an, schreibt ein
+    tar.gz-Archiv mit konfigurierbaren Inhalten und setzt es als
+    aktuelles Backup-Verzeichnis in den Settings."""
+
+    backup_dir = tmp_path / "backups-uploads"
+    backup_dir.mkdir()
+
+    def _write(*, name: str, members: list[str], corrupt: bool = False) -> Path:
+        archive = backup_dir / name
+        if corrupt:
+            # Bewusst kein gültiges gzip — Tarfile soll Lesefehler werfen.
+            archive.write_bytes(b"not really a tar.gz file")
+        else:
+            with tarfile.open(str(archive), mode="w:gz") as tf:
+                for member_name in members:
+                    payload = member_name.encode("utf-8")
+                    info = tarfile.TarInfo(name=member_name)
+                    info.size = len(payload)
+                    tf.addfile(info, fileobj=__import__("io").BytesIO(payload))
+        with_backup_dir(backup_dir)
+        return archive
+
+    return _write
+
+
+def _populate_storage_with_files(admin_client: TestClient, *, files: dict[str, bytes]) -> None:
+    """Schreibt Dateien in das storage_dir der App. Übergibt relative
+    Pfade (z. B. ``"a.txt"`` oder ``"documents/x.bin"``)."""
+    storage_dir = Path(admin_client.app.state.settings.storage_dir)
+    storage_dir.mkdir(parents=True, exist_ok=True)
+    for rel, payload in files.items():
+        target = storage_dir / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(payload)
+
+
+def test_response_contains_uploads_section_with_required_fields(
+    admin_client: TestClient,
+) -> None:
+    body = admin_client.get("/api/admin/system/status").json()
+    assert "uploads" in body
+    u = body["uploads"]
+    for key in (
+        "storage_dir",
+        "storage_dir_exists",
+        "storage_total_bytes",
+        "storage_file_count",
+        "data_dir",
+        "data_dir_total_bytes",
+        "data_file_count",
+        "document_storage_file_count",
+        "document_storage_total_bytes",
+        "backup_contains_storage",
+        "backup_contains_database",
+        "backup_checked_name",
+    ):
+        assert key in u, f"uploads.{key} fehlt"
+
+
+def test_uploads_count_files_in_storage(admin_client: TestClient) -> None:
+    _populate_storage_with_files(
+        admin_client,
+        files={
+            "a.bin": b"x" * 100,
+            "sub/b.bin": b"y" * 200,
+            "sub/sub2/c.bin": b"z" * 300,
+        },
+    )
+    u = admin_client.get("/api/admin/system/status").json()["uploads"]
+    assert u["storage_dir_exists"] is True
+    assert u["storage_file_count"] == 3
+    assert u["storage_total_bytes"] == 600
+
+
+def test_empty_storage_dir_yields_warning_no_500(admin_client: TestClient) -> None:
+    # Default-Test-Storage ist initial leer.
+    body = admin_client.get("/api/admin/system/status").json()
+    u = body["uploads"]
+    assert u["storage_dir_exists"] is True
+    assert u["storage_file_count"] == 0
+    assert u["storage_total_bytes"] == 0
+    assert any("Keine Upload-Dateien" in w for w in body["health"]["warnings"])
+
+
+def test_missing_storage_dir_yields_warning_no_500(
+    admin_client: TestClient, tmp_path: Path
+) -> None:
+    nonexistent = tmp_path / "no-storage-here"
+    admin_client.app.state.settings.storage_dir = str(nonexistent)
+    try:
+        body = admin_client.get("/api/admin/system/status").json()
+    finally:
+        # Storage-Setting nicht dauerhaft kaputt zurücklassen.
+        pass
+    u = body["uploads"]
+    assert u["storage_dir_exists"] is False
+    assert u["storage_file_count"] == 0
+    assert any("Upload-Speicherverzeichnis nicht gefunden" in w for w in body["health"]["warnings"])
+
+
+def test_data_dir_total_includes_db_and_storage_files(
+    admin_client: TestClient,
+) -> None:
+    _populate_storage_with_files(admin_client, files={"a.bin": b"x" * 1024})
+    u = admin_client.get("/api/admin/system/status").json()["uploads"]
+    # data/ enthält die Test-DB + a.bin → mindestens beide Dateien.
+    assert u["data_file_count"] >= 2
+    # data_dir_total_bytes umfasst zumindest die 1024-Byte-Datei.
+    assert u["data_dir_total_bytes"] >= 1024
+
+
+def test_documents_subdir_is_reported_when_present(admin_client: TestClient) -> None:
+    _populate_storage_with_files(
+        admin_client,
+        files={
+            "documents/x.pdf": b"PDFDATA" * 10,
+            "documents/y.pdf": b"PDFDATA" * 5,
+            "other/z.bin": b"x",
+        },
+    )
+    u = admin_client.get("/api/admin/system/status").json()["uploads"]
+    # Nur die Dateien unter documents/ zählen für die Dokument-Aufschlüsselung.
+    assert u["document_storage_file_count"] == 2
+    assert u["document_storage_total_bytes"] == 7 * (10 + 5)
+    # storage_file_count zählt alle.
+    assert u["storage_file_count"] == 3
+
+
+def test_documents_subdir_is_null_when_missing(admin_client: TestClient) -> None:
+    u = admin_client.get("/api/admin/system/status").json()["uploads"]
+    # Default-Test-Storage hat kein documents/-Unterverzeichnis.
+    assert u["document_storage_file_count"] is None
+    assert u["document_storage_total_bytes"] is None
+
+
+def test_backup_check_skipped_when_no_backup_present(
+    admin_client: TestClient, tmp_path: Path, with_backup_dir
+) -> None:
+    empty = tmp_path / "no-backups-uploads-test"
+    empty.mkdir()
+    with_backup_dir(empty)
+    u = admin_client.get("/api/admin/system/status").json()["uploads"]
+    assert u["backup_checked_name"] is None
+    assert u["backup_contains_database"] is None
+    assert u["backup_contains_storage"] is None
+
+
+def test_backup_with_db_and_storage_passes_checks(
+    admin_client: TestClient, setup_backup_archive
+) -> None:
+    setup_backup_archive(
+        name="ref4ep-backup-20260601-120000.tar.gz",
+        members=["data/ref4ep.db", "data/storage/documents/x.pdf"],
+    )
+    body = admin_client.get("/api/admin/system/status").json()
+    u = body["uploads"]
+    assert u["backup_checked_name"] == "ref4ep-backup-20260601-120000.tar.gz"
+    assert u["backup_contains_database"] is True
+    assert u["backup_contains_storage"] is True
+    # Keine Backup-Inhalt-Warnings.
+    warnings = body["health"]["warnings"]
+    assert not any("Backup enthält keine" in w for w in warnings)
+    assert not any("Backup enthält keinen" in w for w in warnings)
+
+
+def test_backup_without_database_yields_warning(
+    admin_client: TestClient, setup_backup_archive
+) -> None:
+    setup_backup_archive(
+        name="ref4ep-backup-20260601-120000.tar.gz",
+        members=["data/storage/documents/x.pdf"],
+    )
+    body = admin_client.get("/api/admin/system/status").json()
+    u = body["uploads"]
+    assert u["backup_contains_database"] is False
+    assert u["backup_contains_storage"] is True
+    assert any(
+        "Neuestes Backup enthält keine Datenbankdatei" in w for w in body["health"]["warnings"]
+    )
+
+
+def test_backup_without_storage_yields_warning(
+    admin_client: TestClient, setup_backup_archive
+) -> None:
+    setup_backup_archive(
+        name="ref4ep-backup-20260601-120000.tar.gz",
+        members=["data/ref4ep.db"],
+    )
+    body = admin_client.get("/api/admin/system/status").json()
+    u = body["uploads"]
+    assert u["backup_contains_database"] is True
+    assert u["backup_contains_storage"] is False
+    assert any(
+        "Neuestes Backup enthält keinen Upload-Speicher" in w for w in body["health"]["warnings"]
+    )
+
+
+def test_corrupt_backup_yields_warning_not_500(
+    admin_client: TestClient, setup_backup_archive
+) -> None:
+    setup_backup_archive(
+        name="ref4ep-backup-20260601-120000.tar.gz",
+        members=[],
+        corrupt=True,
+    )
+    r = admin_client.get("/api/admin/system/status")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    u = body["uploads"]
+    # Lesefehler → Inhaltsfelder bleiben „unbekannt".
+    assert u["backup_contains_database"] is None
+    assert u["backup_contains_storage"] is None
+    assert any("Backup-Archiv konnte nicht gelesen werden" in w for w in body["health"]["warnings"])
+
+
+def test_uploads_section_does_not_leak_secrets(admin_client: TestClient) -> None:
+    body_text = admin_client.get("/api/admin/system/status").text
+    lower = body_text.lower()
+    assert "session_secret" not in lower
+    assert "password" not in lower

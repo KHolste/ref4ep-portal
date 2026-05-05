@@ -23,6 +23,7 @@ from ref4ep.api.schemas.system import (
     HealthInfoOut,
     StorageInfoOut,
     SystemStatusOut,
+    UploadStorageInfoOut,
 )
 from ref4ep.services.permissions import AuthContext, can_admin
 from ref4ep.services.system_status_service import SystemStatus, SystemStatusService
@@ -63,6 +64,20 @@ def _to_out(status_obj: SystemStatus) -> SystemStatusOut:
             used_bytes=status_obj.storage.used_bytes,
             free_bytes=status_obj.storage.free_bytes,
             free_percent=status_obj.storage.free_percent,
+        ),
+        uploads=UploadStorageInfoOut(
+            storage_dir=status_obj.uploads.storage_dir,
+            storage_dir_exists=status_obj.uploads.storage_dir_exists,
+            storage_total_bytes=status_obj.uploads.storage_total_bytes,
+            storage_file_count=status_obj.uploads.storage_file_count,
+            data_dir=status_obj.uploads.data_dir,
+            data_dir_total_bytes=status_obj.uploads.data_dir_total_bytes,
+            data_file_count=status_obj.uploads.data_file_count,
+            document_storage_file_count=status_obj.uploads.document_storage_file_count,
+            document_storage_total_bytes=status_obj.uploads.document_storage_total_bytes,
+            backup_contains_storage=status_obj.uploads.backup_contains_storage,
+            backup_contains_database=status_obj.uploads.backup_contains_database,
+            backup_checked_name=status_obj.uploads.backup_checked_name,
         ),
         counts=CountsInfoOut(
             persons=status_obj.counts.persons,
