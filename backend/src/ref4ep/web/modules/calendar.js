@@ -111,27 +111,122 @@ function formatDateOnly(iso) {
 
 // ---- Event-Klassen / -Status ------------------------------------------
 
-function eventClasses(event) {
+const PHASE_LABELS = {
+  start: "Start",
+  running: "läuft",
+  end: "Ende",
+};
+
+function eventClasses(event, phase) {
   const cls = [`calendar-event`, `calendar-event-${event.type}`];
+  if (phase && phase !== "single") cls.push(`calendar-event-phase-${phase}`);
   if (event.is_overdue) cls.push("calendar-event-overdue");
   if (event.status === "cancelled") cls.push("calendar-event-cancelled");
   return cls.join(" ");
 }
 
-function eventChip(event) {
-  // Chip im Monatsraster: Typkürzel + Titel, klickbar.
+function eventTooltip(event, phase) {
+  // Vollständiger Tooltip — der Chip zeigt nur einen Ausschnitt.
+  const lines = [];
   const typeLabel = TYPE_LABELS[event.type] || event.type;
+  lines.push(`${typeLabel}: ${event.title}`);
+  if (event.all_day) {
+    if (
+      event.ends_at &&
+      !sameDay(new Date(event.starts_at), new Date(event.ends_at))
+    ) {
+      lines.push(
+        `Zeitraum: ${formatDateOnly(event.starts_at)} – ${formatDateOnly(event.ends_at)}`,
+      );
+    } else {
+      lines.push(`Datum: ${formatDateOnly(event.starts_at)}`);
+    }
+  } else if (event.ends_at) {
+    lines.push(
+      `Zeitraum: ${formatDateTime(event.starts_at)} – ${formatDateTime(event.ends_at)}`,
+    );
+  } else {
+    lines.push(`Datum: ${formatDateTime(event.starts_at)}`);
+  }
+  if (event.status) lines.push(`Status: ${event.status}`);
+  if (event.workpackage_codes && event.workpackage_codes.length) {
+    lines.push(`WP: ${event.workpackage_codes.join(", ")}`);
+  }
+  if (event.is_overdue) lines.push("Überfällig");
+  if (phase && phase !== "single") {
+    lines.push(`Phase: ${PHASE_LABELS[phase]}`);
+  }
+  if (event.description) lines.push(event.description);
+  return lines.join("\n");
+}
+
+function eventChip(event, phase = "single") {
+  // Chip im Monatsraster: optionales Phasen-Präfix + Typkürzel + Titel,
+  // klickbar; voller Inhalt liegt im title-Tooltip.
+  const typeLabel = TYPE_LABELS[event.type] || event.type;
+  const phaseText =
+    phase && phase !== "single" ? PHASE_LABELS[phase] || null : null;
   return h(
     "a",
     {
-      class: eventClasses(event),
+      class: eventClasses(event, phase),
       href: event.link,
-      title: `${typeLabel}: ${event.title}`,
+      title: eventTooltip(event, phase),
     },
+    phaseText ? h("span", { class: "calendar-event-phase" }, phaseText) : null,
     h("span", { class: "calendar-event-type" }, typeLabel),
     " ",
     h("span", { class: "calendar-event-title" }, event.title),
   );
+}
+
+// ---- Multi-day-Expansion -----------------------------------------------
+//
+// Mehrtägige Testkampagnen werden für das Monatsraster auf eine
+// Eintragsinstanz **pro betroffenen Kalendertag** expandiert. Jede
+// Instanz trägt die Phase ``start`` / ``running`` / ``end``. Die
+// Agenda-Liste verarbeitet dagegen die unveränderte Event-Liste —
+// dort wird ein Eintrag nicht dupliziert.
+
+function startOfDay(d) {
+  const out = new Date(d);
+  out.setHours(0, 0, 0, 0);
+  return out;
+}
+
+function expandEventForGrid(event) {
+  const startDay = startOfDay(new Date(event.starts_at));
+  const isMultiDayCampaign =
+    event.type === "campaign" &&
+    event.all_day === true &&
+    event.ends_at &&
+    !sameDay(new Date(event.starts_at), new Date(event.ends_at));
+  if (!isMultiDayCampaign) {
+    return [{ event, phase: "single", day: startDay }];
+  }
+  const endDay = startOfDay(new Date(event.ends_at));
+  const out = [];
+  const cur = new Date(startDay);
+  // Hartes Sicherheitslimit: 366 Iterationen reichen weit über jede
+  // realistische Kampagnenlänge — verhindert Endlosschleife bei
+  // verbogenen Eingaben.
+  for (let i = 0; i < 366 && cur <= endDay; i += 1) {
+    let phase;
+    if (sameDay(cur, startDay)) phase = "start";
+    else if (sameDay(cur, endDay)) phase = "end";
+    else phase = "running";
+    out.push({ event, phase, day: new Date(cur) });
+    cur.setDate(cur.getDate() + 1);
+  }
+  return out;
+}
+
+function expandedEventsForGrid(events) {
+  return events.flatMap(expandEventForGrid);
+}
+
+function entriesForDay(expandedEntries, day) {
+  return expandedEntries.filter((entry) => sameDay(entry.day, day));
 }
 
 // ---- Monatsraster -----------------------------------------------------
@@ -153,22 +248,16 @@ function buildMonthCells(viewDate) {
   return cells;
 }
 
-function eventsForDay(events, day) {
-  // Mehrtägige Kampagnen erscheinen im MVP nur am Startdatum (siehe
-  // Backend); hier reicht ein einfacher Datum-Vergleich auf starts_at.
-  return events.filter((e) => sameDay(new Date(e.starts_at), day));
-}
-
-function renderDayCell(day, viewDate, today, events, onMore) {
+function renderDayCell(day, viewDate, today, expandedEntries, onMore) {
   const inMonth = day.getMonth() === viewDate.getMonth();
   const isToday = sameDay(day, today);
   const cls = ["calendar-cell"];
   if (!inMonth) cls.push("calendar-cell-other-month");
   if (isToday) cls.push("calendar-cell-today");
 
-  const dayEvents = eventsForDay(events, day);
-  const visible = dayEvents.slice(0, MAX_CHIPS_PER_DAY);
-  const hidden = dayEvents.length - visible.length;
+  const dayEntries = entriesForDay(expandedEntries, day);
+  const visible = dayEntries.slice(0, MAX_CHIPS_PER_DAY);
+  const hidden = dayEntries.length - visible.length;
   const moreLink =
     hidden > 0
       ? h(
@@ -186,21 +275,22 @@ function renderDayCell(day, viewDate, today, events, onMore) {
     "div",
     { class: cls.join(" "), "data-date": isoDate(day) },
     h("div", { class: "calendar-day-number" }, String(day.getDate())),
-    ...visible.map(eventChip),
+    ...visible.map((entry) => eventChip(entry.event, entry.phase)),
     moreLink,
   );
 }
 
 function renderMonthGrid(viewDate, events, today, onMore) {
+  // Multi-day-Expansion findet hier statt — die Agenda darunter sieht
+  // weiterhin die ungekürzte Event-Liste.
+  const expandedEntries = expandedEventsForGrid(events);
   const headerRow = h(
     "div",
     { class: "calendar-grid-head" },
-    ...WEEKDAYS_DE.map((name) =>
-      h("div", { class: "calendar-weekday" }, name),
-    ),
+    ...WEEKDAYS_DE.map((name) => h("div", { class: "calendar-weekday" }, name)),
   );
   const cells = buildMonthCells(viewDate).map((day) =>
-    renderDayCell(day, viewDate, today, events, onMore),
+    renderDayCell(day, viewDate, today, expandedEntries, onMore),
   );
   return h(
     "div",
@@ -285,10 +375,31 @@ export async function render(container, _ctx) {
     placeholder: "WP-Code, z. B. WP3.1",
   });
   const mineCheckbox = h("input", { type: "checkbox" });
-  const todayBtn = h("button", { type: "button" }, "Heute");
-  const prevBtn = h("button", { type: "button", "aria-label": "Vorheriger Monat" }, "‹");
-  const nextBtn = h("button", { type: "button", "aria-label": "Nächster Monat" }, "›");
+  const todayBtn = h("button", { type: "button", class: "calendar-nav-today" }, "Heute");
+  const prevBtn = h(
+    "button",
+    {
+      type: "button",
+      class: "calendar-nav-prev",
+      "aria-label": "Vorheriger Monat",
+    },
+    "← Voriger Monat",
+  );
+  const nextBtn = h(
+    "button",
+    {
+      type: "button",
+      class: "calendar-nav-next",
+      "aria-label": "Nächster Monat",
+    },
+    "Nächster Monat →",
+  );
   const monthLabel = h("span", { class: "calendar-month-label" }, "");
+  const resetBtn = h(
+    "button",
+    { type: "button", class: "secondary calendar-filter-reset" },
+    "Zurücksetzen",
+  );
 
   const filterBox = h(
     "fieldset",
@@ -302,6 +413,7 @@ export async function render(container, _ctx) {
     ),
     h("label", {}, "Typ", typeFilter),
     h("label", {}, "Arbeitspaket", wpFilter),
+    resetBtn,
   );
 
   const navBar = h(
@@ -383,6 +495,12 @@ export async function render(container, _ctx) {
   typeFilter.addEventListener("change", refresh);
   wpFilter.addEventListener("change", refresh);
   mineCheckbox.addEventListener("change", refresh);
+  resetBtn.addEventListener("click", () => {
+    typeFilter.value = "";
+    wpFilter.value = "";
+    mineCheckbox.checked = false;
+    refresh();
+  });
 
   appendChildren(
     container,

@@ -1689,3 +1689,111 @@ def test_calendar_responsive_layout_breakpoint_present() -> None:
     assert "@media (max-width: 720px)" in css
     # Agenda klappt auf Desktop in zwei Spalten (Datum-Spalte + Body).
     assert "@media (min-width: 720px)" in css
+
+
+# ---- Block 0023 — UX-Folgepass: Multi-day, Tooltip, Chip, Filter, Nav
+
+
+def test_calendar_module_expands_multiday_campaigns_for_grid() -> None:
+    """``expandEventForGrid`` produziert pro Kalendertag eine Chip-
+    Instanz für mehrtägige Kampagnen — die Agenda sieht weiter die
+    ungekürzte Liste."""
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    assert "function expandEventForGrid" in body
+    assert "function expandedEventsForGrid" in body
+    assert "expandedEventsForGrid(events)" in body
+    for phase in ('"start"', '"running"', '"end"'):
+        assert phase in body, f"calendar.js sollte Phase {phase!r} setzen"
+
+
+def test_calendar_chip_shows_phase_prefix_text() -> None:
+    """Phasen werden als deutscher Text auf den Chip geschrieben — nicht
+    nur als CSS-Klasse oder Farbe."""
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    assert "PHASE_LABELS" in body
+    for label in ('"Start"', '"läuft"', '"Ende"'):
+        assert label in body, f"calendar.js sollte Phasentext {label!r} enthalten"
+    assert "calendar-event-phase" in body
+
+
+def test_calendar_agenda_does_not_use_expanded_entries() -> None:
+    """Die Agenda darf mehrtägige Kampagnen nicht duplizieren — sie
+    bekommt die ungekürzte ``events``-Liste, nicht die expandierte."""
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    assert "renderAgenda(events)" in body
+    assert "renderAgenda(expandedEventsForGrid" not in body
+    assert "renderAgenda(expanded" not in body
+    assert "renderAgendaItem" in body
+
+
+def test_calendar_chip_has_full_tooltip_via_title_attr() -> None:
+    """Jeder Chip bekommt einen ``title``-Tooltip mit allen Detailzeilen.
+    ``eventTooltip(event, phase)`` baut den Inhalt zusammen."""
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    assert "function eventTooltip" in body
+    assert "title: eventTooltip(" in body
+    for label in ("Zeitraum:", "Datum:", "Status:", "WP:"):
+        assert label in body, f"eventTooltip sollte {label!r} enthalten"
+
+
+def test_calendar_chip_css_allows_two_lines() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    start = css.index(".calendar-event {")
+    end = css.index("}", start)
+    block = css[start:end]
+    assert "-webkit-line-clamp: 2" in block
+    assert "white-space: normal" in block
+    assert "word-break: break-word" in block or "overflow-wrap: anywhere" in block
+
+
+def test_calendar_phase_classes_present_in_css() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (
+        ".calendar-event-phase",
+        ".calendar-event-phase-start",
+        ".calendar-event-phase-running",
+        ".calendar-event-phase-end",
+    ):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+
+
+def test_calendar_filterbox_has_reset_button_and_clear_legend() -> None:
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    assert "Kalender filtern" in body
+    assert "Zurücksetzen" in body
+    assert "resetBtn.addEventListener" in body
+
+
+def test_calendar_navigation_uses_text_labels() -> None:
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    # Bessere lesbare Beschriftungen statt nur ‹/›.
+    assert "← Voriger Monat" in body
+    assert "Nächster Monat →" in body
+    # „Heute" bleibt zusätzlich vorhanden.
+    assert '"Heute"' in body
+    # Aria-Labels sind weiterhin gesetzt — Screenreader bekommen den Text.
+    assert "Vorheriger Monat" in body
+    assert "Nächster Monat" in body
+
+
+def test_calendar_navigation_has_dedicated_styles() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (".calendar-nav button", ".calendar-nav-today"):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+    nav_label_idx = css.index(".calendar-month-label {")
+    label_block = css[nav_label_idx : css.index("}", nav_label_idx)]
+    assert "font-size: 1.2rem" in label_block or "font-size:1.2rem" in label_block
+
+
+def test_calendar_module_still_has_no_external_framework_or_writes() -> None:
+    """Regression-Sicherung: Der UX-Folgepass darf keine externen
+    Bibliotheken/Schreibpfade einschmuggeln."""
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    for forbidden_import in ("FullCalendar", "react", "vue", "luxon", "moment", "jquery"):
+        assert forbidden_import not in body
+    assert "BEGIN:VCALENDAR" not in body
+    assert ".ics" not in body
+    for evt in ("dragstart", "dragend"):
+        assert f'"{evt}"' not in body
+    for method in ('"POST"', '"PATCH"', '"DELETE"'):
+        assert method not in body
