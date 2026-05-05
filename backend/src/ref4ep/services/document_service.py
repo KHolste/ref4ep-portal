@@ -72,6 +72,56 @@ class DocumentService:
         )
         return list(self.session.scalars(stmt))
 
+    def list_internal(
+        self,
+        *,
+        include_archived: bool = False,
+        workpackage_code: str | None = None,
+        q: str | None = None,
+    ) -> list[Document]:
+        """Globale interne Dokumentliste (Block 0017).
+
+        Berechtigung: alle eingeloggten Personen — die Routen-Schicht
+        erzwingt das. Per-Dokument-``can_read_document``-Prüfung wird
+        hier bewusst NICHT angewendet, weil das Listing als
+        Auswahlhilfe für interne UI-Module dient (z. B. Meeting-
+        Doc-Verknüpfung). Wer Inhalte holen will, geht weiterhin
+        durch ``get_by_id``, das die Sichtbarkeit prüft.
+
+        Filter:
+        - ``include_archived=False`` blendet ``is_deleted``-Dokumente
+          aus (das Projekt hat aktuell kein eigenes Archiv-Flag, wir
+          nutzen ``is_deleted`` als Stellvertreter).
+        - ``workpackage_code`` filtert auf einen WP. Unbekannter Code
+          → leere Liste (kein 404), konsistent mit
+          ``list_for_workpackage``.
+        - ``q`` ist eine case-insensitive Substring-Suche über
+          ``deliverable_code`` und ``title``.
+
+        Sortierung: nach ``workpackage.sort_order``, dann ``code``,
+        dann ``title``.
+        """
+        from sqlalchemy import func, or_
+
+        stmt = select(Document).join(Workpackage, Workpackage.id == Document.workpackage_id)
+        if not include_archived:
+            stmt = stmt.where(Document.is_deleted.is_(False))
+        if workpackage_code is not None:
+            wp = WorkpackageService(self.session).get_by_code(workpackage_code)
+            if wp is None:
+                return []
+            stmt = stmt.where(Document.workpackage_id == wp.id)
+        if q:
+            needle = f"%{q.strip().lower()}%"
+            stmt = stmt.where(
+                or_(
+                    func.lower(Document.deliverable_code).like(needle),
+                    func.lower(Document.title).like(needle),
+                )
+            )
+        stmt = stmt.order_by(Workpackage.sort_order, Workpackage.code, Document.title)
+        return list(self.session.scalars(stmt))
+
     def get_by_id(self, document_id: str) -> Document:
         document = self.session.get(Document, document_id)
         if document is None or document.is_deleted:

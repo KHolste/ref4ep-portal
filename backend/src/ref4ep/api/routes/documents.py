@@ -43,6 +43,7 @@ from ref4ep.api.schemas.documents import (
     DocumentVersionOut,
     DocumentVersionUploadResponse,
     DocumentVisibilityRequest,
+    InternalDocumentOut,
     PersonRef,
     WorkpackageRef,
 )
@@ -150,6 +151,54 @@ def list_documents(code: str, session: SessionDep, auth: AuthDep) -> list[Docume
         )
     docs = DocumentService(session, auth=auth).list_for_workpackage(code)
     return [_document_out(d) for d in docs]
+
+
+def _internal_document_out(document: Document) -> InternalDocumentOut:
+    """Kompaktes Mapping für die interne Auswahlliste (Block 0017)."""
+    latest = document.versions[-1] if document.versions else None
+    is_public = document.visibility == "public" and document.status == "released"
+    return InternalDocumentOut(
+        id=document.id,
+        code=document.deliverable_code,
+        title=document.title,
+        workpackage_code=document.workpackage.code,
+        workpackage_title=document.workpackage.title,
+        status=document.status,
+        visibility=document.visibility,
+        is_public=is_public,
+        is_archived=document.is_deleted,
+        latest_version_label=latest.version_label if latest else None,
+        updated_at=document.updated_at,
+    )
+
+
+@router.get("/documents", response_model=list[InternalDocumentOut])
+def list_internal_documents(
+    session: SessionDep,
+    auth: AuthDep,
+    include_archived: bool = False,
+    workpackage: str | None = None,
+    q: str | None = None,
+) -> list[InternalDocumentOut]:
+    """Interne Dokumentliste für Auswahlfelder (Block 0017).
+
+    Auth-only — alle eingeloggten Personen dürfen lesen. Filter:
+    ``include_archived`` (default false), ``workpackage`` (WP-Code),
+    ``q`` (Substring über Code/Title). Sortierung nach
+    WP-``sort_order``, dann WP-Code, dann Dokument-Title.
+
+    Anmerkung: Im Gegensatz zu ``/api/workpackages/{code}/documents``
+    filtert diese Liste **nicht** auf WP-Mitgliedschaft. Das ist
+    bewusst so — Auswahllisten interner Module brauchen einen
+    konsistenten Blick. Inhalt holt sich der Client weiterhin über
+    ``GET /api/documents/{id}``, das die Sichtbarkeit prüft.
+    """
+    docs = DocumentService(session, auth=auth).list_internal(
+        include_archived=include_archived,
+        workpackage_code=workpackage,
+        q=q,
+    )
+    return [_internal_document_out(d) for d in docs]
 
 
 @router.post(

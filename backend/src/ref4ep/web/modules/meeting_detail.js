@@ -449,13 +449,14 @@ function renderDocumentLinkForm(meetingId, documents, alreadyIds, onSaved, onCan
   const docSelect = h(
     "select",
     {},
-    ...candidates.map((d) =>
-      h(
-        "option",
-        { value: d.id },
-        d.deliverable_code ? `[${d.deliverable_code}] ${d.title}` : d.title,
-      ),
-    ),
+    ...candidates.map((d) => {
+      // ``InternalDocumentOut`` (Block 0017) liefert ``code``,
+      // der Fallback per WP liefert ``deliverable_code`` — beides akzeptieren.
+      const code = d.code ?? d.deliverable_code;
+      const wpPart = d.workpackage_code ? `${d.workpackage_code} · ` : "";
+      const codePart = code ? `[${code}] ` : "";
+      return h("option", { value: d.id }, `${wpPart}${codePart}${d.title}`);
+    }),
   );
   const labelSelect = h(
     "select",
@@ -732,39 +733,41 @@ export async function render(container, ctx) {
   let workpackages = [];
   let persons = [];
   let documents = [];
+  // Block 0017: ``GET /api/documents?include_archived=false`` ist jetzt
+  // der bevorzugte Pfad. Erfolgreiche Antwort (auch leer) → kein Fallback.
+  // Fallback per WP nur, wenn der Aufruf wirklich fehlschlägt.
+  let documentsFailed = false;
   try {
     [meeting, workpackages, persons, documents] = await Promise.all([
       api("GET", `/api/meetings/${meetingId}`),
       api("GET", "/api/workpackages"),
       api("GET", "/api/persons"),
-      api("GET", "/api/documents?include_archived=false").catch(() => []),
+      api("GET", "/api/documents?include_archived=false").catch((err) => {
+        documentsFailed = true;
+        console.warn("/api/documents fehlgeschlagen, Fallback per WP:", err?.message);
+        return [];
+      }),
     ]);
   } catch (err) {
     container.replaceChildren(h("h1", {}, "Meeting"), renderError(err));
     return;
   }
 
-  // Falls /api/documents nicht existiert (Block 0015 ändert die
-  // Dokument-API nicht), versuchen wir einen schmaleren Aufruf.
-  if (!Array.isArray(documents) || !documents.length) {
-    try {
-      // Bestehende Dokumente kommen pro WP — wir sammeln sie über alle WPs.
-      const collected = [];
-      for (const wp of workpackages) {
-        try {
-          const docs = await api(
-            "GET",
-            `/api/workpackages/${encodeURIComponent(wp.code)}/documents`,
-          );
-          for (const d of docs) collected.push(d);
-        } catch {
-          // Wenn ein WP keine Dokumente liefert, ignorieren.
-        }
+  if (documentsFailed) {
+    // Notfall-Fallback: Dokumente einzeln über jedes WP holen.
+    const collected = [];
+    for (const wp of workpackages) {
+      try {
+        const docs = await api(
+          "GET",
+          `/api/workpackages/${encodeURIComponent(wp.code)}/documents`,
+        );
+        for (const d of docs) collected.push(d);
+      } catch {
+        // Wenn ein WP keine Dokumente liefert, ignorieren.
       }
-      documents = collected;
-    } catch {
-      documents = [];
     }
+    documents = collected;
   }
 
   const dialogSlot = h("div", {});

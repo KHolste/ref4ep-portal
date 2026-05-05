@@ -153,9 +153,33 @@ __all__ = [
     "DocumentVersionOut",
     "DocumentVersionUploadResponse",
     "DocumentVisibilityRequest",
+    "InternalDocumentOut",
     "PartnerRefOut",
     "PersonRef",
     "PublicDocumentOut",
     "PublicDocumentVersionOut",
     "WorkpackageRef",
 ]
+
+
+# --------------------------------------------------------------------------- #
+# Block 0017 — Interne Dokumentliste                                          #
+# --------------------------------------------------------------------------- #
+
+
+class InternalDocumentOut(BaseModel):
+    """Kompaktes Dokument-Item für interne Auswahllisten (z. B. Meeting-
+    Doc-Verknüpfung). Bewusst flach — kein Audit, keine Versions-Liste,
+    nur die letzte Version als Label."""
+
+    id: str
+    code: str | None = None  # = deliverable_code
+    title: str
+    workpackage_code: str
+    workpackage_title: str
+    status: str
+    visibility: str
+    is_public: bool = False
+    is_archived: bool = False
+    latest_version_label: str | None = None
+    updated_at: datetime

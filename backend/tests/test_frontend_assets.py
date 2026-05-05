@@ -691,6 +691,37 @@ def test_meetings_list_has_no_delete_button() -> None:
     assert 'api("DELETE"' not in body
 
 
+# ---- Block 0017 — Interne Dokumentliste ------------------------------
+
+
+def test_meeting_detail_uses_internal_documents_endpoint() -> None:
+    body = (MODULES_DIR / "meeting_detail.js").read_text(encoding="utf-8")
+    # Bevorzugter Pfad (ohne den vorherigen 404-Pfad).
+    assert "/api/documents?include_archived=false" in body
+
+
+def test_meeting_detail_only_falls_back_on_failure() -> None:
+    """Der WP-iterate-Fallback darf nur in einem Catch-Pfad ausgeführt
+    werden — nicht jedes Mal, wenn die globale Liste leer ist."""
+    body = (MODULES_DIR / "meeting_detail.js").read_text(encoding="utf-8")
+    # Sentinel zeigt an, dass das Frontend zwischen „leer" und „Fehler"
+    # unterscheidet.
+    assert "documentsFailed" in body
+    # Alter Always-On-Fallback-Marker ist weg.
+    assert "if (!Array.isArray(documents) || !documents.length)" not in body
+
+
+def test_meeting_detail_doc_dialog_has_no_id_input_or_upload() -> None:
+    """Auswahl bleibt ein <select> ohne Datei-Upload und ohne freie ID-Eingabe."""
+    body = (MODULES_DIR / "meeting_detail.js").read_text(encoding="utf-8")
+    # Datei-Upload ausgeschlossen.
+    assert 'type: "file"' not in body
+    assert "FormData" not in body
+    # Keine Eingabe für rohe Dokument-IDs (ein einfaches `<input ... value="...uuid...">`
+    # gibt es im Doc-Link-Form nicht).
+    assert 'placeholder: "Dokument-ID' not in body
+
+
 def test_meetings_have_no_direct_file_upload() -> None:
     """Block 0015 erlaubt explizit keinen direkten Datei-Upload im Meeting-Dialog."""
     for name in ("meetings.js", "meeting_detail.js"):
