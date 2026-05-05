@@ -1,13 +1,14 @@
-// „Mein Team" — Lead-Sicht für Personen des eigenen Partners und
+// „Mein Team" — Lead-Sicht für Personen der eigenen Organisation und
 // für die eigenen Lead-Arbeitspakete (Block 0013).
 //
 // Sektionen:
-//   1. Personen meines Partners (lesen + anlegen)
+//   1. Personen meiner Organisation (lesen + anlegen)
 //   2. Meine Arbeitspakete (Mitglieder hinzufügen/entfernen, Rolle ändern)
 //
 // Alle Aufrufe gehen gegen ``/api/lead/...``. Der Server erzwingt
 // Berechtigungen — die UI vermeidet bewusst Begriffe wie „Admin"
-// und keine Auswahl der Plattformrolle oder eines fremden Partners.
+// und bietet keine Auswahl der Plattformrolle oder einer anderen
+// Organisation.
 
 import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
 
@@ -86,7 +87,7 @@ function renderCreatePersonForm(onSaved, onCancel) {
     h(
       "p",
       { class: "muted" },
-      "Partner und Plattformrolle werden serverseitig gesetzt — neue Personen werden automatisch deinem Partner zugeordnet und sind reguläre Mitglieder.",
+      "Organisation und Plattformrolle werden serverseitig gesetzt — neue Personen werden automatisch deiner Organisation zugeordnet und sind reguläre Mitglieder.",
     ),
     h("label", {}, "E-Mail", emailInput),
     h("label", {}, "Anzeigename", nameInput),
@@ -343,13 +344,21 @@ function renderWorkpackageBlock(wp, partnerPersons, dialogSlot, onChanged) {
   return h("section", { class: "lead-wp-block" }, heading, body);
 }
 
-export async function render(container, _ctx) {
+export async function render(container, ctx) {
+  const partnerShort = ctx?.me?.person?.partner?.short_name || "";
+  const personsHeadline = partnerShort
+    ? `Personen bei ${partnerShort}`
+    : "Personen meiner Organisation";
+  const createDialogTitle = partnerShort
+    ? `Person bei ${partnerShort} anlegen`
+    : "Person für meine Organisation anlegen";
+
   const headerNodes = [
     h("h1", {}, "Mein Team"),
     h(
       "p",
       { class: "muted" },
-      "Verwalte hier die Personen deines Partners und die Mitglieder deiner Arbeitspakete. Plattformrollen und fremde Partner ändert nur ein Admin.",
+      "Hier kannst du Personen deiner Organisation verwalten und sie deinen Arbeitspaketen zuordnen. Plattformrollen und andere Organisationen verwalten nur Admins.",
     ),
   ];
 
@@ -380,7 +389,7 @@ export async function render(container, _ctx) {
       h(
         "div",
         { class: "dialog" },
-        h("h3", {}, "Person für meinen Partner anlegen"),
+        h("h3", {}, createDialogTitle),
         renderCreatePersonForm((created) => {
           showInitialPasswordDialog(
             personDialogSlot,
@@ -388,7 +397,7 @@ export async function render(container, _ctx) {
             () => {
               clearPersonDialog();
               // Nach Schließen frisch laden, damit die neue Person in der Liste auftaucht.
-              render(container, _ctx);
+              render(container, ctx);
             },
           );
         }, clearPersonDialog),
@@ -399,7 +408,7 @@ export async function render(container, _ctx) {
   const personsHeading = h(
     "div",
     { class: "section-header" },
-    h("h2", {}, "Personen meines Partners"),
+    h("h2", {}, personsHeadline),
     h("button", { type: "button", onclick: openCreatePerson }, "Person anlegen …"),
   );
   const personsSection = h(
@@ -413,7 +422,7 @@ export async function render(container, _ctx) {
   // WP-Sektion: pro Lead-WP ein Block.
   const wpDialogSlot = h("div", {});
   function rerender() {
-    render(container, _ctx);
+    render(container, ctx);
   }
   const wpsBody = leadWps.length
     ? leadWps.map((wp) =>

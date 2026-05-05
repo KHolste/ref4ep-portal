@@ -259,6 +259,42 @@ def test_cockpit_has_empty_states() -> None:
     assert "Aktuell sind keine offenen Punkte" in body
 
 
+def test_cockpit_has_no_judgmental_phrases() -> None:
+    """Block 0014: keine wertenden/saloppen Formulierungen im Cockpit."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    for phrase in (
+        "gut so",
+        "prima",
+        "super",
+        "alles im Griff",
+    ):
+        assert phrase not in body, f"Cockpit sollte ‚{phrase}‘ nicht enthalten"
+
+
+def test_cockpit_open_issues_use_card_layout() -> None:
+    """Block 0014: Offene Punkte werden als WP-Karten mit getrennten
+    Boxen für ‚Offene Punkte‘ und ‚Nächste Schritte‘ gerendert."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    # Karten und Grid-Hülle vorhanden.
+    assert "wp-issue-card" in body
+    assert "wp-issue-grid" in body
+    assert "wp-issue-section" in body
+    assert "wp-issue-label" in body
+    # Beide Bereichs-Labels sind sichtbar.
+    assert "Offene Punkte" in body
+    assert "Nächste Schritte" in body
+    # Alte Fließtext-Form (Inline ‚Offen: ‘ + br) ist verschwunden.
+    assert '"Offen: "' not in body
+
+
+def test_wp_issue_styles_present() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (".wp-issue-card", ".wp-issue-grid", ".wp-issue-section", ".wp-issue-label"):
+        assert cls in css
+    # Zweispaltig auf breiten Bildschirmen, einspaltig sonst.
+    assert "@media (min-width: 720px)" in css
+
+
 def test_cockpit_does_not_introduce_deliverables() -> None:
     body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
     # Weder als Wort noch als Pfad/Endpoint.
@@ -507,6 +543,27 @@ def test_lead_team_has_initial_password_notice() -> None:
     body = (MODULES_DIR / "lead_team.js").read_text(encoding="utf-8")
     assert "Initialpasswort" in body
     assert "wird nicht erneut angezeigt" in body
+
+
+def test_lead_team_uses_organization_wording() -> None:
+    """Block 0014: Sprachkorrektur von „Partner" auf „Organisation"."""
+    body = (MODULES_DIR / "lead_team.js").read_text(encoding="utf-8")
+    # Neue Einleitung
+    assert (
+        "Hier kannst du Personen deiner Organisation verwalten und sie deinen "
+        "Arbeitspaketen zuordnen." in body
+    )
+    assert "Plattformrollen und andere Organisationen verwalten nur Admins." in body
+    # Neuer Sektionstitel: dynamisch (Personen bei {short_name}) mit Fallback.
+    assert "Personen bei ${partnerShort}" in body
+    assert "Personen meiner Organisation" in body
+    # Alte Formulierungen sind verschwunden.
+    assert "Personen meines Partners" not in body
+    assert (
+        "Verwalte hier die Personen deines Partners und die Mitglieder deiner "
+        "Arbeitspakete." not in body
+    )
+    assert "Person für meinen Partner anlegen" not in body
 
 
 def test_no_javascript_string_spans_a_newline() -> None:

@@ -318,6 +318,76 @@ details.collapsible[open] > summary {
   background: #fdecea;
 }
 
+/* Karten-Variante, die im Grid die volle Breite einnimmt — gut für
+ * die Sektion „Offene Punkte aus Arbeitspaketen". */
+.cockpit-card.cockpit-card-wide {
+  grid-column: 1 / -1;
+}
+
+/* WP-Karten innerhalb der „Offene Punkte"-Sektion (Block 0014). */
+.wp-issue-card {
+  border: 1px solid #d6dfe9;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 0;
+  background: #fafbfd;
+}
+
+.wp-issue-card .wp-issue-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.wp-issue-card .wp-issue-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.wp-issue-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px) {
+  .wp-issue-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.wp-issue-section {
+  border: 1px solid #e1e7ef;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  background: #fff;
+}
+
+.wp-issue-section.wp-issue-open {
+  border-left: 3px solid #c0392b;
+}
+
+.wp-issue-section.wp-issue-next {
+  border-left: 3px solid #1c2c4c;
+}
+
+.wp-issue-section .wp-issue-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #555;
+  margin-bottom: 0.25rem;
+}
+
+.wp-issue-section p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
 .cockpit-status-counts {
   display: flex;
   flex-wrap: wrap;

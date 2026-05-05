@@ -99,7 +99,7 @@ function renderOverdueCard(milestones) {
       "section",
       { class: "cockpit-card" },
       h("h2", {}, "Überfällige Meilensteine"),
-      renderEmpty("Keine überfälligen Meilensteine — gut so."),
+      renderEmpty("Keine überfälligen Meilensteine."),
     );
   }
   const items = milestones.map((ms) =>
@@ -125,6 +125,44 @@ function renderOverdueCard(milestones) {
   );
 }
 
+function renderIssueCard(issue) {
+  const head = h(
+    "div",
+    { class: "wp-issue-head" },
+    h(
+      "h3",
+      {},
+      h(
+        "a",
+        { href: `/portal/workpackages/${issue.code}` },
+        `${issue.code} — ${issue.title}`,
+      ),
+    ),
+    statusBadge(issue.status),
+  );
+  // Zwei Boxen: Offene Punkte + Nächste Schritte (letzteres optional).
+  const sections = [
+    h(
+      "div",
+      { class: "wp-issue-section wp-issue-open" },
+      h("div", { class: "wp-issue-label" }, "Offene Punkte"),
+      h("p", {}, issue.open_issues),
+    ),
+  ];
+  if (issue.next_steps) {
+    sections.push(
+      h(
+        "div",
+        { class: "wp-issue-section wp-issue-next" },
+        h("div", { class: "wp-issue-label" }, "Nächste Schritte"),
+        h("p", {}, issue.next_steps),
+      ),
+    );
+  }
+  const grid = h("div", { class: "wp-issue-grid" }, ...sections);
+  return h("article", { class: "wp-issue-card" }, head, grid);
+}
+
 function renderOpenIssuesCard(issues) {
   if (!issues.length) {
     return h(
@@ -134,34 +172,11 @@ function renderOpenIssuesCard(issues) {
       renderEmpty("Aktuell sind keine offenen Punkte in den Arbeitspaketen vermerkt."),
     );
   }
-  const items = issues.map((issue) =>
-    h(
-      "li",
-      {},
-      h(
-        "a",
-        { href: `/portal/workpackages/${issue.code}` },
-        `${issue.code} — ${issue.title}`,
-      ),
-      " · ",
-      statusBadge(issue.status),
-      h("br", {}),
-      h("span", { class: "muted" }, "Offen: "),
-      issue.open_issues,
-      issue.next_steps
-        ? [
-            h("br", {}),
-            h("span", { class: "muted" }, "Nächste Schritte: "),
-            issue.next_steps,
-          ]
-        : null,
-    ),
-  );
   return h(
     "section",
-    { class: "cockpit-card" },
+    { class: "cockpit-card cockpit-card-wide" },
     h("h2", {}, "Offene Punkte aus Arbeitspaketen"),
-    h("ul", {}, ...items),
+    ...issues.map(renderIssueCard),
   );
 }
 
