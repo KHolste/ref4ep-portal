@@ -1,14 +1,27 @@
-// Testkampagnen-Detailseite (Block 0022).
+// Testkampagnen-Detailseite (Block 0022 + UX-Folgepass).
 //
-// Sektionen: Übersicht, Ziel und Zweck, Testmatrix, Erwartete
-// Messgrößen, Randbedingungen, Erfolgskriterien, Risiken / offene
-// Punkte, Beteiligte Personen, Dokumente.
+// Aufbau in fünf klar getrennten Sektionen:
+//   1. Übersicht           — Code, Kategorie, Status, Zeitraum, Facility
+//   2. Fachliche Details   — Ziel, Testmatrix, Messgrößen, Randbedingungen,
+//                            Erfolgskriterien, Risiken (mit Empty-State)
+//   3. Arbeitspakete       — Liste der WP-Codes
+//   4. Beteiligte Personen — Karten pro Person mit Rollen-Pill (deutsch,
+//                            kein UPPER-Badge)
+//   5. Dokumente           — Karten mit Label, Titel, WP, Entknüpfen-Button
 //
 // Aktionen erscheinen nur, wenn ``can_edit=true``. Es gibt KEINEN
 // Datei-Upload — Dokumente werden ausschließlich über
 // /api/documents?include_archived=false ausgewählt und verlinkt.
 
-import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
+import {
+  api,
+  appendChildren,
+  crossNav,
+  h,
+  renderEmpty,
+  renderError,
+  renderLoading,
+} from "/portal/common.js";
 
 const CATEGORY_LABELS = {
   ring_comparison: "Ringvergleich",
@@ -54,6 +67,16 @@ const DOC_LABEL_LABELS = {
   other: "Sonstiges",
 };
 
+// Reihenfolge bestimmt die UI-Reihenfolge im „Fachliche Details"-Block.
+const FACTUAL_FIELDS = [
+  ["objective", "Ziel und Zweck"],
+  ["test_matrix", "Testmatrix / Betriebspunkte"],
+  ["expected_measurements", "Erwartete Messgrößen"],
+  ["boundary_conditions", "Randbedingungen"],
+  ["success_criteria", "Erfolgskriterien"],
+  ["risks_or_open_points", "Risiken / offene Punkte"],
+];
+
 function nullIfBlank(value) {
   const v = (value || "").trim();
   return v === "" ? null : v;
@@ -69,8 +92,23 @@ function statusBadge(status) {
   return h("span", { class: "badge" }, STATUS_LABELS[status] || status);
 }
 
-function roleBadge(role) {
-  return h("span", { class: "badge" }, ROLE_LABELS[role] || role);
+function rolePill(role) {
+  // Deutsche Anzeige, gemischte Schreibweise (kein UPPER wie .badge).
+  return h(
+    "span",
+    { class: "campaign-role" },
+    ROLE_LABELS[role] || role,
+  );
+}
+
+function docLabelPill(label) {
+  return h("span", { class: "campaign-doc-label" }, DOC_LABEL_LABELS[label] || label);
+}
+
+function periodText(campaign) {
+  return campaign.ends_on
+    ? `${formatDate(campaign.starts_on)} – ${formatDate(campaign.ends_on)}`
+    : formatDate(campaign.starts_on);
 }
 
 // ---- Edit-Formular für die Stammdaten ----------------------------------
@@ -109,11 +147,7 @@ function renderEditDialog(campaign, workpackages, onSaved, onCancel) {
     { rows: "3" },
     campaign.boundary_conditions || "",
   );
-  const successInput = h(
-    "textarea",
-    { rows: "3" },
-    campaign.success_criteria || "",
-  );
+  const successInput = h("textarea", { rows: "3" }, campaign.success_criteria || "");
   const risksInput = h("textarea", { rows: "3" }, campaign.risks_or_open_points || "");
   const wpCodes = new Set(campaign.workpackages.map((w) => w.code));
   const wpSelect = h(
@@ -375,31 +409,86 @@ function renderDocumentLinkForm(campaignId, documents, alreadyIds, onSaved, onCa
 // ---- Render-Sektionen --------------------------------------------------
 
 function renderHeader(campaign) {
-  const period = campaign.ends_on
-    ? `${formatDate(campaign.starts_on)} – ${formatDate(campaign.ends_on)}`
-    : formatDate(campaign.starts_on);
   return h(
-    "div",
-    {},
+    "header",
+    { class: "campaign-detail-head" },
     h("h1", {}, campaign.title, " ", statusBadge(campaign.status)),
     h(
       "p",
-      {},
+      { class: "muted" },
       `Code: ${campaign.code} · Kategorie: ${
         CATEGORY_LABELS[campaign.category] || campaign.category
-      }`,
+      } · ${periodText(campaign)}`,
     ),
-    h("p", {}, `Zeitraum: ${period}`),
-    campaign.facility ? h("p", {}, `Facility: ${campaign.facility}`) : null,
-    campaign.location ? h("p", {}, `Ort: ${campaign.location}`) : null,
     campaign.short_description
-      ? h("p", { class: "muted preserve-line" }, campaign.short_description)
+      ? h("p", { class: "preserve-line" }, campaign.short_description)
       : null,
+  );
+}
+
+function kvRow(label, value) {
+  return h(
+    "div",
+    { class: "campaign-kv-row" },
+    h("span", { class: "campaign-kv-label" }, label),
+    h("span", { class: "campaign-kv-value" }, value || "—"),
+  );
+}
+
+function renderOverviewCard(campaign) {
+  return h(
+    "section",
+    { class: "campaign-section campaign-overview" },
+    h("h2", {}, "Übersicht"),
     h(
-      "p",
-      { class: "muted" },
-      "Angelegt von ",
-      campaign.created_by ? campaign.created_by.display_name : "—",
+      "div",
+      { class: "campaign-kv-grid" },
+      kvRow("Code", campaign.code),
+      kvRow("Kategorie", CATEGORY_LABELS[campaign.category] || campaign.category),
+      kvRow("Status", STATUS_LABELS[campaign.status] || campaign.status),
+      kvRow("Zeitraum", periodText(campaign)),
+      kvRow("Facility", campaign.facility),
+      kvRow("Ort", campaign.location),
+      kvRow(
+        "Angelegt von",
+        campaign.created_by ? campaign.created_by.display_name : "—",
+      ),
+    ),
+  );
+}
+
+function renderFactualSection(title, value) {
+  // Wird nur aufgerufen, wenn ``value`` gefüllt ist — der Caller
+  // garantiert das. Damit kann hier kein „null" durchrutschen.
+  return h(
+    "article",
+    { class: "campaign-fact-card" },
+    h("h3", {}, title),
+    h("p", { class: "preserve-line" }, value),
+  );
+}
+
+function renderFactualBlock(campaign) {
+  const populated = FACTUAL_FIELDS.filter(([key]) => {
+    const v = campaign[key];
+    return typeof v === "string" && v.trim() !== "";
+  });
+  if (!populated.length) {
+    return h(
+      "section",
+      { class: "campaign-section" },
+      h("h2", {}, "Fachliche Details"),
+      renderEmpty("Noch keine fachlichen Details hinterlegt."),
+    );
+  }
+  return h(
+    "section",
+    { class: "campaign-section" },
+    h("h2", {}, "Fachliche Details"),
+    h(
+      "div",
+      { class: "campaign-fact-grid" },
+      ...populated.map(([key, label]) => renderFactualSection(label, campaign[key])),
     ),
   );
 }
@@ -408,18 +497,18 @@ function renderWpsBlock(campaign) {
   if (!campaign.workpackages.length) {
     return h(
       "section",
-      {},
+      { class: "campaign-section" },
       h("h2", {}, "Arbeitspakete"),
       renderEmpty("Kein Arbeitspaket-Bezug — übergreifende Kampagne (Admin-only)."),
     );
   }
   return h(
     "section",
-    {},
+    { class: "campaign-section" },
     h("h2", {}, "Arbeitspakete"),
     h(
       "ul",
-      {},
+      { class: "campaign-wp-list" },
       ...campaign.workpackages.map((wp) =>
         h(
           "li",
@@ -432,9 +521,33 @@ function renderWpsBlock(campaign) {
   );
 }
 
-function renderTextSection(title, value) {
-  if (!value) return null;
-  return h("section", {}, h("h2", {}, title), h("p", { class: "preserve-line" }, value));
+function renderParticipantCard(participant, canEdit, onEdit, onRemove) {
+  return h(
+    "article",
+    { class: "campaign-participant-card" },
+    h(
+      "div",
+      { class: "campaign-participant-head" },
+      h("div", { class: "campaign-participant-name" }, participant.person.display_name),
+      rolePill(participant.role),
+    ),
+    h("div", { class: "campaign-participant-email muted" }, participant.person.email),
+    participant.note
+      ? h("div", { class: "campaign-participant-note preserve-line" }, participant.note)
+      : null,
+    canEdit
+      ? h(
+          "div",
+          { class: "form-actions" },
+          h("button", { type: "button", onclick: () => onEdit(participant) }, "Bearbeiten …"),
+          h(
+            "button",
+            { type: "button", class: "linklike danger", onclick: () => onRemove(participant) },
+            "entfernen",
+          ),
+        )
+      : null,
+  );
 }
 
 function renderParticipantsBlock(campaign, canEdit, onAdd, onEdit, onRemove) {
@@ -445,58 +558,58 @@ function renderParticipantsBlock(campaign, canEdit, onAdd, onEdit, onRemove) {
     canEdit ? h("button", { type: "button", onclick: onAdd }, "Person hinzufügen …") : null,
   );
   if (!campaign.participants.length) {
-    return h("section", {}, heading, renderEmpty("Noch keine Personen eingetragen."));
+    return h(
+      "section",
+      { class: "campaign-section" },
+      heading,
+      renderEmpty("Noch keine Personen eingetragen."),
+    );
   }
-  const rows = campaign.participants.map((p) =>
+  return h(
+    "section",
+    { class: "campaign-section" },
+    heading,
     h(
-      "tr",
-      {},
-      h("td", {}, `${p.person.display_name} <${p.person.email}>`),
-      h("td", {}, roleBadge(p.role)),
-      h("td", {}, p.note || h("span", { class: "muted" }, "—")),
-      h(
-        "td",
-        {},
-        canEdit
-          ? h(
-              "div",
-              { class: "form-actions" },
-              h("button", { type: "button", onclick: () => onEdit(p) }, "Bearbeiten …"),
-              h(
-                "button",
-                {
-                  type: "button",
-                  class: "linklike danger",
-                  onclick: () => onRemove(p),
-                },
-                "entfernen",
-              ),
-            )
-          : null,
+      "div",
+      { class: "campaign-participant-grid" },
+      ...campaign.participants.map((p) =>
+        renderParticipantCard(p, canEdit, onEdit, onRemove),
       ),
     ),
   );
+}
+
+function renderDocumentCard(doc, canEdit, onUnlink) {
   return h(
-    "section",
-    {},
-    heading,
+    "article",
+    { class: "campaign-document-card" },
     h(
-      "table",
-      {},
+      "div",
+      { class: "campaign-document-head" },
+      docLabelPill(doc.label),
       h(
-        "thead",
-        {},
-        h(
-          "tr",
-          {},
-          h("th", {}, "Person"),
-          h("th", {}, "Rolle"),
-          h("th", {}, "Notiz"),
-          h("th", {}, ""),
-        ),
+        "a",
+        { class: "campaign-document-title", href: `/portal/documents/${doc.document_id}` },
+        doc.title,
       ),
-      h("tbody", {}, ...rows),
     ),
+    h(
+      "div",
+      { class: "campaign-document-meta muted" },
+      doc.workpackage_code ? `WP: ${doc.workpackage_code}` : "WP: —",
+      doc.deliverable_code ? ` · Code: ${doc.deliverable_code}` : "",
+    ),
+    canEdit
+      ? h(
+          "div",
+          { class: "form-actions" },
+          h(
+            "button",
+            { type: "button", class: "linklike danger", onclick: () => onUnlink(doc) },
+            "entknüpfen",
+          ),
+        )
+      : null,
   );
 }
 
@@ -508,39 +621,31 @@ function renderDocumentsBlock(campaign, canEdit, onLink, onUnlink) {
     canEdit ? h("button", { type: "button", onclick: onLink }, "Dokument verknüpfen …") : null,
   );
   if (!campaign.documents.length) {
-    return h("section", {}, heading, renderEmpty("Noch keine Dokumente verknüpft."));
+    return h(
+      "section",
+      { class: "campaign-section" },
+      heading,
+      renderEmpty("Noch keine Dokumente verknüpft."),
+    );
   }
-  const items = campaign.documents.map((d) =>
+  return h(
+    "section",
+    { class: "campaign-section" },
+    heading,
     h(
-      "li",
-      {},
-      h("strong", {}, DOC_LABEL_LABELS[d.label] || d.label),
-      ": ",
-      h("a", { href: `/portal/documents/${d.document_id}` }, d.title),
-      d.deliverable_code ? ` (${d.deliverable_code})` : "",
-      d.workpackage_code ? ` · ${d.workpackage_code}` : "",
-      canEdit
-        ? h(
-            "button",
-            {
-              type: "button",
-              class: "linklike danger",
-              style: "margin-left: 0.5rem",
-              onclick: () => onUnlink(d),
-            },
-            "entknüpfen",
-          )
-        : null,
+      "div",
+      { class: "campaign-document-grid" },
+      ...campaign.documents.map((d) => renderDocumentCard(d, canEdit, onUnlink)),
     ),
   );
-  return h("section", {}, heading, h("ul", {}, ...items));
 }
 
 // ---- Hauptrender ------------------------------------------------------
 
 export async function render(container, ctx) {
   const campaignId = ctx.params.id;
-  container.replaceChildren(
+  appendChildren(
+    container,
     h("h1", {}, "Testkampagne"),
     renderLoading("Testkampagne wird geladen …"),
   );
@@ -557,7 +662,7 @@ export async function render(container, ctx) {
       api("GET", "/api/documents?include_archived=false").catch(() => []),
     ]);
   } catch (err) {
-    container.replaceChildren(h("h1", {}, "Testkampagne"), renderError(err));
+    appendChildren(container, h("h1", {}, "Testkampagne"), renderError(err));
     return;
   }
 
@@ -572,7 +677,7 @@ export async function render(container, ctx) {
     try {
       campaign = await api("GET", `/api/campaigns/${campaignId}`);
     } catch (err) {
-      container.replaceChildren(h("h1", {}, "Testkampagne"), renderError(err));
+      appendChildren(container, h("h1", {}, "Testkampagne"), renderError(err));
       return;
     }
     rerender();
@@ -581,10 +686,15 @@ export async function render(container, ctx) {
   function onEditCampaign() {
     showDialog(
       "Testkampagne bearbeiten",
-      renderEditDialog(campaign, workpackages, () => {
-        clearDialog();
-        reload();
-      }, clearDialog),
+      renderEditDialog(
+        campaign,
+        workpackages,
+        () => {
+          clearDialog();
+          reload();
+        },
+        clearDialog,
+      ),
     );
   }
   async function onCancelCampaign() {
@@ -680,21 +790,21 @@ export async function render(container, ctx) {
       ? h("div", { class: "actions" }, ...actionButtons)
       : null;
 
-    container.replaceChildren(
+    // appendChildren filtert null/undefined/false aus — ohne diesen
+    // Schutz machte die DOM-API aus ``null`` den Text „null"
+    // (Ursache des „nullnullnull"-Bugs vor dem Folgepass).
+    appendChildren(
+      container,
       h(
         "p",
         { class: "muted" },
         h("a", { href: "/portal/campaigns" }, "← zurück zur Liste der Testkampagnen"),
       ),
       renderHeader(campaign),
-      headerActions || h("div", {}),
+      headerActions,
+      renderOverviewCard(campaign),
+      renderFactualBlock(campaign),
       renderWpsBlock(campaign),
-      renderTextSection("Ziel und Zweck", campaign.objective),
-      renderTextSection("Testmatrix / Betriebspunkte", campaign.test_matrix),
-      renderTextSection("Erwartete Messgrößen", campaign.expected_measurements),
-      renderTextSection("Randbedingungen", campaign.boundary_conditions),
-      renderTextSection("Erfolgskriterien", campaign.success_criteria),
-      renderTextSection("Risiken / offene Punkte", campaign.risks_or_open_points),
       renderParticipantsBlock(
         campaign,
         campaign.can_edit,

@@ -1414,3 +1414,152 @@ def test_real_upload_modules_whitelist_does_not_include_campaigns() -> None:
     als Upload-Pfade akzeptiert."""
     assert "campaigns.js" not in REAL_UPLOAD_MODULES
     assert "campaign_detail.js" not in REAL_UPLOAD_MODULES
+
+
+# ---- Block 0022 — UX-Folgepass (Bugfix + Restruktur) ------------------
+
+
+def test_common_js_exports_append_children_helper() -> None:
+    """Der zentrale Helfer ``appendChildren`` filtert null/undefined/false
+    heraus — verhindert den „nullnullnull"-Bug aus dem Online-Test."""
+    body = (WEB_DIR / "common.js").read_text(encoding="utf-8")
+    assert "export function appendChildren" in body
+    assert "child === null" in body or "== null" in body
+
+
+def test_campaign_detail_uses_append_children_for_top_level_render() -> None:
+    """campaign_detail.js darf nicht direkt ``container.replaceChildren(`` mit
+    nullable Sub-Renderings aufrufen — sonst werden ``null``-Returns als
+    Text „null" gerendert. Statt dessen wird ``appendChildren`` benutzt."""
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    assert "appendChildren" in body
+    # Konkreter Bug war: container.replaceChildren( … renderTextSection(...) )
+    assert "renderTextSection" not in body
+    assert "container.replaceChildren(" not in body
+
+
+def test_campaign_detail_factual_block_has_empty_state() -> None:
+    """Wenn alle fachlichen Felder leer sind, kommt der saubere Empty-State."""
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    assert "Noch keine fachlichen Details hinterlegt." in body
+    assert "FACTUAL_FIELDS" in body
+    assert "renderFactualBlock" in body
+
+
+def test_campaign_detail_has_clear_section_structure() -> None:
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    for section in (
+        "Übersicht",
+        "Fachliche Details",
+        "Arbeitspakete",
+        "Beteiligte Personen",
+        "Dokumente",
+    ):
+        assert section in body, f"campaign_detail.js sollte Sektion {section!r} enthalten"
+    for fn in (
+        "renderOverviewCard",
+        "renderFactualBlock",
+        "renderWpsBlock",
+        "renderParticipantsBlock",
+        "renderDocumentsBlock",
+    ):
+        assert fn in body, f"{fn} fehlt"
+
+
+def test_campaign_detail_uses_german_role_labels_via_pill_not_badge() -> None:
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    assert "campaign-role" in body
+    assert "rolePill" in body
+    for label in (
+        "Kampagnenleitung",
+        "Facility-Verantwortung",
+        "Diagnostik",
+        "Datenanalyse",
+        "Betrieb",
+        "Sicherheit",
+        "Beobachtung",
+    ):
+        assert label in body, f"campaign_detail.js sollte Rolle {label!r} mappen"
+    # Negative: alte UPPER-Badge-Variante ist verschwunden.
+    assert "function roleBadge" not in body
+
+
+def test_campaign_role_pill_style_is_not_uppercased() -> None:
+    """Die Rollen-Pill darf NICHT die UPPERCASE-Behandlung von ``.badge``
+    erben — sonst sieht man wieder ‚DIAGNOSTIK'."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert ".campaign-role" in css
+    start = css.index(".campaign-role {")
+    end = css.index("}", start)
+    block = css[start:end]
+    assert "uppercase" not in block.lower(), (
+        "Die Rollen-Pill darf nicht in Großbuchstaben gerendert werden."
+    )
+
+
+def test_campaign_participant_card_replaces_table_layout() -> None:
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert "campaign-participant-card" in body
+    assert "campaign-participant-grid" in body
+    assert ".campaign-participant-card" in css
+    assert ".campaign-participant-grid" in css
+
+
+def test_campaign_document_card_layout() -> None:
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert "campaign-document-card" in body
+    assert "campaign-document-grid" in body
+    assert ".campaign-document-card" in css
+    assert ".campaign-document-grid" in css
+    assert "campaign-doc-label" in body
+    assert "entknüpfen" in body
+    assert "WP:" in body
+
+
+def test_campaigns_list_uses_card_grid_not_table() -> None:
+    body = (MODULES_DIR / "campaigns.js").read_text(encoding="utf-8")
+    assert "campaign-card-grid" in body
+    assert "campaign-card" in body
+    assert "Details anzeigen" in body
+    # Negative: alte Tabellen-Konstruktion mit thead+rowFor ist weg.
+    assert '"thead"' not in body
+    assert "rowFor" not in body
+
+
+def test_campaigns_card_grid_styles_are_responsive() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (
+        ".campaign-card-grid",
+        ".campaign-card",
+        ".campaign-card-head",
+        ".campaign-card-title",
+        ".campaign-meta",
+        ".campaign-card-footer",
+    ):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+    assert "@media (min-width: 720px)" in css
+    assert "overflow-wrap: anywhere" in css or "word-break: break-word" in css
+
+
+def test_campaign_modules_have_no_literal_null_text_for_empty_fields() -> None:
+    """Heuristik: in Kampagnen-Modulen darf nirgendwo ein ``"null"``-
+    Stringliteral landen — sonst rutscht es als sichtbarer Text durch."""
+    for name in ("campaign_detail.js", "campaigns.js"):
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        assert '"null"' not in body, f"{name} darf keinen 'null'-String literal enthalten"
+
+
+def test_campaign_modules_still_have_no_upload_path_after_refactor() -> None:
+    """Regression: Der UX-Folgepass darf den Upload-Verbot nicht
+    versehentlich aufgeweicht haben."""
+    for name in ("campaigns.js", "campaign_detail.js"):
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        assert 'type: "file"' not in body
+        assert "createFileDropzone" not in body
+        assert "file-dropzone" not in body
+        assert "FormData" not in body
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    assert "/api/documents?include_archived=false" in body
+    assert "document_id" in body

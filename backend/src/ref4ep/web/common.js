@@ -66,6 +66,19 @@ export function clearAndAppend(container, ...nodes) {
   container.replaceChildren(...nodes);
 }
 
+// Sicherer Ersatz für ``container.replaceChildren(...)``: filtert
+// ``null``/``undefined``/``false`` heraus und coerct alles andere in
+// einen Textknoten — sonst macht die DOM-API aus ``null`` den Text
+// „null" (Quelle des „nullnullnull"-Bugs in Block 0022).
+export function appendChildren(container, ...children) {
+  const nodes = [];
+  for (const child of children.flat()) {
+    if (child === null || child === undefined || child === false) continue;
+    nodes.push(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
+  container.replaceChildren(...nodes);
+}
+
 // ---- UX-Helfer (Block 0011) -------------------------------------------
 //
 // Drei kleine Bausteine, damit Lade-, Fehler- und Empty-Zustände in

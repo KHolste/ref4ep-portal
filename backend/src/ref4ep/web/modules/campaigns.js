@@ -46,25 +46,53 @@ function statusBadge(status) {
   return h("span", { class: "badge" }, STATUS_LABELS[status] || status);
 }
 
-function rowFor(campaign) {
-  const wpsCell = campaign.workpackages.length
-    ? campaign.workpackages.map((w) => w.code).join(", ")
-    : h("span", { class: "muted" }, "—");
+function metaRow(label, value) {
+  return h(
+    "div",
+    { class: "campaign-meta-row" },
+    h("span", { class: "campaign-meta-label" }, label),
+    h("span", { class: "campaign-meta-value" }, value || "—"),
+  );
+}
+
+function cardFor(campaign) {
+  // Karten-Layout statt enger Tabelle — lange Titel brechen sauber um,
+  // breite Bildschirme nutzen den Raum (siehe campaign-card-grid).
   const period = campaign.ends_on
     ? `${formatDate(campaign.starts_on)} – ${formatDate(campaign.ends_on)}`
     : formatDate(campaign.starts_on);
+  const wpsValue = campaign.workpackages.length
+    ? campaign.workpackages.map((w) => w.code).join(", ")
+    : "—";
   return h(
-    "tr",
-    {},
-    h("td", {}, period),
-    h("td", {}, campaign.code),
-    h("td", {}, h("a", { href: `/portal/campaigns/${campaign.id}` }, campaign.title)),
-    h("td", {}, CATEGORY_LABELS[campaign.category] || campaign.category),
-    h("td", {}, statusBadge(campaign.status)),
-    h("td", {}, campaign.facility || h("span", { class: "muted" }, "—")),
-    h("td", {}, wpsCell),
-    h("td", {}, String(campaign.participants_count)),
-    h("td", {}, String(campaign.documents_count)),
+    "article",
+    { class: "campaign-card" },
+    h(
+      "header",
+      { class: "campaign-card-head" },
+      h("span", { class: "campaign-card-code" }, campaign.code),
+      statusBadge(campaign.status),
+    ),
+    h(
+      "h2",
+      { class: "campaign-card-title" },
+      h("a", { href: `/portal/campaigns/${campaign.id}` }, campaign.title),
+    ),
+    h(
+      "div",
+      { class: "campaign-meta" },
+      metaRow("Zeitraum", period),
+      metaRow("Kategorie", CATEGORY_LABELS[campaign.category] || campaign.category),
+      metaRow("Facility", campaign.facility),
+      metaRow("Arbeitspakete", wpsValue),
+      metaRow("Personen", String(campaign.participants_count)),
+      metaRow("Dokumente", String(campaign.documents_count)),
+    ),
+    h(
+      "div",
+      { class: "campaign-card-footer" },
+      h("a", { href: `/portal/campaigns/${campaign.id}` }, "Details anzeigen →"),
+    ),
   );
 }
 
@@ -223,29 +251,14 @@ export async function render(container, _ctx) {
       tableSlot.replaceChildren(renderEmpty("Keine Testkampagnen gefunden."));
       return;
     }
-    const table = h(
-      "table",
-      {},
-      h(
-        "thead",
-        {},
-        h(
-          "tr",
-          {},
-          h("th", {}, "Zeitraum"),
-          h("th", {}, "Code"),
-          h("th", {}, "Titel"),
-          h("th", {}, "Kategorie"),
-          h("th", {}, "Status"),
-          h("th", {}, "Facility"),
-          h("th", {}, "Arbeitspakete"),
-          h("th", {}, "Personen"),
-          h("th", {}, "Dokumente"),
-        ),
-      ),
-      h("tbody", {}, ...campaigns.map(rowFor)),
+    // Karten-Grid statt Tabelle — bessere Lesbarkeit für lange Titel
+    // und effizientere Bildschirmbreiten-Nutzung.
+    const grid = h(
+      "div",
+      { class: "campaign-card-grid", role: "list" },
+      ...campaigns.map((c) => h("div", { role: "listitem" }, cardFor(c))),
     );
-    tableSlot.replaceChildren(table);
+    tableSlot.replaceChildren(grid);
   }
   refreshBtn.addEventListener("click", refresh);
 

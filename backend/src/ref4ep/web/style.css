@@ -1064,3 +1064,272 @@ tr.row-released {
     padding: 0.6rem 0.7rem;
   }
 }
+
+/* Testkampagnen — Listen-Karten (Block 0022, UX-Folgepass).
+ *
+ * Statt einer engen Tabelle wird jede Kampagne als eigenständige
+ * Karte gerendert. Auf breiten Bildschirmen wandert das Grid in
+ * mehrere Spalten; auf mobil bleibt es einspaltig. */
+.campaign-card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+@media (min-width: 720px) {
+  .campaign-card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  }
+}
+
+.campaign-card {
+  border: 1px solid #d6dfe9;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.campaign-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.campaign-card-code {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: #1c2c4c;
+  letter-spacing: 0.02em;
+}
+
+.campaign-card-title {
+  font-size: 1rem;
+  margin: 0.1rem 0 0.3rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.campaign-card-title a {
+  color: #1c2c4c;
+}
+
+.campaign-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.2rem 0.6rem;
+  font-size: 0.85rem;
+  margin: 0.2rem 0 0.4rem;
+}
+
+.campaign-meta-row {
+  display: contents;
+}
+
+.campaign-meta-label {
+  color: #555;
+}
+
+.campaign-meta-value {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.campaign-card-footer {
+  margin-top: auto;
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+/* Detail-Sektionen mit klar getrennten Karten. */
+.campaign-detail-head {
+  margin-bottom: 0.5rem;
+}
+
+.campaign-detail-head h1 {
+  margin: 0 0 0.3rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.campaign-section {
+  margin: 1rem 0;
+}
+
+.campaign-section h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+/* Übersicht als kompakte Key-Value-Karte. */
+.campaign-overview .campaign-kv-grid {
+  display: grid;
+  gap: 0.3rem 0.75rem;
+  grid-template-columns: max-content 1fr;
+  border: 1px solid #d6dfe9;
+  border-radius: 4px;
+  padding: 0.6rem 0.9rem;
+  background: #fff;
+}
+
+.campaign-kv-row {
+  display: contents;
+}
+
+.campaign-kv-label {
+  color: #555;
+  font-size: 0.85rem;
+}
+
+.campaign-kv-value {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font-size: 0.9rem;
+}
+
+/* Fachliche Details als Sub-Karten in einem Grid. */
+.campaign-fact-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 720px) {
+  .campaign-fact-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.campaign-fact-card {
+  border: 1px solid #d6dfe9;
+  border-radius: 4px;
+  padding: 0.5rem 0.8rem;
+  background: #fff;
+}
+
+.campaign-fact-card h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.85rem;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.campaign-fact-card p {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.campaign-wp-list {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+/* Beteiligte Personen als Karten — auch auf schmalen Bildschirmen lesbar. */
+.campaign-participant-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.6rem;
+}
+
+@media (min-width: 720px) {
+  .campaign-participant-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+.campaign-participant-card {
+  border: 1px solid #d6dfe9;
+  border-radius: 4px;
+  padding: 0.5rem 0.8rem;
+  background: #fff;
+}
+
+.campaign-participant-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.campaign-participant-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.campaign-participant-email {
+  font-size: 0.8rem;
+  margin-top: 0.1rem;
+  overflow-wrap: anywhere;
+}
+
+.campaign-participant-note {
+  margin-top: 0.3rem;
+  font-size: 0.9rem;
+}
+
+/* Rollen-Pill — bewusst KEIN .badge (das wäre UPPERCASE). */
+.campaign-role {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  background: #d6e4f5;
+  color: #1c2c4c;
+  white-space: nowrap;
+}
+
+/* Dokumente als Karten. */
+.campaign-document-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.6rem;
+}
+
+@media (min-width: 720px) {
+  .campaign-document-grid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+}
+
+.campaign-document-card {
+  border: 1px solid #d6dfe9;
+  border-radius: 4px;
+  padding: 0.5rem 0.8rem;
+  background: #fff;
+}
+
+.campaign-document-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.campaign-document-title {
+  font-weight: 600;
+  color: #1c2c4c;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.campaign-document-meta {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+}
+
+.campaign-doc-label {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  background: #e3d6f5;
+  color: #3a1c5c;
+  white-space: nowrap;
+}
