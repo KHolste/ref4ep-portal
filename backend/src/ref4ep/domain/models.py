@@ -81,6 +81,83 @@ MILESTONE_STATUS_LABELS_DE = {
     "cancelled": "entfallen",
 }
 
+# Block 0015 — Meeting-/Protokollregister.
+MEETING_FORMATS = ("online", "in_person", "hybrid")
+MEETING_FORMAT_LABELS_DE = {
+    "online": "online",
+    "in_person": "Präsenz",
+    "hybrid": "hybrid",
+}
+
+MEETING_CATEGORIES = (
+    "consortium",
+    "jour_fixe",
+    "workpackage",
+    "technical",
+    "review",
+    "test_campaign",
+    "other",
+)
+MEETING_CATEGORY_LABELS_DE = {
+    "consortium": "Konsortialtreffen",
+    "jour_fixe": "Jour fixe",
+    "workpackage": "Arbeitspaket-Treffen",
+    "technical": "Technisches Abstimmungstreffen",
+    "review": "Review / Freigabe",
+    "test_campaign": "Messkampagnenbesprechung",
+    "other": "Sonstiges",
+}
+
+MEETING_STATUSES = (
+    "planned",
+    "held",
+    "minutes_draft",
+    "minutes_approved",
+    "completed",
+    "cancelled",
+)
+MEETING_STATUS_LABELS_DE = {
+    "planned": "geplant",
+    "held": "durchgeführt",
+    "minutes_draft": "Protokoll in Arbeit",
+    "minutes_approved": "Protokoll abgestimmt",
+    "completed": "abgeschlossen",
+    "cancelled": "abgesagt",
+}
+
+MEETING_DECISION_STATUSES = ("open", "valid", "replaced", "revoked")
+MEETING_DECISION_STATUS_LABELS_DE = {
+    "open": "offen",
+    "valid": "gültig",
+    "replaced": "ersetzt",
+    "revoked": "aufgehoben",
+}
+
+MEETING_ACTION_STATUSES = ("open", "in_progress", "done", "cancelled")
+MEETING_ACTION_STATUS_LABELS_DE = {
+    "open": "offen",
+    "in_progress": "in Arbeit",
+    "done": "erledigt",
+    "cancelled": "entfällt",
+}
+
+MEETING_DOCUMENT_LABELS = (
+    "agenda",
+    "minutes",
+    "presentation",
+    "decision_template",
+    "attachment",
+    "other",
+)
+MEETING_DOCUMENT_LABEL_LABELS_DE = {
+    "agenda": "Agenda",
+    "minutes": "Protokoll",
+    "presentation": "Präsentation",
+    "decision_template": "Beschlussvorlage",
+    "attachment": "Anlage",
+    "other": "Sonstiges",
+}
+
 # Dokument-Enums (Sprint 2). status und visibility sind im Schema komplett
 # vorgesehen, in Sprint 2 aber konstant 'draft' / 'workpackage'. Release- und
 # Sichtbarkeits-Workflows folgen Sprint 3, öffentliche Bibliothek Sprint 4.
@@ -464,3 +541,179 @@ class Milestone(Base):
     )
 
     workpackage: Mapped[Workpackage | None] = relationship(back_populates="milestones")
+
+
+# --------------------------------------------------------------------------- #
+# Block 0015 — Meeting-/Protokollregister                                     #
+# --------------------------------------------------------------------------- #
+
+
+class Meeting(Base):
+    __tablename__ = "meeting"
+    __table_args__ = (
+        CheckConstraint("format IN ('online','in_person','hybrid')", name="ck_meeting_format"),
+        CheckConstraint(
+            "category IN ('consortium','jour_fixe','workpackage','technical',"
+            "'review','test_campaign','other')",
+            name="ck_meeting_category",
+        ),
+        CheckConstraint(
+            "status IN ('planned','held','minutes_draft','minutes_approved',"
+            "'completed','cancelled')",
+            name="ck_meeting_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    format: Mapped[str] = mapped_column(String, nullable=False, default="online")
+    location: Mapped[str | None] = mapped_column(String, nullable=True)
+    category: Mapped[str] = mapped_column(String, nullable=False, default="other")
+    status: Mapped[str] = mapped_column(String, nullable=False, default="planned")
+    summary: Mapped[str | None] = mapped_column(String, nullable=True)
+    extra_participants: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_by_id: Mapped[str] = mapped_column(String(36), ForeignKey("person.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc, onupdate=_now_utc
+    )
+
+    created_by: Mapped[Person] = relationship()
+    workpackage_links: Mapped[list[MeetingWorkpackage]] = relationship(
+        back_populates="meeting", cascade="all, delete-orphan"
+    )
+    participant_links: Mapped[list[MeetingParticipant]] = relationship(
+        back_populates="meeting", cascade="all, delete-orphan"
+    )
+    decisions: Mapped[list[MeetingDecision]] = relationship(
+        back_populates="meeting",
+        cascade="all, delete-orphan",
+        order_by="MeetingDecision.created_at",
+    )
+    actions: Mapped[list[MeetingAction]] = relationship(
+        back_populates="meeting",
+        cascade="all, delete-orphan",
+        order_by="MeetingAction.created_at",
+    )
+    document_links: Mapped[list[MeetingDocumentLink]] = relationship(
+        back_populates="meeting", cascade="all, delete-orphan"
+    )
+
+
+class MeetingWorkpackage(Base):
+    __tablename__ = "meeting_workpackage"
+
+    meeting_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("meeting.id", ondelete="CASCADE"), primary_key=True
+    )
+    workpackage_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("workpackage.id"), primary_key=True
+    )
+
+    meeting: Mapped[Meeting] = relationship(back_populates="workpackage_links")
+    workpackage: Mapped[Workpackage] = relationship()
+
+
+class MeetingParticipant(Base):
+    __tablename__ = "meeting_participant"
+
+    meeting_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("meeting.id", ondelete="CASCADE"), primary_key=True
+    )
+    person_id: Mapped[str] = mapped_column(String(36), ForeignKey("person.id"), primary_key=True)
+
+    meeting: Mapped[Meeting] = relationship(back_populates="participant_links")
+    person: Mapped[Person] = relationship()
+
+
+class MeetingDecision(Base):
+    __tablename__ = "meeting_decision"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('open','valid','replaced','revoked')",
+            name="ck_meeting_decision_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    meeting_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("meeting.id", ondelete="CASCADE"), nullable=False
+    )
+    workpackage_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("workpackage.id"), nullable=True
+    )
+    text: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="open")
+    responsible_person_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("person.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc, onupdate=_now_utc
+    )
+
+    meeting: Mapped[Meeting] = relationship(back_populates="decisions")
+    workpackage: Mapped[Workpackage | None] = relationship()
+    responsible: Mapped[Person | None] = relationship()
+
+
+class MeetingAction(Base):
+    __tablename__ = "meeting_action"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('open','in_progress','done','cancelled')",
+            name="ck_meeting_action_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    meeting_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("meeting.id", ondelete="CASCADE"), nullable=False
+    )
+    workpackage_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("workpackage.id"), nullable=True
+    )
+    responsible_person_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("person.id"), nullable=True
+    )
+    text: Mapped[str] = mapped_column(String, nullable=False)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="open")
+    note: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc, onupdate=_now_utc
+    )
+
+    meeting: Mapped[Meeting] = relationship(back_populates="actions")
+    workpackage: Mapped[Workpackage | None] = relationship()
+    responsible: Mapped[Person | None] = relationship()
+
+
+class MeetingDocumentLink(Base):
+    __tablename__ = "meeting_document_link"
+    __table_args__ = (
+        CheckConstraint(
+            "label IN ('agenda','minutes','presentation','decision_template','attachment','other')",
+            name="ck_meeting_document_link_label",
+        ),
+    )
+
+    meeting_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("meeting.id", ondelete="CASCADE"), primary_key=True
+    )
+    document_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("document.id"), primary_key=True
+    )
+    label: Mapped[str] = mapped_column(String, nullable=False, default="other")
+
+    meeting: Mapped[Meeting] = relationship(back_populates="document_links")
+    document: Mapped[Document] = relationship()

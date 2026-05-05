@@ -32,6 +32,7 @@ from ref4ep.api.routes.cockpit import router as cockpit_router
 from ref4ep.api.routes.documents import router as documents_router
 from ref4ep.api.routes.health import router as health_router
 from ref4ep.api.routes.lead import router as lead_router
+from ref4ep.api.routes.meetings import router as meetings_router
 from ref4ep.api.routes.milestones import router as milestones_router
 from ref4ep.api.routes.partners import router as partners_router
 from ref4ep.api.routes.public_documents import router as public_documents_router
@@ -98,6 +99,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(milestones_router)
     app.include_router(cockpit_router)
     app.include_router(lead_router)
+    app.include_router(meetings_router)
     app.include_router(documents_router)
     app.include_router(audit_router)
     app.include_router(admin_persons_router)

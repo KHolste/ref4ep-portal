@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0009_wp_ms"
+CURRENT_HEAD = "0010_meetings"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -486,3 +486,90 @@ def test_downgrade_to_0008_drops_milestones_and_cockpit_fields(tmp_db_path: Path
     assert "milestone" not in set(inspector.get_table_names())
     cols = {c["name"] for c in inspector.get_columns("workpackage")}
     assert cols.isdisjoint(WORKPACKAGE_COCKPIT_COLUMNS)
+
+
+# ---- Block 0015 — Meeting-/Protokollregister --------------------------
+
+
+MEETING_TABLES = {
+    "meeting",
+    "meeting_workpackage",
+    "meeting_participant",
+    "meeting_decision",
+    "meeting_action",
+    "meeting_document_link",
+}
+
+MEETING_COLUMNS = {
+    "id",
+    "title",
+    "starts_at",
+    "ends_at",
+    "format",
+    "location",
+    "category",
+    "status",
+    "summary",
+    "extra_participants",
+    "created_by_id",
+    "created_at",
+    "updated_at",
+}
+
+
+def test_meeting_tables_exist(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    tables = set(inspector.get_table_names())
+    assert MEETING_TABLES.issubset(tables)
+
+
+def test_meeting_table_has_expected_columns(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    cols = {c["name"] for c in inspector.get_columns("meeting")}
+    assert MEETING_COLUMNS == cols
+
+
+def test_meeting_workpackage_is_link_table(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    cols = {c["name"] for c in inspector.get_columns("meeting_workpackage")}
+    assert cols == {"meeting_id", "workpackage_id"}
+    fks = inspector.get_foreign_keys("meeting_workpackage")
+    referred = {fk.get("referred_table") for fk in fks}
+    assert {"meeting", "workpackage"}.issubset(referred)
+
+
+def test_meeting_document_link_columns(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    cols = {c["name"] for c in inspector.get_columns("meeting_document_link")}
+    assert cols == {"meeting_id", "document_id", "label"}
+    fks = inspector.get_foreign_keys("meeting_document_link")
+    referred = {fk.get("referred_table") for fk in fks}
+    assert {"meeting", "document"}.issubset(referred)
+
+
+def test_no_meeting_attachment_or_upload_table(tmp_db_path: Path) -> None:
+    """Block 0015 baut bewusst keinen eigenen Datei-/Upload-Pfad."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    tables = set(inspector.get_table_names())
+    for forbidden in ("meeting_file", "meeting_upload", "meeting_attachment"):
+        assert forbidden not in tables
+
+
+def test_downgrade_to_0009_drops_meeting_tables(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0009_wp_ms")
+    inspector = inspect(create_engine(db_url))
+    tables = set(inspector.get_table_names())
+    assert tables.isdisjoint(MEETING_TABLES)

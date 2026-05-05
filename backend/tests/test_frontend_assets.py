@@ -566,6 +566,68 @@ def test_lead_team_uses_organization_wording() -> None:
     assert "Person für meinen Partner anlegen" not in body
 
 
+# ---- Block 0015 — Meeting-/Protokollregister ------------------------
+
+
+def test_app_js_registers_meeting_routes() -> None:
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    assert "meetings\\/?" in body
+    assert "meeting_detail" in body
+
+
+def test_index_html_has_meetings_nav() -> None:
+    body = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    assert 'href="/portal/meetings"' in body
+    assert ">Meetings<" in body
+
+
+def test_meetings_module_uses_helpers_and_cross_nav() -> None:
+    body = (MODULES_DIR / "meetings.js").read_text(encoding="utf-8")
+    for helper in ("renderLoading", "renderError", "renderEmpty", "crossNav("):
+        assert helper in body, f"meetings.js sollte {helper!r} verwenden"
+
+
+def test_meeting_detail_has_all_sections() -> None:
+    body = (MODULES_DIR / "meeting_detail.js").read_text(encoding="utf-8")
+    for section in ("Beschlüsse", "Aufgaben", "Dokumente", "Teilnehmende", "Arbeitspakete"):
+        assert section in body, f"meeting_detail.js sollte Sektion {section!r} enthalten"
+    # Aktionen, die der Server nur anbietet, wenn can_edit gesetzt ist.
+    for action in (
+        "Meeting bearbeiten",
+        "Meeting absagen",
+        "Beschluss hinzufügen",
+        "Aufgabe hinzufügen",
+        "Dokument verknüpfen",
+        "Person hinzufügen",
+    ):
+        assert action in body, f"meeting_detail.js sollte Aktion {action!r} bieten"
+
+
+def test_meeting_detail_uses_helpers_and_cross_nav() -> None:
+    body = (MODULES_DIR / "meeting_detail.js").read_text(encoding="utf-8")
+    for helper in ("renderLoading", "renderError", "renderEmpty", "crossNav("):
+        assert helper in body
+
+
+def test_meetings_have_no_judgmental_phrases() -> None:
+    for name in ("meetings.js", "meeting_detail.js"):
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        for phrase in ("gut so", "prima", "super", "alles im Griff"):
+            assert phrase not in body, f"{name} sollte ‚{phrase}‘ nicht enthalten"
+
+
+def test_meetings_have_no_direct_file_upload() -> None:
+    """Block 0015 erlaubt explizit keinen direkten Datei-Upload im Meeting-Dialog."""
+    for name in ("meetings.js", "meeting_detail.js"):
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        # Kein input type=file und kein FormData für Uploads.
+        assert 'type: "file"' not in body
+        assert "FormData" not in body
+        # Verknüpfung erfolgt über document_id (existierende Documents).
+        if name == "meeting_detail.js":
+            assert "document_id" in body
+
+
 def test_no_javascript_string_spans_a_newline() -> None:
     """Regressionstest für ‚missing ) after argument list'.
 

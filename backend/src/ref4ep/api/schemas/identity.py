@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -348,6 +348,148 @@ class LeadAddMembershipRequest(BaseModel):
 
 class LeadSetMembershipRoleRequest(BaseModel):
     wp_role: str
+
+
+# --------------------------------------------------------------------------- #
+# Block 0015 — Meeting-/Protokollregister                                     #
+# --------------------------------------------------------------------------- #
+
+
+class MeetingWorkpackageOut(BaseModel):
+    code: str
+    title: str
+
+
+class MeetingPersonOut(BaseModel):
+    id: str
+    display_name: str
+    email: str
+
+
+class MeetingDocumentOut(BaseModel):
+    document_id: str
+    title: str
+    deliverable_code: str | None = None
+    label: str
+
+
+class MeetingDecisionOut(BaseModel):
+    id: str
+    text: str
+    status: str
+    workpackage_code: str | None = None
+    responsible_person: MeetingPersonOut | None = None
+
+
+class MeetingActionOut(BaseModel):
+    id: str
+    text: str
+    status: str
+    due_date: date | None = None
+    workpackage_code: str | None = None
+    responsible_person: MeetingPersonOut | None = None
+    note: str | None = None
+
+
+class MeetingListItemOut(BaseModel):
+    id: str
+    title: str
+    starts_at: datetime
+    ends_at: datetime | None = None
+    format: str
+    category: str
+    status: str
+    workpackages: list[MeetingWorkpackageOut] = Field(default_factory=list)
+    open_actions: int = 0
+    decisions: int = 0
+    can_edit: bool = False
+
+
+class MeetingDetailOut(BaseModel):
+    id: str
+    title: str
+    starts_at: datetime
+    ends_at: datetime | None = None
+    format: str
+    location: str | None = None
+    category: str
+    status: str
+    summary: str | None = None
+    extra_participants: str | None = None
+    created_by: MeetingPersonOut
+    workpackages: list[MeetingWorkpackageOut] = Field(default_factory=list)
+    participants: list[MeetingPersonOut] = Field(default_factory=list)
+    decisions: list[MeetingDecisionOut] = Field(default_factory=list)
+    actions: list[MeetingActionOut] = Field(default_factory=list)
+    documents: list[MeetingDocumentOut] = Field(default_factory=list)
+    can_edit: bool = False
+
+
+class MeetingCreateRequest(BaseModel):
+    title: str = Field(min_length=1)
+    starts_at: datetime
+    ends_at: datetime | None = None
+    format: str = "online"
+    location: str | None = None
+    category: str = "other"
+    status: str = "planned"
+    summary: str | None = None
+    extra_participants: str | None = None
+    workpackage_ids: list[str] = Field(default_factory=list)
+
+
+class MeetingPatchRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1)
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    format: str | None = None
+    location: str | None = None
+    category: str | None = None
+    status: str | None = None
+    summary: str | None = None
+    extra_participants: str | None = None
+    workpackage_ids: list[str] | None = None
+
+
+class MeetingParticipantAddRequest(BaseModel):
+    person_id: str = Field(min_length=36, max_length=36)
+
+
+class MeetingDecisionCreateRequest(BaseModel):
+    text: str = Field(min_length=1)
+    workpackage_id: str | None = None
+    responsible_person_id: str | None = None
+    status: str = "open"
+
+
+class MeetingDecisionPatchRequest(BaseModel):
+    text: str | None = Field(default=None, min_length=1)
+    status: str | None = None
+    workpackage_id: str | None = None
+    responsible_person_id: str | None = None
+
+
+class MeetingActionCreateRequest(BaseModel):
+    text: str = Field(min_length=1)
+    workpackage_id: str | None = None
+    responsible_person_id: str | None = None
+    due_date: date | None = None
+    status: str = "open"
+    note: str | None = None
+
+
+class MeetingActionPatchRequest(BaseModel):
+    text: str | None = Field(default=None, min_length=1)
+    status: str | None = None
+    workpackage_id: str | None = None
+    responsible_person_id: str | None = None
+    due_date: date | None = None
+    note: str | None = None
+
+
+class MeetingDocumentLinkAddRequest(BaseModel):
+    document_id: str = Field(min_length=36, max_length=36)
+    label: str = "other"
 
 
 WorkpackageDetailOut.model_rebuild()

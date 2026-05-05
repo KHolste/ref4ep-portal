@@ -13,6 +13,8 @@ const ROUTES = [
   { pattern: /^\/portal\/documents\/([^/]+)\/?$/, module: "document_detail", param: "id" },
   { pattern: /^\/portal\/partners\/([^/]+)\/?$/, module: "partner_detail", param: "id" },
   { pattern: /^\/portal\/milestones\/?$/, module: "milestones" },
+  { pattern: /^\/portal\/meetings\/?$/, module: "meetings" },
+  { pattern: /^\/portal\/meetings\/([^/]+)\/?$/, module: "meeting_detail", param: "id" },
   { pattern: /^\/portal\/lead\/team\/?$/, module: "lead_team" },
   { pattern: /^\/portal\/account\/?$/, module: "account" },
   { pattern: /^\/portal\/admin\/audit\/?$/, module: "audit" },
