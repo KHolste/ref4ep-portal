@@ -2112,3 +2112,109 @@ def test_admin_view_banner_is_dezenter() -> None:
     last_start = css.rindex(".admin-view-banner")
     snippet = css[last_start : last_start + 400]
     assert "font-size: 0.85rem" in snippet or "font-size:0.85rem" in snippet
+
+
+# ---- Cockpit-Polish: modernere Karten + bessere Typografie ----------
+
+
+def test_cockpit_polish_design_tokens_in_css() -> None:
+    """Konsistente Design-Tokens als Custom Properties — Tests
+    schützen die Token-Namen, damit das Polish-Layer stabil bleibt."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for token in (
+        "--cockpit-card-radius",
+        "--cockpit-card-bg",
+        "--cockpit-card-border",
+        "--cockpit-card-shadow",
+        "--cockpit-card-shadow-hover",
+        "--cockpit-divider",
+        "--cockpit-text-muted",
+        "--cockpit-text-strong",
+        "--cockpit-numeric-feature",
+    ):
+        assert token in css, f"style.css sollte Token {token} definieren"
+
+
+def test_cockpit_cards_have_unified_polish_overrides() -> None:
+    """Karten-Hülle (Cockpit / Mein-Bereich / Aktivitätsbox) und KPI-
+    Karten erben Radius, Schatten und konsistente Innenabstände."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Die drei Karten-Klassen teilen sich die gleiche Polish-Regel.
+    for sel in (
+        "main#app .cockpit-card,",
+        "main#app .my-area-card,",
+        "main#app .activity-box",
+    ):
+        assert sel in css, f"style.css sollte Selektor {sel!r} enthalten"
+    # KPI-Karten bekommen Schatten + Hover-Lift.
+    assert "main#app .cockpit-kpi {" in css
+    assert "main#app a.cockpit-kpi-link:hover {" in css
+    assert "transform: translateY(-1px)" in css
+    # Headerbereich pro Karte ist klar abgesetzt.
+    assert "border-bottom: 1px solid var(--cockpit-divider)" in css
+
+
+def test_cockpit_kpi_typography_is_strengthened() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Erste (Haupt-)Definition der KPI-Zahl prüfen — die spätere im
+    # @media-Block überschreibt nur die Größe für mobiles Layout.
+    start = css.index("main#app .cockpit-kpi-value")
+    snippet = css[start : start + 400]
+    assert "font-size: 2rem" in snippet
+    assert "tabular-nums" in snippet
+    # Label ruhig + leicht abgesetzt.
+    label_start = css.index("main#app .cockpit-kpi-label")
+    label_block = css[label_start : label_start + 300]
+    assert "color: var(--cockpit-text-muted)" in label_block
+
+
+def test_cockpit_my_wp_table_polish_softens_borders() -> None:
+    """Die Mini-Tabelle bekommt ruhigere Trennlinien, größere Höhe
+    und tabulare Ziffern — keine harten Standard-Tabellenränder mehr."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert "main#app .my-wp-table th" in css
+    assert "main#app .my-wp-table td" in css
+    # Letzte Zeile hat keine Trennlinie mehr (visuelle Ruhe).
+    assert "main#app .my-wp-table tbody tr:last-child td" in css
+
+
+def test_cockpit_wp_issue_card_softer_inner_sections() -> None:
+    """Die inneren Sub-Boxen verlieren ihren eigenen Rahmen — bleiben
+    aber per linkem Akzent erkennbar."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert "main#app .wp-issue-section {" in css
+    # Border-none + Linker Akzentbalken.
+    start = css.rindex("main#app .wp-issue-section {")
+    block = css[start : css.index("}", start)]
+    assert "border: none" in block
+    assert "border-left: 3px solid" in block
+
+
+def test_cockpit_empty_states_compact_polish() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Empty-States in Karten teilen sich eine Polish-Regel.
+    assert "main#app .cockpit-card .empty," in css
+    assert "main#app .my-area-card .empty" in css
+    # Sie sind nicht mehr italic, bekommen einen ruhigen Hintergrund
+    # und einen dezenten Dashed-Rahmen.
+    start = css.index("main#app .cockpit-card .empty,")
+    block = css[start : css.index("}", start)]
+    assert "font-style: normal" in block
+    assert "border: 1px dashed var(--cockpit-card-border)" in block
+
+
+def test_cockpit_module_classes_remain_unchanged() -> None:
+    """Sanity: das Polish ist rein CSS — die wichtigen Klassen aus
+    der Cockpit-Modul-Datei sind unverändert da."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    for cls in (
+        "cockpit-kpi",
+        "cockpit-kpi-value",
+        "cockpit-kpi-label",
+        "my-area-card",
+        "my-wp-table",
+        "wp-issue-card",
+        "activity-box",
+        "cockpit-grid",
+    ):
+        assert cls in body, f"cockpit.js sollte Klasse {cls!r} weiterhin verwenden"

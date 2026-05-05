@@ -2261,3 +2261,333 @@ button.button-compact {
   border-left-color: #555;
   background: #f0f2f5;
 }
+
+/* =====================================================================
+ * Cockpit-Polish — modernere Karten + bessere Typografie.
+ *
+ * Ausschließlich CSS. Keine Templates, keine Module, keine APIs
+ * geändert. Setzt selektiv höher-spezifische Regeln (über
+ * ``main#app …``), damit die bestehenden Klassen-Definitionen weiter
+ * oben unverändert bleiben und keine Tests aushebeln.
+ * ===================================================================== */
+
+:root {
+  /* Konsortiumstaugliche, ruhige Farb-/Maße-Token. */
+  --cockpit-card-radius: 8px;
+  --cockpit-card-bg: #ffffff;
+  --cockpit-card-border: #e2e8f1;
+  --cockpit-card-shadow: 0 1px 2px rgba(28, 44, 76, 0.04),
+    0 1px 3px rgba(28, 44, 76, 0.04);
+  --cockpit-card-shadow-hover: 0 1px 4px rgba(28, 44, 76, 0.08),
+    0 2px 6px rgba(28, 44, 76, 0.06);
+  --cockpit-card-padding: 1rem 1.15rem;
+  --cockpit-divider: #eef2f7;
+  --cockpit-text-muted: #5a6070;
+  --cockpit-text-strong: #1c2c4c;
+  --cockpit-numeric-feature: "tnum" 1, "lnum" 1;
+}
+
+/* ---- Generische Karten-Hülle (Cockpit-Karten + Mein-Bereich) -------- */
+
+main#app .cockpit-card,
+main#app .my-area-card,
+main#app .activity-box {
+  border-radius: var(--cockpit-card-radius);
+  border-color: var(--cockpit-card-border);
+  background: var(--cockpit-card-bg);
+  box-shadow: var(--cockpit-card-shadow);
+  padding: var(--cockpit-card-padding);
+}
+
+/* Konsistenter, weicher Headerbereich pro Karte. */
+main#app .cockpit-card > h2,
+main#app .my-area-card > h3,
+main#app .activity-box > h2 {
+  margin: 0 0 0.5rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--cockpit-divider);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--cockpit-text-strong);
+}
+
+/* Etwas mehr Luft im Grid zwischen den Cockpit-Karten. */
+main#app .cockpit-grid,
+main#app .my-area-grid {
+  gap: 1rem;
+}
+
+/* Listen in Karten ruhiger — schmale Bullets, mehr Zeilenabstand. */
+main#app .cockpit-card ul,
+main#app .my-area-card ul {
+  padding-left: 1rem;
+  margin: 0.4rem 0 0;
+  line-height: 1.5;
+}
+
+main#app .cockpit-card ul > li,
+main#app .my-area-card ul > li {
+  margin: 0.25rem 0;
+}
+
+/* „Mein Bereich"-Karten: linker Akzent dezenter, dafür kleine
+ * Tiefe — wirkt insgesamt ruhiger als der frühere harte 3px-Strich. */
+main#app .my-area-card {
+  border-left-width: 3px;
+}
+
+main#app .my-area-card.danger {
+  background: #fdf6f4;
+}
+
+/* ---- KPI-Karten verfeinern ----------------------------------------- */
+
+main#app .cockpit-kpi {
+  border-radius: var(--cockpit-card-radius);
+  border-color: var(--cockpit-card-border);
+  box-shadow: var(--cockpit-card-shadow);
+  padding: 0.85rem 1rem 0.95rem;
+  transition: box-shadow 0.15s ease, transform 0.15s ease,
+    background-color 0.15s ease;
+}
+
+main#app a.cockpit-kpi-link:hover {
+  box-shadow: var(--cockpit-card-shadow-hover);
+  transform: translateY(-1px);
+}
+
+main#app .cockpit-kpi-value {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-feature-settings: var(--cockpit-numeric-feature);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+main#app .cockpit-kpi-label {
+  margin-top: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--cockpit-text-muted);
+  letter-spacing: 0.005em;
+}
+
+main#app .cockpit-kpi-cta {
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+  opacity: 0.85;
+}
+
+/* Nullwerte dezenter — die Zahl bleibt typografisch gleich groß,
+ * aber farblich zurückgenommen, damit volle KPIs Aufmerksamkeit
+ * bekommen. */
+main#app .cockpit-kpi:not(.cockpit-kpi-danger):not(.cockpit-kpi-warning)
+  .cockpit-kpi-value {
+  color: var(--cockpit-text-strong);
+}
+
+main#app .cockpit-kpi:not(.cockpit-kpi-danger):not(.cockpit-kpi-warning)
+  .cockpit-kpi-cta {
+  color: var(--cockpit-text-strong);
+}
+
+/* Warning-Karte ruhiger akzentuiert. */
+main#app .cockpit-kpi-warning {
+  background: #fffaf0;
+}
+
+/* ---- Status-Counts-Reihe typografisch entschärfen ------------------ */
+
+main#app .cockpit-status-counts li {
+  font-size: 0.88rem;
+  color: var(--cockpit-text-muted);
+}
+
+main#app .cockpit-status-counts strong {
+  color: var(--cockpit-text-strong);
+  font-feature-settings: var(--cockpit-numeric-feature);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 1rem;
+  margin-right: 0.35rem;
+}
+
+main#app .cockpit-subhead {
+  letter-spacing: 0.06em;
+  font-size: 0.78rem;
+  color: var(--cockpit-text-muted);
+}
+
+main#app .cockpit-problem-wps th,
+main#app .cockpit-problem-wps td {
+  border-bottom-color: var(--cockpit-divider);
+}
+
+main#app .cockpit-problem-wps th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cockpit-text-muted);
+  font-weight: 600;
+}
+
+/* ---- „Meine Arbeitspakete"-Mini-Tabelle entschärfen ---------------- */
+
+main#app .my-wp-table {
+  font-size: 0.92rem;
+}
+
+main#app .my-wp-table th {
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  color: var(--cockpit-text-muted);
+  border-bottom: 1px solid var(--cockpit-card-border);
+  padding-bottom: 0.4rem;
+}
+
+main#app .my-wp-table td {
+  border-bottom: 1px solid var(--cockpit-divider);
+  padding: 0.45rem 0.4rem;
+  vertical-align: middle;
+}
+
+main#app .my-wp-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+main#app .my-wp-table .my-wp-code a {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88rem;
+  color: var(--cockpit-text-strong);
+}
+
+main#app .my-wp-table .my-wp-role {
+  text-align: right;
+}
+
+/* Lead/Member-Badges in der Tabelle visuell etwas dezenter. */
+main#app .my-wp-table .badge-lead,
+main#app .my-wp-table .badge-member {
+  padding: 0.1rem 0.55rem;
+  font-size: 0.7rem;
+}
+
+main#app .my-wp-counts {
+  color: var(--cockpit-text-muted);
+}
+
+main#app .my-wp-more > summary {
+  font-size: 0.85rem;
+  color: var(--cockpit-text-strong);
+  padding: 0.25rem 0;
+}
+
+/* ---- „Offene Punkte aus Arbeitspaketen — Auszug" ------------------- */
+
+main#app .wp-issue-card {
+  border-radius: var(--cockpit-card-radius);
+  border-color: var(--cockpit-card-border);
+  background: #fdfdfe;
+  padding: 0.9rem 1rem;
+  box-shadow: none;
+  margin: 0.65rem 0;
+}
+
+main#app .wp-issue-card .wp-issue-head h3 {
+  font-size: 0.98rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+/* Die inneren „Offene Punkte" / „Nächste Schritte"-Felder dezenter
+ * gestalten — kein eigener Rahmen mehr, dafür ruhiger Linksstrich
+ * als Akzent, klare Label, mehr Lese-Komfort im Fließtext. */
+main#app .wp-issue-section {
+  border: none;
+  background: transparent;
+  border-left: 3px solid var(--cockpit-card-border);
+  border-radius: 0;
+  padding: 0.1rem 0 0.1rem 0.75rem;
+}
+
+main#app .wp-issue-section.wp-issue-open {
+  border-left-color: #c0392b;
+}
+
+main#app .wp-issue-section.wp-issue-next {
+  border-left-color: #1c2c4c;
+}
+
+main#app .wp-issue-section .wp-issue-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--cockpit-text-muted);
+}
+
+main#app .wp-issue-section p {
+  line-height: 1.55;
+  color: #2a3140;
+}
+
+/* ---- Aktivitätsbox harmonisieren ---------------------------------- */
+
+main#app .activity-box li {
+  border-bottom-color: var(--cockpit-divider);
+}
+
+main#app .activity-box .activity-meta {
+  color: var(--cockpit-text-muted);
+}
+
+/* ---- Empty-States im Cockpit kompakter ---------------------------- */
+
+main#app .cockpit-card .empty,
+main#app .my-area-card .empty {
+  font-style: normal;
+  color: var(--cockpit-text-muted);
+  background: #f5f7fb;
+  border: 1px dashed var(--cockpit-card-border);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  margin: 0.4rem 0;
+}
+
+/* ---- Begrüßung / Hauptüberschrift ruhiger ------------------------- */
+
+main#app.page-wide > h1 {
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 0.2rem 0 0.25rem;
+}
+
+main#app.page-wide > h1 + p {
+  margin-top: 0;
+  color: var(--cockpit-text-muted);
+}
+
+/* Sektionsüberschrift „Projekt-Cockpit" ruhiger. */
+main#app.page-wide > h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  margin: 1.6rem 0 0.6rem;
+  color: var(--cockpit-text-strong);
+}
+
+/* ---- Responsives Verhalten beibehalten ---------------------------- */
+
+@media (max-width: 540px) {
+  main#app .cockpit-kpi {
+    padding: 0.7rem 0.85rem;
+  }
+  main#app .cockpit-kpi-value {
+    font-size: 1.65rem;
+  }
+  main#app .cockpit-card,
+  main#app .my-area-card,
+  main#app .activity-box {
+    padding: 0.85rem 0.95rem;
+  }
+}
