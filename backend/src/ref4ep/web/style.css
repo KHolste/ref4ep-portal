@@ -439,6 +439,13 @@ details.collapsible[open] > summary {
   background: #8a1c1c;
 }
 
+/* Hard-Delete-Button (Admin-only) — etwas dunkler und mit fettem
+ * Rand hervorgehoben, damit er sich vom „Absagen"-Button absetzt. */
+.actions button.meeting-delete {
+  background: #5e0f0f;
+  border: 1px solid #2a0606;
+}
+
 .badge {
   display: inline-block;
   padding: 0.1rem 0.5rem;

@@ -347,6 +347,48 @@ class MeetingService:
             "workpackage_ids": sorted(link.workpackage_id for link in meeting.workpackage_links),
         }
 
+    def delete_meeting_admin(self, meeting_id: str) -> None:
+        """Hard-Delete eines Meetings durch einen Admin.
+
+        Bewusst eng gefasst: nur Plattform-``admin`` darf löschen — auch
+        WP-Leads des betroffenen Arbeitspakets nicht. Abhängige
+        Datensätze (``meeting_workpackage``, ``meeting_participant``,
+        ``meeting_decision``, ``meeting_action``,
+        ``meeting_document_link``) werden über die SQLAlchemy-
+        ``cascade="all, delete-orphan"``-Beziehungen am ``Meeting``
+        mitentfernt — unabhängig davon, ob SQLite ``PRAGMA
+        foreign_keys`` gesetzt hat. Verknüpfte ``Document``-Zeilen
+        bleiben bestehen, weil ``MeetingDocumentLink`` nur die
+        Verknüpfung modelliert.
+
+        Audit-Aktion: ``meeting.delete`` mit Snapshot ``meeting_id``,
+        ``title``, ``starts_at`` und betroffenen WP-Codes — keine
+        sensiblen Inhalte.
+        """
+        if not self._is_admin():
+            raise PermissionError("Nur Admin darf Meetings hart löschen.")
+        meeting = self.get(meeting_id)
+        if meeting is None:
+            raise LookupError(f"Meeting {meeting_id} nicht gefunden.")
+        # Snapshot vor dem Löschen — danach sind die Beziehungen weg.
+        snapshot: dict[str, object] = {
+            "meeting_id": meeting.id,
+            "title": meeting.title,
+            "starts_at": meeting.starts_at.isoformat() if meeting.starts_at else None,
+            "workpackage_codes": sorted(
+                link.workpackage.code for link in meeting.workpackage_links
+            ),
+        }
+        self.session.delete(meeting)
+        self.session.flush()
+        if self.audit is not None:
+            self.audit.log(
+                "meeting.delete",
+                entity_type="meeting",
+                entity_id=snapshot["meeting_id"],  # type: ignore[arg-type]
+                before=snapshot,
+            )
+
     # ---- Teilnehmende ---------------------------------------------------
 
     def add_participant(self, meeting_id: str, person_id: str) -> MeetingParticipant:

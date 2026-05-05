@@ -256,8 +256,10 @@ def test_admin_can_cancel_meeting(admin_client: TestClient, seeded_session: Sess
     assert r.json()["status"] == "cancelled"
 
 
-def test_no_hard_delete_endpoint() -> None:
-    """Block 0015 erlaubt explizit keinen DELETE für Meetings."""
+def test_delete_meeting_route_is_admin_only_route_exists() -> None:
+    """Block 0016: ``DELETE /api/meetings/{id}`` existiert jetzt
+    (Admin-only, CSRF-geschützt). Vorher gab es keinen Hard-Delete.
+    """
     from ref4ep.api.app import create_app
     from ref4ep.api.config import Settings
 
@@ -274,7 +276,164 @@ def test_no_hard_delete_endpoint() -> None:
         if getattr(r, "path", "") == "/api/meetings/{meeting_id}"
         and "DELETE" in getattr(r, "methods", set())
     ]
-    assert delete_meeting == []
+    assert len(delete_meeting) == 1
+
+
+# ---- Hard-Delete (Block 0016) -----------------------------------------
+
+
+def test_anonymous_cannot_delete_meeting(
+    client: TestClient, seeded_session: Session, admin_person_id: str
+) -> None:
+    meeting_id = _create_meeting_via_service(seeded_session, wp_codes=[])
+    client.cookies.clear()
+    r = client.delete(f"/api/meetings/{meeting_id}")
+    assert r.status_code in (401, 403)
+
+
+def test_member_cannot_delete_meeting(
+    member_client: TestClient,
+    seeded_session: Session,
+    member_in_wp3,
+    admin_person_id: str,
+) -> None:
+    meeting_id = _create_meeting_via_service(seeded_session, wp_codes=[])
+    r = member_client.delete(f"/api/meetings/{meeting_id}", headers=_csrf(member_client))
+    assert r.status_code == 403
+
+
+def test_wp_lead_cannot_delete_meeting_even_if_own_wp(
+    member_client: TestClient,
+    seeded_session: Session,
+    lead_in_wp3,
+    admin_person_id: str,
+) -> None:
+    """WP-Lead darf Meetings *seines* WPs absagen, aber nicht hart löschen."""
+    meeting_id = _create_meeting_via_service(seeded_session, wp_codes=["WP3"])
+    r = member_client.delete(f"/api/meetings/{meeting_id}", headers=_csrf(member_client))
+    assert r.status_code == 403
+
+
+def test_admin_can_delete_meeting(admin_client: TestClient, seeded_session: Session) -> None:
+    created = admin_client.post(
+        "/api/meetings",
+        json={"title": "Zum Löschen", "starts_at": _starts_at(), "workpackage_ids": []},
+        headers=_csrf(admin_client),
+    ).json()
+    r = admin_client.delete(f"/api/meetings/{created['id']}", headers=_csrf(admin_client))
+    assert r.status_code == 204
+    # Nachfolgender GET liefert 404.
+    r2 = admin_client.get(f"/api/meetings/{created['id']}")
+    assert r2.status_code == 404
+
+
+def test_delete_requires_csrf(admin_client: TestClient, seeded_session: Session) -> None:
+    meeting_id = _create_meeting_via_service(seeded_session, wp_codes=[])
+    r = admin_client.delete(f"/api/meetings/{meeting_id}")
+    assert r.status_code == 403
+
+
+def test_delete_unknown_meeting_returns_404(admin_client: TestClient) -> None:
+    r = admin_client.delete(
+        "/api/meetings/00000000-0000-0000-0000-000000000000",
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 404
+
+
+def test_delete_cascades_links_but_keeps_documents_persons_workpackages(
+    admin_client: TestClient, seeded_session: Session, member_person_id: str
+) -> None:
+    """Hard-Delete entfernt MeetingDocumentLink, MeetingAction etc. —
+    aber nicht das verknüpfte Dokument, nicht Personen, nicht WPs."""
+    from ref4ep.domain.models import (
+        Document,
+        MeetingAction,
+        MeetingDecision,
+        MeetingDocumentLink,
+        MeetingParticipant,
+        MeetingWorkpackage,
+        Person,
+        Workpackage,
+    )
+    from ref4ep.services.document_service import DocumentService
+    from ref4ep.services.permissions import AuthContext
+
+    # Dokument anlegen.
+    admin = seeded_session.query(Person).filter_by(email="admin@test.example").one()
+    auth = AuthContext(person_id=admin.id, email=admin.email, platform_role="admin", memberships=[])
+    doc = DocumentService(seeded_session, auth=auth).create(
+        workpackage_code="WP1.1",
+        title="Test-Protokoll",
+        document_type="report",
+    )
+    seeded_session.commit()
+
+    # Meeting via API anlegen, mit WP3.1 + Beschluss + Aufgabe + Doc-Link + Teilnehmender.
+    wp = WorkpackageService(seeded_session).get_by_code("WP3.1")
+    assert wp is not None
+    created = admin_client.post(
+        "/api/meetings",
+        json={
+            "title": "Vollkomplex",
+            "starts_at": _starts_at(),
+            "workpackage_ids": [wp.id],
+        },
+        headers=_csrf(admin_client),
+    ).json()
+    mid = created["id"]
+    admin_client.post(
+        f"/api/meetings/{mid}/decisions",
+        json={"text": "B"},
+        headers=_csrf(admin_client),
+    )
+    admin_client.post(
+        f"/api/meetings/{mid}/actions",
+        json={"text": "A"},
+        headers=_csrf(admin_client),
+    )
+    admin_client.post(
+        f"/api/meetings/{mid}/participants",
+        json={"person_id": member_person_id},
+        headers=_csrf(admin_client),
+    )
+    admin_client.post(
+        f"/api/meetings/{mid}/documents",
+        json={"document_id": doc.id, "label": "minutes"},
+        headers=_csrf(admin_client),
+    )
+
+    # Hard-Delete.
+    r = admin_client.delete(f"/api/meetings/{mid}", headers=_csrf(admin_client))
+    assert r.status_code == 204
+
+    seeded_session.expire_all()
+    # Alle abhängigen Datensätze sind weg …
+    assert seeded_session.query(MeetingWorkpackage).filter_by(meeting_id=mid).count() == 0
+    assert seeded_session.query(MeetingParticipant).filter_by(meeting_id=mid).count() == 0
+    assert seeded_session.query(MeetingDecision).filter_by(meeting_id=mid).count() == 0
+    assert seeded_session.query(MeetingAction).filter_by(meeting_id=mid).count() == 0
+    assert seeded_session.query(MeetingDocumentLink).filter_by(meeting_id=mid).count() == 0
+    # … aber Dokument, Personen, Workpackage bleiben erhalten.
+    assert seeded_session.get(Document, doc.id) is not None
+    assert seeded_session.get(Person, member_person_id) is not None
+    assert seeded_session.get(Workpackage, wp.id) is not None
+
+
+def test_audit_records_meeting_delete(admin_client: TestClient, seeded_session: Session) -> None:
+    created = admin_client.post(
+        "/api/meetings",
+        json={"title": "Mit Audit", "starts_at": _starts_at(), "workpackage_ids": []},
+        headers=_csrf(admin_client),
+    ).json()
+    admin_client.delete(f"/api/meetings/{created['id']}", headers=_csrf(admin_client))
+    seeded_session.expire_all()
+    entries = seeded_session.query(AuditLog).filter_by(action="meeting.delete").all()
+    assert entries, "Audit-Eintrag meeting.delete fehlt"
+    last = entries[-1]
+    details = last.details or ""
+    assert "Mit Audit" in details
+    assert "meeting_id" in details
 
 
 # ---- Decisions ---------------------------------------------------------

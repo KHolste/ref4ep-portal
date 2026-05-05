@@ -655,6 +655,42 @@ def test_meeting_detail_edit_form_uses_clearer_wp_label() -> None:
     assert "Zugehörige Arbeitspakete" in body
 
 
+# ---- Block 0016 — Hard-Delete (Admin-only) ----------------------------
+
+
+def test_meeting_detail_has_admin_delete_button() -> None:
+    body = (MODULES_DIR / "meeting_detail.js").read_text(encoding="utf-8")
+    # Admin-only Lösch-Button mit deutscher Beschriftung.
+    assert "Meeting löschen …" in body
+    # Lösch-Button ist Admin-only — Sichtbarkeitscheck via platform_role.
+    assert 'platform_role === "admin"' in body
+    # Tooltip oder Klassenmarkierung ist „Admin"-spezifisch.
+    assert "meeting-delete" in body
+
+
+def test_meeting_detail_delete_uses_delete_endpoint_and_redirect() -> None:
+    body = (MODULES_DIR / "meeting_detail.js").read_text(encoding="utf-8")
+    # DELETE auf /api/meetings/${meeting.id}.
+    assert 'api("DELETE", `/api/meetings/${meeting.id}`)' in body
+    # Nach Erfolg zurück zur Meetingliste.
+    assert '"/portal/meetings"' in body
+
+
+def test_meeting_detail_delete_confirm_text() -> None:
+    body = (MODULES_DIR / "meeting_detail.js").read_text(encoding="utf-8")
+    # Confirm-Text muss „endgültig löschen" und „nicht rückgängig" enthalten.
+    assert "endgültig löschen" in body
+    assert "kann nicht rückgängig gemacht werden" in body
+
+
+def test_meetings_list_has_no_delete_button() -> None:
+    """Der Lösch-Pfad ist nur auf der Detailseite — die Liste bleibt ohne."""
+    body = (MODULES_DIR / "meetings.js").read_text(encoding="utf-8")
+    assert "Meeting löschen" not in body
+    # Auch keine direkte DELETE-API-Nutzung in der Liste.
+    assert 'api("DELETE"' not in body
+
+
 def test_meetings_have_no_direct_file_upload() -> None:
     """Block 0015 erlaubt explizit keinen direkten Datei-Upload im Meeting-Dialog."""
     for name in ("meetings.js", "meeting_detail.js"):

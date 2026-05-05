@@ -810,6 +810,25 @@ export async function render(container, ctx) {
     }
   }
 
+  async function onDeleteMeeting() {
+    // Hard-Delete — bewusst zusätzlich zum confirm()-Schutz nur Admins
+    // angeboten (Server lehnt sonst mit 403 ab). Spätere Variante mit
+    // explizitem „LÖSCHEN"-Eingabefeld ist als offener Punkt notiert.
+    if (
+      !confirm(
+        "Dieses Meeting wirklich endgültig löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+      )
+    ) {
+      return;
+    }
+    try {
+      await api("DELETE", `/api/meetings/${meeting.id}`);
+      window.location.href = "/portal/meetings";
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
   function onAddDecision() {
     showDialog(
       "Beschluss hinzufügen",
@@ -933,20 +952,42 @@ export async function render(container, ctx) {
     }
   }
 
+  // Plattform-Admin? Hard-Delete ist Admin-only, unabhängig vom
+  // ``meeting.can_edit``-Flag (auch WP-Leads dürfen NICHT löschen).
+  const isAdmin = ctx?.me?.person?.platform_role === "admin";
+
   function rerender() {
-    const headerActions = meeting.can_edit
-      ? h(
-          "div",
-          { class: "actions" },
-          h("button", { type: "button", onclick: onEditMeeting }, "Meeting bearbeiten …"),
-          meeting.status === "cancelled"
-            ? null
-            : h(
-                "button",
-                { type: "button", class: "danger", onclick: onCancelMeeting },
-                "Meeting absagen …",
-              ),
-        )
+    const actionButtons = [];
+    if (meeting.can_edit) {
+      actionButtons.push(
+        h("button", { type: "button", onclick: onEditMeeting }, "Meeting bearbeiten …"),
+      );
+      if (meeting.status !== "cancelled") {
+        actionButtons.push(
+          h(
+            "button",
+            { type: "button", class: "danger", onclick: onCancelMeeting },
+            "Meeting absagen …",
+          ),
+        );
+      }
+    }
+    if (isAdmin) {
+      actionButtons.push(
+        h(
+          "button",
+          {
+            type: "button",
+            class: "danger meeting-delete",
+            title: "Endgültiges Löschen — nur Admin",
+            onclick: onDeleteMeeting,
+          },
+          "Meeting löschen …",
+        ),
+      );
+    }
+    const headerActions = actionButtons.length
+      ? h("div", { class: "actions" }, ...actionButtons)
       : null;
 
     container.replaceChildren(

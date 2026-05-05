@@ -280,6 +280,30 @@ def cancel_meeting(
     return _detail(meeting, can_edit=True)
 
 
+@router.delete(
+    "/meetings/{meeting_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_csrf)],
+)
+def delete_meeting(
+    meeting_id: str,
+    actor: ActorDep,
+    session: SessionDep,
+    audit: AuditDep,
+) -> Response:
+    """Hard-Delete eines Meetings — ausschließlich Plattform-``admin``.
+
+    Bewusst eng gefasst: WP-Leads können Meetings nur über
+    ``POST /api/meetings/{id}/cancel`` zum Status ``cancelled`` bringen.
+    """
+    service = _service(session, actor, audit=audit)
+    try:
+        service.delete_meeting_admin(meeting_id)
+    except Exception as exc:  # noqa: BLE001
+        raise _http_error(exc) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 # ---- Teilnehmende ------------------------------------------------------
 
 
