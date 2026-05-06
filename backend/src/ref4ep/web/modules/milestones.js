@@ -8,6 +8,7 @@ import {
   api,
   crossNav,
   h,
+  pageHeader,
   renderEmpty,
   renderError,
   renderLoading,
@@ -203,10 +204,8 @@ export async function render(container, _ctx) {
 
   function header() {
     return [
-      h("h1", {}, "Meilensteine"),
-      h(
-        "p",
-        { class: "muted" },
+      pageHeader(
+        "Meilensteine",
         "Projekt-Meilensteine aus dem Antrag. Bearbeiten dürfen Admins und der WP-Lead des Meilenstein-Arbeitspakets; den Gesamtprojekt-Meilenstein nur Admins.",
       ),
     ];

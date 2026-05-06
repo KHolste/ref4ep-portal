@@ -5,7 +5,15 @@
 // WP-Lead des Partners). ``internal_note`` kommt nur für
 // Admins über die API.
 
-import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
+import {
+  api,
+  crossNav,
+  h,
+  pageHeader,
+  renderEmpty,
+  renderError,
+  renderLoading,
+} from "/portal/common.js";
 
 function nullIfBlank(value) {
   const v = (value || "").trim();
@@ -528,24 +536,21 @@ export async function render(container, ctx) {
   container.classList.add("page-wide");
   const partnerId = ctx.params.id;
   container.replaceChildren(
-    h("h1", {}, "Partner"),
+    pageHeader("Partner"),
     renderLoading("Partnerdaten werden geladen …"),
   );
   let partner;
   try {
     partner = await api("GET", `/api/partners/${partnerId}`);
   } catch (err) {
-    container.replaceChildren(h("h1", {}, "Partner"), renderError(err));
+    container.replaceChildren(pageHeader("Partner"), renderError(err));
     return;
   }
 
   let editing = false;
 
   async function rerender() {
-    const headerRow = h(
-      "div",
-      { class: "section-header" },
-      h("h1", {}, partner.name),
+    const editBtn =
       partner.can_edit && !editing
         ? h(
             "button",
@@ -558,8 +563,8 @@ export async function render(container, ctx) {
             },
             "Stammdaten bearbeiten …",
           )
-        : null,
-    );
+        : null;
+    const headerRow = pageHeader(partner.name, null, { actions: editBtn });
 
     const breadcrumbs = h(
       "p",

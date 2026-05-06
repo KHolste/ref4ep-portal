@@ -12,7 +12,7 @@
 // Reine Lesesicht. Es gibt absichtlich nur einen „Aktualisieren"-Button —
 // keine destruktiven Aktionen und keine Schreibpfade in diesem Modul.
 
-import { api, crossNav, h, renderError, renderLoading } from "/portal/common.js";
+import { api, crossNav, h, pageHeader, renderError, renderLoading } from "/portal/common.js";
 
 const HEALTH_LABELS = {
   ok: "OK",
@@ -233,10 +233,8 @@ function renderAll(container, status, onRefresh) {
     "Aktualisieren",
   );
   container.replaceChildren(
-    h("h1", {}, "Systemstatus"),
-    h(
-      "p",
-      { class: "muted" },
+    pageHeader(
+      "Systemstatus",
       "Betriebs- und Smoke-Test-Werte für Admins. Keine destruktiven Aktionen — nur Lesesicht.",
     ),
     h("div", { class: "actions" }, refreshBtn),
@@ -259,14 +257,14 @@ export async function render(container, _ctx) {
   container.classList.add("page-wide");
   async function load() {
     container.replaceChildren(
-      h("h1", {}, "Systemstatus"),
+      pageHeader("Systemstatus"),
       renderLoading("Systemstatus wird geladen …"),
     );
     let status;
     try {
       status = await api("GET", "/api/admin/system/status");
     } catch (err) {
-      container.replaceChildren(h("h1", {}, "Systemstatus"), renderError(err));
+      container.replaceChildren(pageHeader("Systemstatus"), renderError(err));
       return;
     }
     renderAll(container, status, load);

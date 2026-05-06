@@ -19,6 +19,7 @@ import {
   getLastSeenAt,
   h,
   markSeenNow,
+  pageHeader,
   renderEmpty,
   renderError,
   renderLoading,
@@ -654,16 +655,20 @@ export async function render(container, ctx) {
   const me = ctx.me;
   const isAdminView = effectivePlatformRole(me.person) === "admin";
 
-  const greeting = h("h1", {}, `Willkommen, ${me.person.display_name}`);
   const partnerLine = h(
     "p",
-    {},
+    { class: "page-meta" },
     `Partner: ${me.person.partner.name} (${me.person.partner.short_name}) — `,
     h(
       "a",
       { href: `/portal/partners/${me.person.partner.id}` },
       "Stammdaten anzeigen / bearbeiten",
     ),
+  );
+  const greeting = pageHeader(
+    `Willkommen, ${me.person.display_name}`,
+    "Persönliche Sicht und aktuelle Projektkennzahlen — alles auf einer Seite.",
+    { meta: partnerLine },
   );
 
   // Slots werden in einer Reihenfolge zusammengesteckt, die sich nach der
@@ -696,7 +701,6 @@ export async function render(container, ctx) {
 
   container.replaceChildren(
     greeting,
-    partnerLine,
     kpiSlot,
     ...orderedBlocks,
     activitySlot,

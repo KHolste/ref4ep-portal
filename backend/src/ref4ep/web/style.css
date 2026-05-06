@@ -3081,3 +3081,588 @@ main#app form.stacked .field-hint {
     padding: 0.85rem 0.95rem;
   }
 }
+
+/* =====================================================================
+ * RESEARCH PORTAL DESIGN SYSTEM (USWDS-/Carbon-orientiert)
+ *
+ * Portal-weites, wiederverwendbares Layout- und Komponentenset.
+ * Hier liegen Tokens und Klassen, die jede Modulseite einheitlich
+ * verwenden soll: Page-Header, Section-Card, Filter-Bar, Data-Table,
+ * Status-Badge, Empty-State, Meta-Row, Toolbar, Action-Row.
+ *
+ * Kein Bootstrap, kein Tailwind, kein externer Font, keine Icons.
+ * Alle Werte sind ruhig gewählt (kleine Radien, sehr leichte
+ * Schatten, sachliche Status-Farbpalette), damit das Portal nach
+ * einem Forschungs-/Behördenwerkzeug aussieht und nicht nach SaaS-
+ * Dashboard.
+ *
+ * Dieser Block überschreibt bewusst frühere Karten-/Tabellen-/Badge-
+ * Regeln durch Cascade-Reihenfolge bei gleicher Spezifität, sodass
+ * die alten Klassen (.cockpit-card, .wp-card, .badge usw.) optisch
+ * an das neue System angeglichen werden, ohne dass Bestandsmodule
+ * umgebaut werden müssen.
+ * ================================================================= */
+
+:root {
+  /* Surfaces */
+  --rds-surface-canvas: #f3f5f9;
+  --rds-surface-raised: #ffffff;
+  --rds-surface-soft: #f6f8fc;
+  --rds-surface-strong: #eef2f7;
+
+  /* Borders */
+  --rds-border: #dde3ee;
+  --rds-border-strong: #cdd6e4;
+  --rds-divider: #eef2f7;
+
+  /* Text */
+  --rds-text: #1a2237;
+  --rds-text-muted: #5a6070;
+  --rds-text-subtle: #6b7180;
+  --rds-text-strong: #1c2c4c;
+  --rds-link: #265b8e;
+
+  /* Status (USWDS-inspirierte ruhige Palette) */
+  --rds-status-ok-bg: #e6f1eb;
+  --rds-status-ok-fg: #1f5a3b;
+  --rds-status-warn-bg: #fbf1d6;
+  --rds-status-warn-fg: #6e530c;
+  --rds-status-err-bg: #fbe7e6;
+  --rds-status-err-fg: #7a1c19;
+  --rds-status-info-bg: #e8f1fa;
+  --rds-status-info-fg: #1f4977;
+  --rds-status-neutral-bg: #eceff5;
+  --rds-status-neutral-fg: #3a4258;
+
+  /* Spacing */
+  --rds-space-1: 0.25rem;
+  --rds-space-2: 0.5rem;
+  --rds-space-3: 0.75rem;
+  --rds-space-4: 1rem;
+  --rds-space-5: 1.25rem;
+  --rds-space-6: 1.5rem;
+  --rds-space-8: 2rem;
+  --rds-space-10: 2.5rem;
+
+  /* Radii */
+  --rds-radius-sm: 4px;
+  --rds-radius-md: 6px;
+  --rds-radius-lg: 8px;
+
+  /* Shadows */
+  --rds-shadow-sm: 0 1px 2px rgba(28, 44, 76, 0.04);
+  --rds-shadow-md: 0 1px 4px rgba(28, 44, 76, 0.07),
+    0 2px 8px rgba(28, 44, 76, 0.04);
+
+  /* Type-Skala */
+  --rds-fs-page-title: 1.7rem;
+  --rds-fs-section-title: 0.78rem;
+  --rds-fs-card-title: 1rem;
+  --rds-fs-meta: 0.82rem;
+  --rds-fs-data: 0.92rem;
+  --rds-fs-badge: 0.7rem;
+
+  /* Numerik (Tabellen, KPI) */
+  --rds-numeric: "tnum" 1, "lnum" 1;
+}
+
+/* ---- Body / Canvas ------------------------------------------------- */
+
+body {
+  background: var(--rds-surface-canvas);
+  color: var(--rds-text);
+}
+
+/* ---- Page-Shell + Page-Header ------------------------------------- */
+/* Das Page-Shell ist die optionale äußere Hülle einer Modulseite. Es
+ * legt nur Abstände und Stapelung fest; die Breite kommt weiterhin von
+ * ``main#app`` bzw. ``main#app.page-wide``. */
+
+main#app .page-shell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rds-space-6);
+}
+
+main#app .page-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rds-space-2);
+  padding: 0 0 var(--rds-space-4) 0;
+  margin: 0 0 var(--rds-space-4) 0;
+  border-bottom: 1px solid var(--rds-divider);
+}
+
+main#app .page-header > .page-title {
+  margin: 0;
+  font-size: var(--rds-fs-page-title);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--rds-text-strong);
+  line-height: 1.2;
+}
+
+main#app .page-header > .page-subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--rds-text-muted);
+  max-width: 65ch;
+  line-height: 1.5;
+}
+
+main#app .page-header .page-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+  margin-top: var(--rds-space-1);
+}
+
+main#app .page-header .page-meta strong {
+  color: var(--rds-text-strong);
+  font-weight: 600;
+}
+
+/* ---- Section-Header (Trenner über mehreren Karten) ---------------- */
+
+main#app .section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rds-space-3);
+  margin: var(--rds-space-6) 0 var(--rds-space-3) 0;
+  flex-wrap: wrap;
+}
+
+main#app .section-header > .section-title {
+  margin: 0;
+  font-size: var(--rds-fs-section-title);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--rds-text-strong);
+}
+
+main#app .section-header > .section-subtitle {
+  margin: 0;
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+}
+
+/* ---- Section-Card (universelle Karten-Hülle) ---------------------- */
+
+main#app .section-card {
+  background: var(--rds-surface-raised);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-lg);
+  padding: var(--rds-space-5);
+  box-shadow: var(--rds-shadow-sm);
+}
+
+main#app .section-card > .section-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rds-space-3);
+  padding-bottom: var(--rds-space-3);
+  margin-bottom: var(--rds-space-4);
+  border-bottom: 1px solid var(--rds-divider);
+  flex-wrap: wrap;
+}
+
+main#app .section-card > .section-card-header > h2,
+main#app .section-card > .section-card-header > h3 {
+  margin: 0;
+  font-size: var(--rds-fs-card-title);
+  font-weight: 600;
+  color: var(--rds-text-strong);
+  letter-spacing: 0;
+}
+
+main#app .section-card > .section-card-header > .section-card-meta {
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+}
+
+/* ---- Card-Grid (responsives Kartenraster) ------------------------- */
+
+main#app .card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--rds-space-4);
+}
+
+main#app .card-grid--wide {
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+}
+
+main#app .card-grid--metric {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+/* ---- Metric-Card (KPI-Karte) -------------------------------------- */
+
+main#app .metric-card {
+  background: var(--rds-surface-raised);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-sm);
+  padding: var(--rds-space-4) var(--rds-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--rds-space-1);
+}
+
+main#app .metric-card > .metric-label {
+  font-size: var(--rds-fs-meta);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--rds-text-muted);
+}
+
+main#app .metric-card > .metric-value {
+  font-size: 1.7rem;
+  font-weight: 600;
+  font-feature-settings: var(--rds-numeric);
+  color: var(--rds-text-strong);
+  line-height: 1.1;
+}
+
+main#app .metric-card > .metric-hint {
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+}
+
+/* ---- Filter-Bar ---------------------------------------------------- */
+
+main#app .filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rds-space-3) var(--rds-space-4);
+  align-items: end;
+  padding: var(--rds-space-3) var(--rds-space-4);
+  background: var(--rds-surface-soft);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-md);
+}
+
+main#app .filter-bar > label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rds-space-1);
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+  min-width: 11ch;
+}
+
+main#app .filter-bar > label.checkbox-row {
+  flex-direction: row;
+  align-items: center;
+  min-width: auto;
+  color: var(--rds-text);
+  font-size: var(--rds-fs-data);
+}
+
+main#app .filter-bar input,
+main#app .filter-bar select {
+  border: 1px solid var(--rds-border-strong);
+  border-radius: var(--rds-radius-sm);
+  padding: 0.35rem 0.5rem;
+  background: var(--rds-surface-raised);
+  font-size: var(--rds-fs-data);
+  color: var(--rds-text);
+  min-height: 2.1rem;
+}
+
+main#app .filter-bar input:focus,
+main#app .filter-bar select:focus {
+  outline: 2px solid var(--rds-link);
+  outline-offset: 1px;
+  border-color: var(--rds-link);
+}
+
+main#app .filter-bar .filter-bar-actions {
+  display: flex;
+  gap: var(--rds-space-2);
+  margin-left: auto;
+  align-self: end;
+  flex-wrap: wrap;
+}
+
+/* ---- Data-Table ---------------------------------------------------- */
+
+main#app .data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--rds-fs-data);
+  background: var(--rds-surface-raised);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-md);
+  overflow: hidden;
+}
+
+main#app .data-table thead th {
+  text-align: left;
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--rds-text-muted);
+  background: var(--rds-surface-soft);
+  border-bottom: 1px solid var(--rds-border-strong);
+  padding: var(--rds-space-2) var(--rds-space-3);
+}
+
+main#app .data-table tbody td {
+  padding: var(--rds-space-3);
+  border-bottom: 1px solid var(--rds-divider);
+  vertical-align: top;
+  color: var(--rds-text);
+}
+
+main#app .data-table tbody tr:hover {
+  background: var(--rds-surface-soft);
+}
+
+main#app .data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+main#app .data-table .num,
+main#app .data-table td.num {
+  text-align: right;
+  font-feature-settings: var(--rds-numeric);
+}
+
+/* ---- Status-Badge (vereinheitlicht) ------------------------------- */
+
+main#app .status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.55rem;
+  font-size: var(--rds-fs-badge);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  background: var(--rds-status-neutral-bg);
+  color: var(--rds-status-neutral-fg);
+  white-space: nowrap;
+  border: none;
+}
+
+main#app .status-badge--ok {
+  background: var(--rds-status-ok-bg);
+  color: var(--rds-status-ok-fg);
+}
+main#app .status-badge--warn {
+  background: var(--rds-status-warn-bg);
+  color: var(--rds-status-warn-fg);
+}
+main#app .status-badge--err {
+  background: var(--rds-status-err-bg);
+  color: var(--rds-status-err-fg);
+}
+main#app .status-badge--info {
+  background: var(--rds-status-info-bg);
+  color: var(--rds-status-info-fg);
+}
+main#app .status-badge--neutral {
+  background: var(--rds-status-neutral-bg);
+  color: var(--rds-status-neutral-fg);
+}
+
+/* Bestehende ``.badge``-Klasse an dieselbe Pillenform angleichen, damit
+ * Module, die noch nicht auf ``.status-badge`` umgestellt sind, ebenfalls
+ * von der ruhigen Optik profitieren. */
+main#app .badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  font-size: var(--rds-fs-badge);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  background: var(--rds-status-neutral-bg);
+  color: var(--rds-status-neutral-fg);
+  border: none;
+}
+
+/* ---- Toolbar / Action-Row ----------------------------------------- */
+
+main#app .toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rds-space-3);
+  align-items: center;
+}
+
+main#app .action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rds-space-2);
+  align-items: center;
+}
+
+main#app .action-row--end {
+  justify-content: flex-end;
+}
+
+/* ---- Meta-Row (Label/Value-Paare in Detailseiten) ----------------- */
+
+main#app .meta-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 12rem) 1fr;
+  gap: var(--rds-space-3);
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--rds-divider);
+  font-size: var(--rds-fs-data);
+  align-items: baseline;
+}
+
+main#app .meta-row:last-child {
+  border-bottom: none;
+}
+
+main#app .meta-label {
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+main#app .meta-value {
+  color: var(--rds-text);
+  font-feature-settings: var(--rds-numeric);
+}
+
+main#app .meta-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Empty-State (USWDS-artig, mit Atemraum) ---------------------- */
+
+main#app .empty-state {
+  background: var(--rds-surface-soft);
+  border: 1px dashed var(--rds-border-strong);
+  border-radius: var(--rds-radius-lg);
+  padding: var(--rds-space-8) var(--rds-space-6);
+  text-align: center;
+  color: var(--rds-text-muted);
+}
+
+main#app .empty-state-title {
+  margin: 0 0 var(--rds-space-2) 0;
+  color: var(--rds-text-strong);
+  font-size: var(--rds-fs-card-title);
+  font-weight: 600;
+}
+
+main#app .empty-state-description {
+  margin: 0 auto;
+  max-width: 50ch;
+  font-size: var(--rds-fs-data);
+  color: var(--rds-text-muted);
+  line-height: 1.55;
+}
+
+/* ---- Bestehende Karten-Klassen ans System koppeln ----------------- */
+/* Die folgenden Klassen werden in zahlreichen Modulen verwendet. Hier
+ * ziehen wir sie auf das einheitliche Surface/Border/Shadow-Set. */
+
+main#app .cockpit-card,
+main#app .my-area-card,
+main#app .activity-box,
+main#app .wp-card,
+main#app .campaign-card,
+main#app .timeline-card,
+main#app .system-card,
+main#app .lead-wp-card,
+main#app .meeting-print {
+  background: var(--rds-surface-raised);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-sm);
+}
+
+main#app .cockpit-card:hover,
+main#app .wp-card:hover,
+main#app .campaign-card:hover,
+main#app .system-card:hover,
+main#app .lead-wp-card:hover,
+main#app .timeline-card:hover {
+  box-shadow: var(--rds-shadow-md);
+}
+
+/* Bestehende Filterbox an das Filter-Bar-Vokabular angleichen (für
+ * Module, die noch nicht auf .filter-bar umgestellt sind). */
+main#app .filterbox {
+  background: var(--rds-surface-soft);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-md);
+}
+
+/* Bestehende rohe Tabellen entschärfen — höhere Spezifität als die
+ * Sprint-1-Regel, deshalb hier am Ende. */
+main#app th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--rds-text-muted);
+  background: var(--rds-surface-soft);
+  border-bottom: 1px solid var(--rds-border-strong);
+}
+
+main#app td {
+  border-bottom: 1px solid var(--rds-divider);
+}
+
+/* ---- Detailseiten-Bereich konsistent ------------------------------ */
+
+main#app .detail-section {
+  background: var(--rds-surface-raised);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-lg);
+  padding: var(--rds-space-5);
+  box-shadow: var(--rds-shadow-sm);
+  margin-top: var(--rds-space-4);
+}
+
+main#app .detail-section > h2,
+main#app .detail-section > h3 {
+  margin: 0 0 var(--rds-space-3) 0;
+  font-size: var(--rds-fs-card-title);
+  font-weight: 600;
+  color: var(--rds-text-strong);
+  padding-bottom: var(--rds-space-2);
+  border-bottom: 1px solid var(--rds-divider);
+}
+
+/* ---- Responsive -------------------------------------------------- */
+
+@media (max-width: 720px) {
+  main#app .page-header > .page-title {
+    font-size: 1.4rem;
+  }
+  main#app .filter-bar > label {
+    min-width: auto;
+    flex: 1 1 calc(50% - 0.5rem);
+  }
+  main#app .filter-bar .filter-bar-actions {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+  main#app .meta-row {
+    grid-template-columns: 1fr;
+    gap: var(--rds-space-1);
+  }
+  main#app .meta-label {
+    font-size: 0.78rem;
+  }
+  main#app .card-grid--metric {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+}

@@ -4,7 +4,15 @@
 // Dokumente. Aktionsbuttons sind nur sichtbar, wenn ``can_edit``
 // gesetzt ist (Server entscheidet).
 
-import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
+import {
+  api,
+  crossNav,
+  h,
+  pageHeader,
+  renderEmpty,
+  renderError,
+  renderLoading,
+} from "/portal/common.js";
 
 const FORMAT_LABELS = {
   online: "online",
@@ -726,7 +734,7 @@ export async function render(container, ctx) {
   container.classList.add("page-wide");
   const meetingId = ctx.params.id;
   container.replaceChildren(
-    h("h1", {}, "Meeting"),
+    pageHeader("Meeting"),
     renderLoading("Meeting wird geladen …"),
   );
 
@@ -750,7 +758,7 @@ export async function render(container, ctx) {
       }),
     ]);
   } catch (err) {
-    container.replaceChildren(h("h1", {}, "Meeting"), renderError(err));
+    container.replaceChildren(pageHeader("Meeting"), renderError(err));
     return;
   }
 
@@ -783,7 +791,7 @@ export async function render(container, ctx) {
     try {
       meeting = await api("GET", `/api/meetings/${meetingId}`);
     } catch (err) {
-      container.replaceChildren(h("h1", {}, "Meeting"), renderError(err));
+      container.replaceChildren(pageHeader("Meeting"), renderError(err));
       return;
     }
     rerender();

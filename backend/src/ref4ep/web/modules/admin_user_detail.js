@@ -1,4 +1,12 @@
-import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
+import {
+  api,
+  crossNav,
+  h,
+  pageHeader,
+  renderEmpty,
+  renderError,
+  renderLoading,
+} from "/portal/common.js";
 
 function isAdmin(me) {
   return me?.person?.platform_role === "admin";
@@ -199,13 +207,13 @@ function membershipRow(personId, m) {
 export async function render(container, ctx) {
   container.classList.add("page-wide");
   if (!isAdmin(ctx.me)) {
-    container.replaceChildren(h("h1", {}, "Person"), renderError("Nur Admin."));
+    container.replaceChildren(pageHeader("Person"), renderError("Nur Admin."));
     return;
   }
 
   const personId = ctx.params.id;
   container.replaceChildren(
-    h("h1", {}, "Person"),
+    pageHeader("Person"),
     renderLoading("Personendaten werden geladen …"),
   );
   let person;
@@ -218,7 +226,7 @@ export async function render(container, ctx) {
       api("GET", "/api/workpackages"),
     ]);
   } catch (err) {
-    container.replaceChildren(h("h1", {}, "Person"), renderError(err));
+    container.replaceChildren(pageHeader("Person"), renderError(err));
     return;
   }
 
@@ -228,18 +236,18 @@ export async function render(container, ctx) {
     dialogContainer.replaceChildren(h("div", { class: "dialog" }, h("h3", {}, title), body));
   }
 
-  const header = h(
-    "div",
-    {},
-    h("h1", {}, person.display_name),
-    h("p", {}, person.email),
-    h(
-      "p",
-      {},
-      `Partner: ${person.partner.short_name} · Plattformrolle: ${person.platform_role} · `,
-      person.is_active ? "aktiv" : "inaktiv",
-      person.must_change_password ? " · Passwort fällig" : "",
-    ),
+  const header = pageHeader(
+    person.display_name,
+    person.email,
+    {
+      meta: h(
+        "span",
+        {},
+        `Partner: ${person.partner.short_name} · Plattformrolle: ${person.platform_role} · `,
+        person.is_active ? "aktiv" : "inaktiv",
+        person.must_change_password ? " · Passwort fällig" : "",
+      ),
+    },
   );
 
   const actions = [

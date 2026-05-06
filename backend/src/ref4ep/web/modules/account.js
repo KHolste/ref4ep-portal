@@ -1,4 +1,4 @@
-import { api, crossNav, h } from "/portal/common.js";
+import { api, crossNav, h, pageHeader } from "/portal/common.js";
 
 export async function render(container, ctx) {
   const me = ctx.me;
@@ -86,7 +86,7 @@ export async function render(container, ctx) {
     : null;
 
   container.replaceChildren(
-    h("h1", {}, "Konto"),
+    pageHeader("Konto", "Profil und Passwortverwaltung."),
     notice || h("div", {}),
     profile,
     h("section", {}, h("h2", {}, "Passwort"), passwordSection),

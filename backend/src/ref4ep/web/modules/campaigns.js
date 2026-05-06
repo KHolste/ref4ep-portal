@@ -12,6 +12,7 @@ import {
   api,
   crossNav,
   h,
+  pageHeader,
   renderEmpty,
   renderError,
   renderLoading,
@@ -195,10 +196,8 @@ function renderCreateDialog(workpackages, onSaved, onCancel) {
 export async function render(container, _ctx) {
   container.classList.add("page-wide");
   const headerNodes = [
-    h("h1", {}, "Testkampagnen"),
-    h(
-      "p",
-      { class: "muted" },
+    pageHeader(
+      "Testkampagnen",
       "Eigene Sicht für experimentelle Durchführungen — Ringvergleiche, " +
         "Referenzmessungen, Facility-Tests, Kalibrierungen und Langzeittests.",
     ),

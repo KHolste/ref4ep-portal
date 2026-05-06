@@ -1,4 +1,4 @@
-import { api, crossNav, h, renderError, renderLoading } from "/portal/common.js";
+import { api, crossNav, h, pageHeader, renderError, renderLoading } from "/portal/common.js";
 
 function row(entry) {
   const detailsBtn = h(
@@ -41,7 +41,7 @@ async function load(filters) {
 export async function render(container, ctx) {
   container.classList.add("page-wide");
   if (ctx.me?.person?.platform_role !== "admin") {
-    container.replaceChildren(h("h1", {}, "Audit-Log"), renderError("Nur Admin."));
+    container.replaceChildren(pageHeader("Audit-Log"), renderError("Nur Admin."));
     return;
   }
 
@@ -104,7 +104,10 @@ export async function render(container, ctx) {
   reload.addEventListener("click", refresh);
 
   container.replaceChildren(
-    h("h1", {}, "Audit-Log"),
+    pageHeader(
+      "Audit-Log",
+      "Veränderungsprotokoll für Admin-Recherche — schreibgeschützt.",
+    ),
     h(
       "div",
       { class: "audit-filters" },

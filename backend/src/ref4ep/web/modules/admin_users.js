@@ -1,4 +1,12 @@
-import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
+import {
+  api,
+  crossNav,
+  h,
+  pageHeader,
+  renderEmpty,
+  renderError,
+  renderLoading,
+} from "/portal/common.js";
 
 function isAdmin(me) {
   return me?.person?.platform_role === "admin";
@@ -130,12 +138,15 @@ function rowFor(person, navigate) {
 export async function render(container, ctx) {
   container.classList.add("page-wide");
   if (!isAdmin(ctx.me)) {
-    container.replaceChildren(h("h1", {}, "Personen"), renderError("Nur Admin."));
+    container.replaceChildren(pageHeader("Personen"), renderError("Nur Admin."));
     return;
   }
 
   container.replaceChildren(
-    h("h1", {}, "Personen"),
+    pageHeader(
+      "Personen",
+      "Plattformweite Personenverwaltung — Rollen, Partnerzuordnung und Status.",
+    ),
     renderLoading("Personen werden geladen …"),
   );
 
@@ -147,7 +158,7 @@ export async function render(container, ctx) {
       api("GET", "/api/admin/partners"),
     ]);
   } catch (err) {
-    container.replaceChildren(h("h1", {}, "Personen"), renderError(err));
+    container.replaceChildren(pageHeader("Personen"), renderError(err));
     return;
   }
   const activePartners = partners.filter((p) => !p.is_deleted);
@@ -194,11 +205,16 @@ export async function render(container, ctx) {
     );
   }
 
-  const headerRow = h(
-    "div",
-    { class: "section-header" },
-    h("h1", {}, "Personen"),
-    h("button", { type: "button", onclick: showCreateForm }, "Person anlegen …"),
+  const headerRow = pageHeader(
+    "Personen",
+    "Plattformweite Personenverwaltung — Rollen, Partnerzuordnung und Status.",
+    {
+      actions: h(
+        "button",
+        { type: "button", onclick: showCreateForm },
+        "Person anlegen …",
+      ),
+    },
   );
 
   const body = persons.length

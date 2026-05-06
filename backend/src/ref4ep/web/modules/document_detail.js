@@ -3,6 +3,7 @@ import {
   createFileDropzone,
   crossNav,
   h,
+  pageHeader,
   renderEmpty,
   renderError,
   renderLoading,
@@ -358,14 +359,14 @@ export async function render(container, ctx) {
   const documentId = ctx.params.id;
   const me = ctx.me;
   container.replaceChildren(
-    h("h1", {}, "Dokument"),
+    pageHeader("Dokument"),
     renderLoading("Dokument wird geladen …"),
   );
   let doc;
   try {
     doc = await api("GET", `/api/documents/${documentId}`);
   } catch (err) {
-    container.replaceChildren(h("h1", {}, "Dokument"), renderError(err));
+    container.replaceChildren(pageHeader("Dokument"), renderError(err));
     return;
   }
   const wpCode = doc.workpackage.code;

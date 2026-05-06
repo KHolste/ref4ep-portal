@@ -16,6 +16,7 @@ import {
   appendChildren,
   crossNav,
   h,
+  pageHeader,
   renderEmpty,
   renderError,
   renderLoading,
@@ -542,10 +543,8 @@ export async function render(container, _ctx) {
 
   appendChildren(
     container,
-    h("h1", {}, "Kalender"),
-    h(
-      "p",
-      { class: "muted" },
+    pageHeader(
+      "Kalender",
       "Aggregierte Sicht auf Meetings, Testkampagnen, Meilensteine und " +
         "Aufgaben mit Frist. Bearbeiten erfolgt weiter auf der jeweiligen Detailseite.",
     ),

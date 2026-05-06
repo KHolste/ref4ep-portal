@@ -9,6 +9,7 @@ import {
   api,
   crossNav,
   h,
+  pageHeader,
   renderEmpty,
   renderError,
   renderLoading,
@@ -170,10 +171,8 @@ function rowFor(meeting) {
 export async function render(container, _ctx) {
   container.classList.add("page-wide");
   const headerNodes = [
-    h("h1", {}, "Meetings"),
-    h(
-      "p",
-      { class: "muted" },
+    pageHeader(
+      "Meetings",
       "Strukturierte Ablage für Treffen, Beschlüsse, Aufgaben und Protokoll-Verknüpfungen.",
     ),
   ];

@@ -9,7 +9,15 @@
 //  - Meilensteine
 //  - Dokumente
 
-import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
+import {
+  api,
+  crossNav,
+  h,
+  pageHeader,
+  renderEmpty,
+  renderError,
+  renderLoading,
+} from "/portal/common.js";
 
 const TYPE_LABELS = {
   deliverable: "Deliverable",
@@ -379,14 +387,14 @@ export async function render(container, ctx) {
   }
 
   container.replaceChildren(
-    h("h1", {}, code),
+    pageHeader(code),
     renderLoading("Arbeitspaket-Details werden geladen …"),
   );
 
   try {
     await load();
   } catch (err) {
-    container.replaceChildren(h("h1", {}, code), renderError(err));
+    container.replaceChildren(pageHeader(code), renderError(err));
     return;
   }
 
@@ -398,10 +406,7 @@ export async function render(container, ctx) {
   }
 
   function rerender() {
-    const headerRow = h(
-      "div",
-      { class: "section-header" },
-      h("h1", {}, `${wp.code} — ${wp.title}`),
+    const editBtn =
       wp.can_edit_status && !editingCockpit
         ? h(
             "button",
@@ -414,8 +419,10 @@ export async function render(container, ctx) {
             },
             "Cockpit bearbeiten …",
           )
-        : null,
-    );
+        : null;
+    const headerRow = pageHeader(`${wp.code} — ${wp.title}`, null, {
+      actions: editBtn,
+    });
 
     const headerMeta = h(
       "div",

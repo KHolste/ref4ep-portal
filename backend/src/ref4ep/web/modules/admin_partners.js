@@ -3,7 +3,15 @@
 // Bearbeitung läuft über die Detailseite (Klick auf den Namen).
 // Hier auf der Liste nur noch: Soft-Delete und Anlegen.
 
-import { api, crossNav, h, renderEmpty, renderError, renderLoading } from "/portal/common.js";
+import {
+  api,
+  crossNav,
+  h,
+  pageHeader,
+  renderEmpty,
+  renderError,
+  renderLoading,
+} from "/portal/common.js";
 
 function isAdmin(me) {
   return me?.person?.platform_role === "admin";
@@ -128,19 +136,22 @@ function rowFor(partner, onDelete) {
 export async function render(container, ctx) {
   container.classList.add("page-wide");
   if (!isAdmin(ctx.me)) {
-    container.replaceChildren(h("h1", {}, "Partner"), renderError("Nur Admin."));
+    container.replaceChildren(pageHeader("Partner"), renderError("Nur Admin."));
     return;
   }
 
   container.replaceChildren(
-    h("h1", {}, "Partner"),
+    pageHeader(
+      "Partner",
+      "Partnerorganisationen des Konsortiums — Stammdaten und Kontaktpersonen pflegen Admins.",
+    ),
     renderLoading("Partnerliste wird geladen …"),
   );
   let partners;
   try {
     partners = await api("GET", "/api/admin/partners");
   } catch (err) {
-    container.replaceChildren(h("h1", {}, "Partner"), renderError(err));
+    container.replaceChildren(pageHeader("Partner"), renderError(err));
     return;
   }
   const dialogContainer = h("div", {});
@@ -164,25 +175,21 @@ export async function render(container, ctx) {
     }
   }
 
-  const headerRow = h(
-    "div",
-    { class: "section-header" },
-    h("h1", {}, "Partner"),
-    h(
-      "button",
-      {
-        type: "button",
-        onclick: () => showDialog("Partner anlegen", renderCreateForm(reload, clearDialog)),
-      },
-      "Partner anlegen …",
-    ),
+  const headerRow = pageHeader(
+    "Partner",
+    "Klick auf den Partnernamen öffnet die Detailseite — dort werden Stammdaten und Kontaktpersonen gepflegt.",
+    {
+      actions: h(
+        "button",
+        {
+          type: "button",
+          onclick: () => showDialog("Partner anlegen", renderCreateForm(reload, clearDialog)),
+        },
+        "Partner anlegen …",
+      ),
+    },
   );
 
-  const intro = h(
-    "p",
-    { class: "muted" },
-    "Klick auf den Partnernamen öffnet die Detailseite — dort werden Stammdaten und Kontaktpersonen gepflegt.",
-  );
 
   const table = h(
     "table",
@@ -209,5 +216,5 @@ export async function render(container, ctx) {
     ? table
     : renderEmpty("Es sind noch keine Partner angelegt.");
 
-  container.replaceChildren(headerRow, intro, body, dialogContainer, crossNav());
+  container.replaceChildren(headerRow, body, dialogContainer, crossNav());
 }

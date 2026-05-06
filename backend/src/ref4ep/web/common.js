@@ -135,6 +135,45 @@ export function renderRichEmpty(title, description = null, action = null) {
   );
 }
 
+// ---- Portalweiter Page-Header (Research-Portal Design System) -----------
+//
+// Liefert ein <header class="page-header"> mit einem klar formatierten
+// Seitentitel (<h1 class="page-title">), optionalem Untertitel und
+// optionaler Meta-/Aktionszeile. Wird über alle Modulseiten hinweg
+// verwendet, damit die SPA eine konsistente Behörden-/Forschungsportal-
+// Anmutung bekommt.
+//
+// Beispiel:
+//   pageHeader(
+//     "Arbeitspakete",
+//     "Übersicht über alle Haupt- und Unterpakete des Projekts.",
+//     { meta: h("span", {}, "8 WPs") },
+//   )
+
+export function pageHeader(title, subtitle = null, opts = null) {
+  const children = [h("h1", { class: "page-title" }, title)];
+  if (subtitle) {
+    children.push(h("p", { class: "page-subtitle" }, subtitle));
+  }
+  if (opts && opts.meta) {
+    children.push(h("div", { class: "page-meta" }, opts.meta));
+  }
+  if (opts && opts.actions) {
+    children.push(h("div", { class: "page-meta page-meta-actions" }, opts.actions));
+  }
+  return h("header", { class: "page-header" }, ...children);
+}
+
+// Konsistente CSS-Klasse für Status-Badges. Farbton:
+//   "ok" | "warn" | "err" | "info" | "neutral"
+// Liefert die Tonalität als ``status-badge--<tone>``-Modifier und behält
+// die alte ``badge``-Klasse für Rückwärtskompatibilität bei.
+export function statusBadgeClass(tone = "neutral") {
+  const valid = new Set(["ok", "warn", "err", "info", "neutral"]);
+  const t = valid.has(tone) ? tone : "neutral";
+  return `badge status-badge status-badge--${t}`;
+}
+
 const CROSS_NAV_LINKS = [
   { href: "/portal/", label: "Projektcockpit" },
   { href: "/portal/workpackages", label: "Arbeitspakete" },

@@ -18,6 +18,7 @@ import {
   appendChildren,
   crossNav,
   h,
+  pageHeader,
   renderEmpty,
   renderError,
   renderLoading,
@@ -647,7 +648,7 @@ export async function render(container, ctx) {
   const campaignId = ctx.params.id;
   appendChildren(
     container,
-    h("h1", {}, "Testkampagne"),
+    pageHeader("Testkampagne"),
     renderLoading("Testkampagne wird geladen …"),
   );
 
@@ -663,7 +664,7 @@ export async function render(container, ctx) {
       api("GET", "/api/documents?include_archived=false").catch(() => []),
     ]);
   } catch (err) {
-    appendChildren(container, h("h1", {}, "Testkampagne"), renderError(err));
+    appendChildren(container, pageHeader("Testkampagne"), renderError(err));
     return;
   }
 
@@ -678,7 +679,7 @@ export async function render(container, ctx) {
     try {
       campaign = await api("GET", `/api/campaigns/${campaignId}`);
     } catch (err) {
-      appendChildren(container, h("h1", {}, "Testkampagne"), renderError(err));
+      appendChildren(container, pageHeader("Testkampagne"), renderError(err));
       return;
     }
     rerender();

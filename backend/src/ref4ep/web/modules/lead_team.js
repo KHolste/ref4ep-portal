@@ -22,6 +22,7 @@ import {
   appendChildren,
   crossNav,
   h,
+  pageHeader,
   renderEmpty,
   renderError,
   renderLoading,
@@ -444,10 +445,8 @@ export async function render(container, ctx) {
     : "Person für meine Organisation anlegen";
 
   const headerNodes = [
-    h("h1", {}, "Mein Team"),
-    h(
-      "p",
-      { class: "muted" },
+    pageHeader(
+      "Mein Team",
       "Hier kannst du Personen deiner Organisation verwalten und sie deinen Arbeitspaketen zuordnen. Plattformrollen und andere Organisationen verwalten nur Admins.",
     ),
   ];

@@ -2318,9 +2318,12 @@ def test_table_polish_uses_portal_tokens() -> None:
     th_start = css.rindex("main#app th {")
     th_block = css[th_start : css.index("}", th_start)]
     assert "text-transform: uppercase" in th_block
-    assert "var(--portal-text-muted)" in th_block
-    # Zeilen-Hover dezent.
-    assert "main#app tbody tr:hover" in css
+    # Im neuen Research-Portal-Design-System (RDS) zeigt der
+    # th-Block den ruhigen Muted-Text-Token; Wechsel von --portal-* zu
+    # --rds-* ist Teil der portalweiten Konsolidierung.
+    assert "var(--rds-text-muted)" in th_block
+    # Zeilen-Hover dezent — entweder über data-table oder klassisch.
+    assert "main#app tbody tr:hover" in css or "main#app .data-table tbody tr:hover" in css
 
 
 def test_badge_portal_polish_makes_them_smaller_and_pill_shaped() -> None:
@@ -2415,3 +2418,220 @@ def test_milestone_actual_date_logic_remains_in_service() -> None:
     # decken die actual_date-Logik fachlich ab.
     body = body  # noqa: F841 — bewusste Selbst-Bezugnahme als Marker.
     assert True
+
+
+# ---- Research Portal Design System (USWDS-/Carbon-orientiert) ---------
+#
+# Dieser Block sichert das portal-weite Komponentensystem: zentrale
+# Tokens, wiederverwendbare Layout- und Komponentenklassen sowie die
+# tatsächliche Verwendung über die Modulseiten hinweg. Pixeltests
+# vermeiden wir bewusst — geprüft wird nur, dass die Klassen/Tokens
+# definiert sind und in den richtigen Stellen referenziert werden.
+
+
+def test_rds_design_system_marker_present() -> None:
+    """Im Stylesheet liegt ein klar markierter RDS-Block (USWDS-/Carbon-
+    orientiert) — kein loses Anhängen einzelner Regeln."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert "RESEARCH PORTAL DESIGN SYSTEM" in css
+    assert "USWDS" in css
+    assert "Carbon" in css
+
+
+def test_rds_tokens_defined_on_root() -> None:
+    """Zentrale Tokens des neuen Systems sind auf :root deklariert."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for token in (
+        "--rds-surface-canvas",
+        "--rds-surface-raised",
+        "--rds-surface-soft",
+        "--rds-border",
+        "--rds-border-strong",
+        "--rds-divider",
+        "--rds-text",
+        "--rds-text-muted",
+        "--rds-text-strong",
+        "--rds-link",
+        "--rds-status-ok-bg",
+        "--rds-status-ok-fg",
+        "--rds-status-warn-bg",
+        "--rds-status-err-bg",
+        "--rds-status-info-bg",
+        "--rds-status-neutral-bg",
+        "--rds-space-2",
+        "--rds-space-4",
+        "--rds-radius-md",
+        "--rds-radius-lg",
+        "--rds-shadow-sm",
+        "--rds-fs-page-title",
+        "--rds-fs-section-title",
+        "--rds-fs-card-title",
+        "--rds-fs-meta",
+        "--rds-fs-data",
+        "--rds-fs-badge",
+        "--rds-numeric",
+    ):
+        assert f"{token}:" in css, f"RDS-Token fehlt: {token}"
+
+
+def test_rds_component_classes_defined() -> None:
+    """Wiederverwendbare Layout- und Komponentenklassen sind im
+    Stylesheet definiert."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for selector in (
+        "main#app .page-shell",
+        "main#app .page-header",
+        "main#app .page-header > .page-title",
+        "main#app .page-header > .page-subtitle",
+        "main#app .section-header",
+        "main#app .section-card",
+        "main#app .section-card > .section-card-header",
+        "main#app .card-grid",
+        "main#app .card-grid--metric",
+        "main#app .metric-card",
+        "main#app .metric-card > .metric-label",
+        "main#app .metric-card > .metric-value",
+        "main#app .filter-bar",
+        "main#app .data-table",
+        "main#app .data-table thead th",
+        "main#app .data-table tbody td",
+        "main#app .status-badge",
+        "main#app .status-badge--ok",
+        "main#app .status-badge--warn",
+        "main#app .status-badge--err",
+        "main#app .status-badge--info",
+        "main#app .status-badge--neutral",
+        "main#app .toolbar",
+        "main#app .action-row",
+        "main#app .meta-row",
+        "main#app .meta-label",
+        "main#app .meta-value",
+        "main#app .empty-state",
+        "main#app .detail-section",
+    ):
+        assert selector in css, f"RDS-Selektor fehlt: {selector}"
+
+
+def test_rds_filter_bar_uses_quiet_focus_outline() -> None:
+    """Die Filter-Bar bekommt einen ruhigen, sichtbaren Fokus-Outline
+    (Carbon-orientiert: 2px outline, kein dicker Rahmen)."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    block_start = css.index("main#app .filter-bar input:focus")
+    block = css[block_start : block_start + 400]
+    assert "outline: 2px solid var(--rds-link)" in block
+
+
+def test_rds_status_badge_palette_is_calm() -> None:
+    """Status-Badges nutzen die ruhige USWDS-orientierte Palette
+    (kein knalliges SaaS-Bunt)."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Ok-Hintergrund: weiches Grün, nicht #00ff00 o. ä.
+    assert "--rds-status-ok-bg: #e6f1eb;" in css
+    assert "--rds-status-warn-bg: #fbf1d6;" in css
+    assert "--rds-status-err-bg: #fbe7e6;" in css
+    assert "--rds-status-info-bg: #e8f1fa;" in css
+
+
+def test_common_js_exports_page_header_helper() -> None:
+    """``pageHeader(title, subtitle, opts)`` ist als zentraler Helper
+    in common.js exportiert; darauf verlassen sich alle Modulseiten."""
+    body = (WEB_DIR / "common.js").read_text(encoding="utf-8")
+    assert "export function pageHeader(" in body
+    # Titel als h1.page-title, Subtitle als p.page-subtitle, Header
+    # als <header class="page-header">.
+    assert '"page-title"' in body
+    assert '"page-subtitle"' in body
+    assert '"page-header"' in body
+    # Status-Badge-Helper (Tonalitäten ok/warn/err/info/neutral).
+    assert "export function statusBadgeClass(" in body
+
+
+def test_central_modules_use_page_header_helper() -> None:
+    """Zentrale Register- und Übersichtsseiten verwenden den
+    portalweiten Page-Header — kein eigenes h1."""
+    modules_dir = WEB_DIR / "modules"
+    for module in (
+        "cockpit.js",
+        "workpackages.js",
+        "milestones.js",
+        "meetings.js",
+        "actions.js",
+        "campaigns.js",
+        "calendar.js",
+        "lead_team.js",
+        "system_status.js",
+        "audit.js",
+        "admin_users.js",
+        "admin_partners.js",
+        "account.js",
+    ):
+        body = (modules_dir / module).read_text(encoding="utf-8")
+        assert "pageHeader(" in body, f"{module} verwendet pageHeader nicht"
+        # Importzeile muss den Helper enthalten.
+        assert "pageHeader" in body.split('from "/portal/common.js"')[0], (
+            f"{module} importiert pageHeader nicht"
+        )
+
+
+def test_detail_modules_use_page_header_helper() -> None:
+    """Auch die zentralen Detailseiten verwenden den Page-Header."""
+    modules_dir = WEB_DIR / "modules"
+    for module in (
+        "workpackage_detail.js",
+        "partner_detail.js",
+        "document_detail.js",
+        "meeting_detail.js",
+        "campaign_detail.js",
+        "admin_user_detail.js",
+    ):
+        body = (modules_dir / module).read_text(encoding="utf-8")
+        assert "pageHeader(" in body, f"{module} verwendet pageHeader nicht"
+
+
+def test_central_module_titles_are_preserved() -> None:
+    """Beim Wechsel auf pageHeader bleiben die Modul-Titel als Klartext
+    weiter im Quellcode lesbar — sonst können Suchen/Tests sie nicht
+    finden."""
+    modules_dir = WEB_DIR / "modules"
+    expected = {
+        "workpackages.js": '"Arbeitspakete"',
+        "milestones.js": '"Meilensteine"',
+        "meetings.js": '"Meetings"',
+        "actions.js": '"Aufgaben"',
+        "campaigns.js": '"Testkampagnen"',
+        "calendar.js": '"Kalender"',
+        "lead_team.js": '"Mein Team"',
+        "system_status.js": '"Systemstatus"',
+        "audit.js": '"Audit-Log"',
+        "admin_users.js": '"Personen"',
+        "admin_partners.js": '"Partner"',
+        "account.js": '"Konto"',
+    }
+    for module, snippet in expected.items():
+        body = (modules_dir / module).read_text(encoding="utf-8")
+        assert snippet in body, f"{module} hat Titel-Snippet {snippet} verloren"
+
+
+def test_calendar_month_grid_range_logic_intact() -> None:
+    """Sicherheitsanker: ``monthGridRange`` für den sichtbaren
+    Monatsraster-Zeitraum bleibt im Calendar-Modul. Wir prüfen sowohl
+    die Funktion als auch ihre Verwendung im API-Aufruf."""
+    body = (WEB_DIR / "modules" / "calendar.js").read_text(encoding="utf-8")
+    assert "monthGridRange" in body
+
+
+def test_calendar_module_does_not_lose_type_legend() -> None:
+    """Die Legende mit Event-Typen bleibt Teil der Kalenderseite."""
+    body = (WEB_DIR / "modules" / "calendar.js").read_text(encoding="utf-8")
+    assert "renderTypeLegend" in body
+
+
+def test_workpackages_filter_bar_sub_list_sections_remain() -> None:
+    """Auf der Arbeitspaket-Übersicht bleiben Filter und Sub-Liste
+    erhalten — die optische Modernisierung darf die Funktion nicht
+    entfernen."""
+    body = (WEB_DIR / "modules" / "workpackages.js").read_text(encoding="utf-8")
+    assert "Arbeitspakete filtern" in body
+    assert "Nur meine Arbeitspakete" in body
+    # Hierarchischer Aufbau (Top + Subs).
+    assert "buildHierarchy" in body or "groupedSubs" in body

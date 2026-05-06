@@ -18,6 +18,7 @@ import {
   appendChildren,
   crossNav,
   h,
+  pageHeader,
   renderEmpty,
   renderError,
   renderLoading,
@@ -291,7 +292,12 @@ function renderGrid(filtered, mineSet, originalGrouped) {
 
 export async function render(container, ctx) {
   container.classList.add("page-wide");
-  const headerNodes = [h("h1", {}, "Arbeitspakete")];
+  const headerNodes = [
+    pageHeader(
+      "Arbeitspakete",
+      "Hierarchische Übersicht aller Haupt- und Unterpakete des Projekts.",
+    ),
+  ];
   appendChildren(
     container,
     ...headerNodes,
