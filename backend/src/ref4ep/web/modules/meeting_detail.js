@@ -723,6 +723,7 @@ function renderDocumentsBlock(meeting, canEdit, onLink, onUnlink) {
 }
 
 export async function render(container, ctx) {
+  container.classList.add("page-wide");
   const meetingId = ctx.params.id;
   container.replaceChildren(
     h("h1", {}, "Meeting"),

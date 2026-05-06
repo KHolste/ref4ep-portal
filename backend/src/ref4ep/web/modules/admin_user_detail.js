@@ -197,6 +197,7 @@ function membershipRow(personId, m) {
 }
 
 export async function render(container, ctx) {
+  container.classList.add("page-wide");
   if (!isAdmin(ctx.me)) {
     container.replaceChildren(h("h1", {}, "Person"), renderError("Nur Admin."));
     return;

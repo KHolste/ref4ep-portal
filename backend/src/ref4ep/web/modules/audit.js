@@ -39,6 +39,7 @@ async function load(filters) {
 }
 
 export async function render(container, ctx) {
+  container.classList.add("page-wide");
   if (ctx.me?.person?.platform_role !== "admin") {
     container.replaceChildren(h("h1", {}, "Audit-Log"), renderError("Nur Admin."));
     return;

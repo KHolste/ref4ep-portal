@@ -256,6 +256,7 @@ function renderAll(container, status, onRefresh) {
 }
 
 export async function render(container, _ctx) {
+  container.classList.add("page-wide");
   async function load() {
     container.replaceChildren(
       h("h1", {}, "Systemstatus"),

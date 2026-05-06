@@ -366,6 +366,7 @@ function openCreateDialog(wpCode, onCreated) {
 }
 
 export async function render(container, ctx) {
+  container.classList.add("page-wide");
   const code = ctx.params.code;
   let wp;
   let documents = [];

@@ -354,6 +354,7 @@ function renderDeleteConfirm(documentId, onSuccess) {
 }
 
 export async function render(container, ctx) {
+  container.classList.add("page-wide");
   const documentId = ctx.params.id;
   const me = ctx.me;
   container.replaceChildren(

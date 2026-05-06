@@ -2591,3 +2591,493 @@ main#app.page-wide > h2 {
     padding: 0.85rem 0.95rem;
   }
 }
+
+/* =====================================================================
+ * PORTAL MODERNIZATION
+ *
+ * Portalweiter UI-Polish-Block. Hebt das ursprünglich auf das Cockpit
+ * fokussierte Design-System auf Portalebene und wendet konsistente
+ * Karten-/Tabellen-/Filter-/Badge-/Typografie-Regeln auf alle Module
+ * an — ohne JS, ohne API, ohne Datenmodell zu berühren.
+ *
+ * Designprinzipien:
+ *   - ruhig, seriös, konsortiumstauglich
+ *   - weiche Karten, dezente Tiefe statt harter Rahmen
+ *   - tabular-nums in Zahlen, klare Hierarchie in Überschriften
+ *   - Status-Badges kleiner und einheitlich
+ *   - Filterleisten luftig, nicht roh
+ *
+ * Implementierungsstrategie: Tokens auf ``:root`` als ``--portal-*``
+ * publiziert (Aliase auf bestehende ``--cockpit-*``-Werte, wenn
+ * vorhanden); Karten-Shell-Regel auf alle Modul-Karten via
+ * gemeinsamem Selektor.
+ * ===================================================================== */
+
+:root {
+  /* Portalweite Design-Tokens — gleichen die Cockpit-Tokens und stehen
+   * allen Modulen zur Verfügung. Tests verifizieren ihre Existenz. */
+  --portal-card-radius: 8px;
+  --portal-card-bg: #ffffff;
+  --portal-card-border: #e2e8f1;
+  --portal-card-shadow: 0 1px 2px rgba(28, 44, 76, 0.04),
+    0 1px 3px rgba(28, 44, 76, 0.04);
+  --portal-card-shadow-hover: 0 1px 4px rgba(28, 44, 76, 0.08),
+    0 2px 6px rgba(28, 44, 76, 0.06);
+  --portal-card-padding: 1rem 1.15rem;
+  --portal-divider: #eef2f7;
+  --portal-text-muted: #5a6070;
+  --portal-text-strong: #1c2c4c;
+  --portal-bg-soft: #f5f7fb;
+  --portal-numeric-feature: "tnum" 1, "lnum" 1;
+}
+
+/* ---- Body-/Hintergrund-Stimmung leicht aufgewertet ----------------- */
+
+body {
+  background: #f4f6fa;
+  color: #232733;
+}
+
+/* ---- Typografie portalweit ---------------------------------------- */
+
+main#app {
+  line-height: 1.55;
+}
+
+main#app > h1,
+main#app.page-wide > h1 {
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--portal-text-strong);
+  margin: 0.2rem 0 0.25rem;
+}
+
+main#app > h1 + p,
+main#app.page-wide > h1 + p {
+  margin-top: 0;
+  color: var(--portal-text-muted);
+  max-width: 70ch;
+}
+
+main#app > h2,
+main#app.page-wide > h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  margin: 1.6rem 0 0.6rem;
+  color: var(--portal-text-strong);
+}
+
+main#app section > h2,
+main#app section > h3,
+main#app .section-header h2,
+main#app .section-header h3 {
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--portal-text-strong);
+}
+
+main#app .section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 1rem 0 0.5rem;
+}
+
+main#app .section-header h2,
+main#app .section-header h3 {
+  margin: 0;
+}
+
+/* ---- Karten-Shell portalweit -------------------------------------- */
+/*
+ * Eine einzige Regel modernisiert alle relevanten Karten-Klassen aus
+ * den Modulen. Die modulspezifischen Klassen bleiben unverändert in
+ * Kraft — wir setzen lediglich Radius/Border/Background/Shadow auf
+ * den portal-konsistenten Wert.
+ */
+
+main#app .cockpit-card,
+main#app .my-area-card,
+main#app .activity-box,
+main#app .wp-card,
+main#app .campaign-card,
+main#app .timeline-card,
+main#app .system-card,
+main#app .lead-wp-card,
+main#app .meeting-print {
+  border-radius: var(--portal-card-radius);
+  border-color: var(--portal-card-border);
+  background: var(--portal-card-bg);
+  box-shadow: var(--portal-card-shadow);
+}
+
+main#app .wp-card,
+main#app .campaign-card,
+main#app .lead-wp-card {
+  padding: 1rem 1.15rem;
+}
+
+main#app .timeline-card,
+main#app .system-card {
+  padding: 0.9rem 1.05rem;
+}
+
+main#app .wp-card-head h2,
+main#app .campaign-card-head,
+main#app .lead-wp-card-head,
+main#app .system-card-head h2 {
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+main#app .wp-card-title a,
+main#app .campaign-card-code,
+main#app .lead-wp-card-title a {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Klickbare Karten/Karten-Links: dezente Hover-Tiefe. */
+main#app .cockpit-kpi.cockpit-kpi-link:hover,
+main#app .wp-card:hover,
+main#app .campaign-card:hover,
+main#app .lead-wp-card:hover,
+main#app .timeline-card:hover {
+  /* Nur statische Karten — Hover-Schatten als ruhiges Echo. */
+  box-shadow: var(--portal-card-shadow-hover);
+}
+
+/* Listen innerhalb von Karten — etwas mehr Atemluft. */
+main#app .wp-card ul,
+main#app .lead-wp-card ul,
+main#app .my-area-card ul {
+  line-height: 1.5;
+}
+
+/* ---- Tabellen portalweit ruhiger ---------------------------------- */
+
+main#app table {
+  border-collapse: collapse;
+  width: 100%;
+  background: transparent;
+}
+
+main#app th {
+  background: var(--portal-bg-soft);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--portal-text-muted);
+  border-bottom: 1px solid var(--portal-card-border);
+}
+
+main#app td {
+  border-bottom: 1px solid var(--portal-divider);
+}
+
+main#app tr:last-child td {
+  border-bottom: none;
+}
+
+main#app tbody tr {
+  transition: background-color 0.1s ease;
+}
+
+main#app tbody tr:hover {
+  background: rgba(28, 44, 76, 0.025);
+}
+
+/* ---- Status-/Rollen-Badges portalweit ---------------------------- */
+
+main#app .badge {
+  font-size: 0.7rem;
+  padding: 0.12rem 0.55rem;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  background: var(--portal-bg-soft);
+  color: var(--portal-text-strong);
+}
+
+/* ---- Filterleisten portalweit ------------------------------------ */
+/*
+ * Alle ``filterbox``-Varianten (universell + modulspezifisch) bekommen
+ * konsistente Höhe, weiche Border und ruhige Form. Bestehende
+ * Klassen-Aliase bleiben — wir setzen nur die gemeinsame Erscheinung.
+ */
+
+main#app .filterbox,
+main#app .meeting-filterbox,
+main#app .campaign-filterbox,
+main#app .calendar-filterbox,
+main#app .wp-filterbox {
+  border-radius: var(--portal-card-radius);
+  border-color: var(--portal-card-border);
+  background: var(--portal-card-bg);
+  box-shadow: var(--portal-card-shadow);
+  padding: 0.6rem 0.95rem;
+}
+
+main#app .filterbox legend,
+main#app .meeting-filterbox legend,
+main#app .campaign-filterbox legend,
+main#app .calendar-filterbox legend,
+main#app .wp-filterbox legend {
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--portal-text-muted);
+  padding: 0 0.4rem;
+}
+
+main#app .filterbox input,
+main#app .filterbox select,
+main#app .meeting-filterbox input,
+main#app .meeting-filterbox select,
+main#app .campaign-filterbox input,
+main#app .campaign-filterbox select,
+main#app .calendar-filterbox input,
+main#app .calendar-filterbox select,
+main#app .wp-filterbox input,
+main#app .wp-filterbox select {
+  border: 1px solid var(--portal-card-border);
+  border-radius: 5px;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.9rem;
+  background: var(--portal-card-bg);
+}
+
+main#app .filterbox input:focus,
+main#app .filterbox select:focus,
+main#app .meeting-filterbox input:focus,
+main#app .meeting-filterbox select:focus,
+main#app .campaign-filterbox input:focus,
+main#app .campaign-filterbox select:focus,
+main#app .calendar-filterbox input:focus,
+main#app .calendar-filterbox select:focus,
+main#app .wp-filterbox input:focus,
+main#app .wp-filterbox select:focus {
+  outline: 2px solid rgba(28, 44, 76, 0.25);
+  outline-offset: 1px;
+}
+
+/* ---- Aktionsleisten / Buttons in Karten -------------------------- */
+
+main#app .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+main#app .actions a.button-like,
+main#app .actions button {
+  border-radius: 5px;
+}
+
+/* Kompakte Tabellen-Aktionsbuttons gleichmäßiger. */
+main#app td button {
+  border-radius: 4px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.85rem;
+}
+
+/* ---- Empty-States portalweit ------------------------------------- */
+
+main#app .empty-state {
+  background: var(--portal-bg-soft);
+  border: 1px dashed var(--portal-card-border);
+  border-radius: var(--portal-card-radius);
+}
+
+main#app .empty {
+  font-style: normal;
+  color: var(--portal-text-muted);
+}
+
+/* ---- Detailseiten-Kopf konsistent -------------------------------- */
+
+main#app .campaign-detail-head h1,
+main#app section > h1 {
+  letter-spacing: -0.015em;
+}
+
+/* ---- Workpackages-Übersicht: ruhigere Sub-Liste ------------------ */
+
+main#app .wp-card .wp-subpackage-list {
+  border-top: 1px solid var(--portal-divider);
+  padding-top: 0.45rem;
+  margin-top: 0.45rem;
+}
+
+main#app .wp-subpackage-item {
+  border-bottom-color: var(--portal-divider);
+}
+
+main#app .wp-card-footer {
+  border-top: 1px solid var(--portal-divider);
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+main#app .wp-lead-badge {
+  font-size: 0.72rem;
+  padding: 0.12rem 0.55rem;
+  background: var(--portal-bg-soft);
+  color: var(--portal-text-strong);
+  border: 1px solid var(--portal-card-border);
+  border-radius: 999px;
+}
+
+main#app .wp-card-mine {
+  background: linear-gradient(180deg, #f6fbf6 0%, #ffffff 60%);
+  border-left: 3px solid #2f7a3a;
+}
+
+/* ---- Kampagnen-Karten ruhiger ------------------------------------ */
+
+main#app .campaign-card {
+  border-left: 3px solid var(--portal-text-strong);
+}
+
+main#app .campaign-card-title a {
+  color: var(--portal-text-strong);
+}
+
+main#app .campaign-card-footer a {
+  font-size: 0.85rem;
+  color: var(--portal-text-strong);
+}
+
+/* ---- Mein-Team-Karten harmonisieren ------------------------------ */
+
+main#app .lead-wp-card {
+  border-left: 3px solid var(--portal-text-strong);
+}
+
+main#app .lead-wp-member-row:hover {
+  background: var(--portal-bg-soft);
+  border-radius: 5px;
+}
+
+/* ---- Timeline-Karten konsistent ---------------------------------- */
+
+main#app .timeline-card {
+  border-left-width: 3px;
+}
+
+/* ---- Systemstatus-Karten konsistent ------------------------------ */
+
+main#app .system-card {
+  border-top-width: 3px;
+}
+
+main#app .system-row {
+  font-size: 0.88rem;
+}
+
+main#app .system-row-label {
+  color: var(--portal-text-muted);
+}
+
+/* ---- Kalender visuell glätten ------------------------------------ */
+
+main#app .calendar-grid,
+main#app .calendar-grid-head {
+  border-radius: var(--portal-card-radius);
+  background: var(--portal-card-border);
+  border-color: var(--portal-card-border);
+}
+
+main#app .calendar-grid-head {
+  border-bottom: none;
+}
+
+main#app .calendar-cell {
+  background: var(--portal-card-bg);
+}
+
+main#app .calendar-cell-other-month {
+  background: #f7f9fc;
+}
+
+main#app .calendar-cell-today {
+  background: #fffbe6;
+}
+
+main#app .calendar-event {
+  border-radius: 4px;
+}
+
+main#app .calendar-legend {
+  background: var(--portal-card-bg);
+  border: 1px solid var(--portal-card-border);
+  border-radius: var(--portal-card-radius);
+  padding: 0.5rem 0.85rem;
+}
+
+main#app .calendar-agenda-item {
+  border-bottom-color: var(--portal-divider);
+}
+
+/* ---- Header & Banner harmonisieren ------------------------------- */
+
+.portal-header {
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+}
+
+.portal-header nav a {
+  font-size: 0.92rem;
+}
+
+.portal-header nav a.active {
+  text-decoration: none;
+  border-bottom: 2px solid #fff;
+  padding-bottom: 0.05rem;
+}
+
+.admin-view-banner {
+  background: #fff8e6;
+  border-color: var(--portal-card-border);
+  color: var(--portal-text-strong);
+  /* Schmaler Hinweisbalken — Override-Schicht aus dem Polish-Block. */
+  font-size: 0.85rem;
+  padding: 0.25rem 1rem;
+}
+
+/* ---- Formulare in Karten ruhiger -------------------------------- */
+
+main#app form.stacked input,
+main#app form.stacked select,
+main#app form.stacked textarea {
+  border: 1px solid var(--portal-card-border);
+  border-radius: 5px;
+  background: var(--portal-card-bg);
+}
+
+main#app form.stacked label {
+  font-size: 0.88rem;
+  color: var(--portal-text-strong);
+}
+
+main#app form.stacked .field-hint {
+  color: var(--portal-text-muted);
+}
+
+/* ---- Responsive Feinarbeit -------------------------------------- */
+
+@media (max-width: 720px) {
+  main#app > h1,
+  main#app.page-wide > h1 {
+    font-size: 1.4rem;
+  }
+  main#app .wp-card,
+  main#app .campaign-card,
+  main#app .lead-wp-card {
+    padding: 0.85rem 0.95rem;
+  }
+}

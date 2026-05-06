@@ -128,6 +128,7 @@ function rowFor(person, navigate) {
 }
 
 export async function render(container, ctx) {
+  container.classList.add("page-wide");
   if (!isAdmin(ctx.me)) {
     container.replaceChildren(h("h1", {}, "Personen"), renderError("Nur Admin."));
     return;

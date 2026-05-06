@@ -643,6 +643,7 @@ function renderDocumentsBlock(campaign, canEdit, onLink, onUnlink) {
 // ---- Hauptrender ------------------------------------------------------
 
 export async function render(container, ctx) {
+  container.classList.add("page-wide");
   const campaignId = ctx.params.id;
   appendChildren(
     container,

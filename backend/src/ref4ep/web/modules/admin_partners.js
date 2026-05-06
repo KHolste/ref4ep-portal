@@ -126,6 +126,7 @@ function rowFor(partner, onDelete) {
 }
 
 export async function render(container, ctx) {
+  container.classList.add("page-wide");
   if (!isAdmin(ctx.me)) {
     container.replaceChildren(h("h1", {}, "Partner"), renderError("Nur Admin."));
     return;

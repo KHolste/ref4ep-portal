@@ -525,6 +525,7 @@ async function renderContactsSection(partner, container) {
 }
 
 export async function render(container, ctx) {
+  container.classList.add("page-wide");
   const partnerId = ctx.params.id;
   container.replaceChildren(
     h("h1", {}, "Partner"),
