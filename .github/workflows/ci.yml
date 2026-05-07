@@ -14,6 +14,11 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    env:
+      # REF4EP_SESSION_SECRET ist seit dem Auth-Hardening Pflichtfeld
+      # mit ≥ 32 Zeichen (siehe backend/src/ref4ep/api/config.py).
+      # CI-only Dummy — kein Produktions-Secret.
+      REF4EP_SESSION_SECRET: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -27,6 +32,8 @@ jobs:
         run: ruff check src tests
       - name: Format check (ruff)
         run: ruff format --check src tests
+      - name: Settings smoke check
+        run: python -c "from ref4ep.api.config import get_settings; get_settings()"
       - name: Alembic upgrade head (SQLite)
         run: |
           mkdir -p ../data
@@ -55,6 +62,7 @@ jobs:
           --health-retries 5
     env:
       REF4EP_DATABASE_URL: postgresql+psycopg://ref4ep:ref4ep@localhost:5432/ref4ep
+      REF4EP_SESSION_SECRET: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -64,6 +72,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev,postgres]"
+      - name: Settings smoke check
+        run: python -c "from ref4ep.api.config import get_settings; get_settings()"
       - name: Alembic upgrade head (PostgreSQL)
         run: alembic upgrade head
       - name: Pytest
