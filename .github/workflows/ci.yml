@@ -8,9 +8,6 @@ on:
 jobs:
   backend-sqlite:
     runs-on: ubuntu-latest
-    env:
-      SESSION_SECRET: "test-secret"
-      REF4EP_DATABASE_URL: sqlite:///../data/test.db
     defaults:
       run:
         working-directory: backend
@@ -19,6 +16,7 @@ jobs:
       # mit ≥ 32 Zeichen (siehe backend/src/ref4ep/api/config.py).
       # CI-only Dummy — kein Produktions-Secret.
       REF4EP_SESSION_SECRET: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      REF4EP_DATABASE_URL: sqlite:///../data/test.db
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
