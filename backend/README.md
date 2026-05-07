@@ -15,7 +15,7 @@ source .venv/bin/activate         # Windows: .venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 mkdir -p ../data
 alembic upgrade head
-uvicorn ref4ep.api.app:app --reload --port 8000
+uvicorn ref4ep.api.asgi:app --reload --port 8000
 ```
 
 Dann im Browser:
@@ -44,11 +44,21 @@ Alle Variablen tragen den Präfix `REF4EP_`. Siehe `.env.example`.
 | Variable                | Default                            |
 | ----------------------- | ---------------------------------- |
 | `REF4EP_DATABASE_URL`   | `sqlite:///../data/ref4ep.db`      |
-| `REF4EP_SESSION_SECRET` | leer (Sprint 1 wird Pflicht)       |
+| `REF4EP_SESSION_SECRET` | **Pflicht, ≥ 32 Zeichen**          |
+| `REF4EP_COOKIE_SECURE`  | `true` (HTTPS-only Session-Cookie) |
 | `REF4EP_STORAGE_DIR`    | `../data/storage`                  |
 | `REF4EP_MAX_UPLOAD_MB`  | `100`                              |
 | `REF4EP_PUBLIC_BASE_URL`| `http://localhost:8000`            |
 | `REF4EP_LOG_FORMAT`     | `text`                             |
+
+`REF4EP_SESSION_SECRET` muss mindestens 32 Zeichen haben — beim Start
+ohne gültige Variable schlägt `Settings()` mit klarer Fehlermeldung
+fehl. Beispiel: `openssl rand -hex 32`.
+
+`REF4EP_COOKIE_SECURE` darf in der lokalen Entwicklung über
+`http://localhost` auf `false` gesetzt werden, weil der Browser
+sonst das Session-Cookie nicht speichert. In Production
+`true` lassen.
 
 ## PostgreSQL-Gegenprobe (optional)
 

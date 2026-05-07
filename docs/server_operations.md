@@ -24,7 +24,13 @@ Annahmen:
 - Python-Venv liegt unter `/opt/ref4ep-portal/backend/.venv/`.
 - `.env`-Datei liegt unter `/opt/ref4ep-portal/.env` und enthält
   mindestens `REF4EP_DATABASE_URL`, `REF4EP_SESSION_SECRET`,
-  `REF4EP_STORAGE_DIR`, `REF4EP_PUBLIC_BASE_URL`.
+  `REF4EP_STORAGE_DIR`, `REF4EP_PUBLIC_BASE_URL`. `REF4EP_COOKIE_SECURE`
+  ist standardmäßig `true` (HTTPS-only) und muss in `.env` nicht
+  explizit gesetzt werden.
+- `REF4EP_SESSION_SECRET` ist Pflicht und muss mindestens 32 Zeichen
+  enthalten — der Server startet sonst mit klarer Fehlermeldung nicht.
+- ASGI-Entrypoint: `ref4ep.api.asgi:app` (nicht mehr `ref4ep.api.app:app`).
+  Die `ExecStart`-Zeile der systemd-Unit muss diesen Pfad nutzen.
 - Befehle mit `sudo` sind nötig, sobald systemd betroffen ist.
 
 ---
