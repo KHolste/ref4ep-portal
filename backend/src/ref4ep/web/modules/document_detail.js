@@ -28,6 +28,31 @@ const VISIBILITY_BADGES = {
   public: { label: "Öffentlich", cls: "badge badge-public" },
 };
 
+// Beschriftungen für die 9 Link-Labels der Junction
+// ``test_campaign_document_link`` (siehe domain/models.py, identisch zu
+// ``DOC_LABEL_LABELS`` in campaign_detail.js).
+const DOC_LABEL_LABELS = {
+  test_plan: "Messplan",
+  setup_plan: "Aufbauplan",
+  safety_document: "Sicherheitsunterlage",
+  raw_data_description: "Rohdatenbeschreibung",
+  protocol: "Protokoll",
+  analysis: "Auswertung",
+  presentation: "Präsentation",
+  attachment: "Anlage",
+  other: "Sonstiges",
+};
+
+const CAMPAIGN_STATUS_LABELS = {
+  planned: "geplant",
+  preparing: "Vorbereitung",
+  running: "läuft",
+  completed: "abgeschlossen",
+  evaluated: "ausgewertet",
+  cancelled: "abgebrochen",
+  postponed: "verschoben",
+};
+
 function formatBytes(n) {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KiB`;
@@ -326,6 +351,170 @@ function renderVisibilityDialog(documentId, current, canPublic, onSuccess) {
   );
 }
 
+function renderTestCampaignsSection(doc, canEdit, openLinkDialog, onUnlinked) {
+  const links = doc.test_campaigns || [];
+  const headerActions = canEdit
+    ? h(
+        "button",
+        { type: "button", onclick: openLinkDialog },
+        "Testkampagne verknüpfen …",
+      )
+    : null;
+  const body = links.length
+    ? h(
+        "table",
+        {},
+        h(
+          "thead",
+          {},
+          h(
+            "tr",
+            {},
+            h("th", {}, "Code"),
+            h("th", {}, "Titel"),
+            h("th", {}, "Status"),
+            h("th", {}, "Rolle im Dokument"),
+            canEdit ? h("th", {}, "") : null,
+          ),
+        ),
+        h(
+          "tbody",
+          {},
+          ...links.map((link) =>
+            h(
+              "tr",
+              {},
+              h(
+                "td",
+                {},
+                h(
+                  "a",
+                  { href: `/portal/campaigns/${link.id}` },
+                  link.code,
+                ),
+              ),
+              h("td", {}, link.title),
+              h(
+                "td",
+                {},
+                CAMPAIGN_STATUS_LABELS[link.status] || link.status,
+              ),
+              h(
+                "td",
+                {},
+                DOC_LABEL_LABELS[link.label] || link.label,
+              ),
+              canEdit
+                ? h(
+                    "td",
+                    {},
+                    h(
+                      "button",
+                      {
+                        type: "button",
+                        class: "danger",
+                        onclick: () => onUnlinked(link),
+                      },
+                      "Entfernen",
+                    ),
+                  )
+                : null,
+            ),
+          ),
+        ),
+      )
+    : renderEmpty("Keine Testkampagne zugeordnet.");
+  return h(
+    "section",
+    {},
+    h(
+      "div",
+      { class: "section-header" },
+      h("h2", {}, "Testkampagnen"),
+      headerActions,
+    ),
+    body,
+  );
+}
+
+function renderLinkCampaignDialog(documentId, wpCode, onSaved) {
+  const campaignSelect = h("select", {}, h("option", { value: "" }, "— wird geladen —"));
+  const labelSelect = h(
+    "select",
+    {},
+    ...Object.entries(DOC_LABEL_LABELS).map(([v, l]) =>
+      h(
+        "option",
+        { value: v, ...(v === "test_plan" ? { selected: "" } : {}) },
+        l,
+      ),
+    ),
+  );
+  const errorBox = h("p", { class: "error", style: "display:none" }, "");
+  const submitBtn = h("button", { type: "submit", disabled: "" }, "Verknüpfen");
+  const emptyHint = h("p", { class: "muted", style: "display:none" }, "");
+
+  // Kampagnen für dieses Workpackage asynchron laden.
+  api("GET", `/api/campaigns?workpackage=${encodeURIComponent(wpCode)}`)
+    .then((items) => {
+      campaignSelect.replaceChildren();
+      if (!items || items.length === 0) {
+        campaignSelect.append(
+          h("option", { value: "" }, "— keine Kampagne in diesem WP —"),
+        );
+        emptyHint.textContent =
+          "Es existiert noch keine Testkampagne, die zu diesem Workpackage gehört.";
+        emptyHint.style.display = "";
+        return;
+      }
+      for (const c of items) {
+        campaignSelect.append(
+          h(
+            "option",
+            { value: c.id },
+            `${c.code} — ${c.title}`,
+          ),
+        );
+      }
+      submitBtn.disabled = false;
+    })
+    .catch((err) => {
+      errorBox.textContent = err.message;
+      errorBox.style.display = "";
+    });
+
+  async function onSubmit(ev) {
+    ev.preventDefault();
+    errorBox.style.display = "none";
+    const campaignId = campaignSelect.value;
+    if (!campaignId) {
+      errorBox.textContent = "Bitte eine Kampagne auswählen.";
+      errorBox.style.display = "";
+      return;
+    }
+    try {
+      await api("POST", `/api/documents/${documentId}/test-campaigns`, {
+        campaign_id: campaignId,
+        label: labelSelect.value,
+      });
+      onSaved();
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.style.display = "";
+    }
+  }
+
+  return h(
+    "form",
+    { class: "stacked", onsubmit: onSubmit },
+    h("label", {}, "Kampagne", campaignSelect),
+    h("label", {}, "Rolle des Dokuments", labelSelect),
+    emptyHint,
+    errorBox,
+    submitBtn,
+  );
+}
+
 function renderDeleteConfirm(documentId, onSuccess) {
   const errorBox = h("p", { class: "error", style: "display:none" }, "");
 
@@ -578,11 +767,44 @@ export async function render(container, ctx) {
     renderVersionsTable(documentId, versions, doc.released_version_id),
   );
 
+  async function unlinkCampaign(link) {
+    if (
+      !confirm(
+        `Verknüpfung mit Kampagne ${link.code} wirklich entfernen?`,
+      )
+    )
+      return;
+    try {
+      await api(
+        "DELETE",
+        `/api/documents/${documentId}/test-campaigns/${link.id}`,
+      );
+      reload();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  function openLinkCampaignDialog() {
+    showDialog(
+      "Testkampagne verknüpfen",
+      renderLinkCampaignDialog(documentId, wpCode, reload),
+    );
+  }
+
+  const campaignsBlock = renderTestCampaignsSection(
+    doc,
+    memberHere,
+    openLinkCampaignDialog,
+    unlinkCampaign,
+  );
+
   container.replaceChildren(
     header,
     visibilityNotice || h("div", {}),
     actionsBar || h("div", {}),
     versionsBlock,
+    campaignsBlock,
     dialogContainer,
     crossNav(),
   );

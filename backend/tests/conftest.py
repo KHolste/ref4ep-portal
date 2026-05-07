@@ -56,6 +56,11 @@ def settings(tmp_db_path: Path, tmp_storage_dir: Path) -> Settings:
         database_url=f"sqlite:///{tmp_db_path}",
         session_secret=TEST_SESSION_SECRET,
         storage_dir=str(tmp_storage_dir),
+        # TestClient läuft über http://testserver — ein Cookie mit
+        # Secure-Flag würde vom Client nicht zurückgesendet, was zu
+        # spurious 401 in allen authentifizierten Tests führt. Production
+        # bleibt bei dem sicheren Default ``True`` (siehe config.py).
+        cookie_secure=False,
     )
 
 

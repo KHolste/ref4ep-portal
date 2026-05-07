@@ -2715,3 +2715,40 @@ def test_workpackages_filter_bar_sub_list_sections_remain() -> None:
     assert "Nur meine Arbeitspakete" in body
     # Hierarchischer Aufbau (Top + Subs).
     assert "buildHierarchy" in body or "groupedSubs" in body
+
+
+def test_document_detail_has_test_campaigns_section() -> None:
+    """Phase-2-UI: Reverse-Pfad Dokument → Testkampagnen.
+
+    Prüft, dass document_detail.js den neuen Abschnitt sowie die zwei
+    Reverse-Endpunkte ansteuert und die 9 Junction-Labels mit deutschen
+    Beschriftungen mappt.
+    """
+    body = (MODULES_DIR / "document_detail.js").read_text(encoding="utf-8")
+
+    # Sichtbare Abschnitte / Buttons
+    assert "Testkampagnen" in body
+    assert "Testkampagne verknüpfen" in body
+    assert "Keine Testkampagne zugeordnet." in body
+
+    # Reverse-API-Aufrufe
+    assert "/api/documents/${documentId}/test-campaigns" in body
+    # DELETE benutzt die Link-id aus dem Aufruf-Closure.
+    assert "/test-campaigns/${link.id}" in body
+    # Kampagnenauswahl beschränkt auf das WP des Dokuments.
+    assert "/api/campaigns?workpackage=" in body
+
+    # Alle 9 Junction-Labels als Schlüssel und mit deutscher Beschriftung.
+    for key, label in (
+        ("test_plan", "Messplan"),
+        ("setup_plan", "Aufbauplan"),
+        ("safety_document", "Sicherheitsunterlage"),
+        ("raw_data_description", "Rohdatenbeschreibung"),
+        ("protocol", "Protokoll"),
+        ("analysis", "Auswertung"),
+        ("presentation", "Präsentation"),
+        ("attachment", "Anlage"),
+        ("other", "Sonstiges"),
+    ):
+        assert key in body, f"Label-Schlüssel {key!r} fehlt"
+        assert label in body, f"Label-Beschriftung {label!r} fehlt"
