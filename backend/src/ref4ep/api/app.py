@@ -128,6 +128,3 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     _register_portal_spa(app, web_dir)
 
     return app
-
-
-app = create_app()
