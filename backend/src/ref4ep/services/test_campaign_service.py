@@ -487,23 +487,28 @@ class TestCampaignService:
 
     # ---- Dokumentverknüpfungen -----------------------------------------
 
-    def add_document_link(
+    def list_links_for_document(self, document_id: str) -> list[TestCampaignDocumentLink]:
+        """Alle Kampagnenverknüpfungen eines Dokuments. Liest nur."""
+        stmt = (
+            select(TestCampaignDocumentLink)
+            .join(TestCampaign, TestCampaign.id == TestCampaignDocumentLink.campaign_id)
+            .where(TestCampaignDocumentLink.document_id == document_id)
+            .order_by(TestCampaign.starts_on.desc(), TestCampaign.title)
+        )
+        return list(self.session.scalars(stmt))
+
+    def _persist_document_link(
         self,
         campaign_id: str,
         *,
         document_id: str,
-        label: str = "other",
+        label: str,
     ) -> TestCampaignDocumentLink:
-        campaign = self.get(campaign_id)
-        if campaign is None:
-            raise LookupError(f"Testkampagne {campaign_id} nicht gefunden.")
-        if not self.can_edit_campaign(campaign):
-            raise PermissionError("Kein Schreibrecht für diese Kampagne.")
+        """Insert/Upsert + Audit. Aufrufer hat Permission und Existenz
+        bereits geprüft.
+        """
         if label not in TEST_CAMPAIGN_DOCUMENT_LABELS:
             raise ValueError(f"label: ungültiger Wert {label!r}")
-        doc = self.session.get(Document, document_id)
-        if doc is None or doc.is_deleted:
-            raise LookupError(f"Dokument {document_id} nicht gefunden.")
         existing = self.session.get(TestCampaignDocumentLink, (campaign_id, document_id))
         if existing is not None:
             if existing.label != label:
@@ -533,7 +538,56 @@ class TestCampaignService:
             )
         return link
 
+    def add_document_link(
+        self,
+        campaign_id: str,
+        *,
+        document_id: str,
+        label: str = "other",
+    ) -> TestCampaignDocumentLink:
+        """Eintrittspunkt von der Kampagnen-Seite: erfordert
+        ``can_edit_campaign``."""
+        campaign = self.get(campaign_id)
+        if campaign is None:
+            raise LookupError(f"Testkampagne {campaign_id} nicht gefunden.")
+        if not self.can_edit_campaign(campaign):
+            raise PermissionError("Kein Schreibrecht für diese Kampagne.")
+        doc = self.session.get(Document, document_id)
+        if doc is None or doc.is_deleted:
+            raise LookupError(f"Dokument {document_id} nicht gefunden.")
+        return self._persist_document_link(
+            campaign_id, document_id=document_id, label=label
+        )
+
+    def link_document(
+        self,
+        document: Document,
+        *,
+        campaign_id: str,
+        label: str = "other",
+    ) -> TestCampaignDocumentLink:
+        """Eintrittspunkt von der Dokument-Seite. Erwartet ein bereits
+        geladenes, schreibbares Dokument; die Berechtigung am Dokument
+        muss vom Aufrufer geprüft sein.
+
+        Invariante: Workpackage des Dokuments muss zur WP-Menge der
+        Kampagne gehören. Sonst ``ValueError``.
+        """
+        campaign = self.get(campaign_id)
+        if campaign is None:
+            raise LookupError(f"Testkampagne {campaign_id} nicht gefunden.")
+        campaign_wp_ids = {link.workpackage_id for link in campaign.workpackage_links}
+        if document.workpackage_id not in campaign_wp_ids:
+            raise ValueError(
+                "Dokument-Workpackage gehört nicht zur Kampagne."
+            )
+        return self._persist_document_link(
+            campaign_id, document_id=document.id, label=label
+        )
+
     def remove_document_link(self, campaign_id: str, document_id: str) -> None:
+        """Eintrittspunkt von der Kampagnen-Seite: erfordert
+        ``can_edit_campaign``."""
         campaign = self.get(campaign_id)
         if campaign is None:
             raise LookupError(f"Testkampagne {campaign_id} nicht gefunden.")
@@ -551,4 +605,27 @@ class TestCampaignService:
                 entity_type="test_campaign",
                 entity_id=campaign_id,
                 before={"document_id": document_id, "label": label},
+            )
+
+    def unlink_document(self, document: Document, *, campaign_id: str) -> None:
+        """Eintrittspunkt von der Dokument-Seite. Berechtigung am Dokument
+        muss vom Aufrufer geprüft sein.
+        """
+        campaign = self.get(campaign_id)
+        if campaign is None:
+            raise LookupError(f"Testkampagne {campaign_id} nicht gefunden.")
+        existing = self.session.get(
+            TestCampaignDocumentLink, (campaign_id, document.id)
+        )
+        if existing is None:
+            return
+        label = existing.label
+        self.session.delete(existing)
+        self.session.flush()
+        if self.audit is not None:
+            self.audit.log(
+                "campaign.document_link.remove",
+                entity_type="test_campaign",
+                entity_id=campaign_id,
+                before={"document_id": document.id, "label": label},
             )

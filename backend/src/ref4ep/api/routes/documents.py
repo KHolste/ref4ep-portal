@@ -34,12 +34,14 @@ from ref4ep.api.deps import (
     require_csrf,
 )
 from ref4ep.api.schemas.documents import (
+    DocumentCampaignLinkOut,
     DocumentCreateRequest,
     DocumentDetailOut,
     DocumentOut,
     DocumentPatchRequest,
     DocumentReleaseRequest,
     DocumentStatusRequest,
+    DocumentTestCampaignLinkRequest,
     DocumentVersionOut,
     DocumentVersionUploadResponse,
     DocumentVisibilityRequest,
@@ -55,8 +57,9 @@ from ref4ep.services.document_lifecycle_service import (
 )
 from ref4ep.services.document_service import DocumentNotFoundError, DocumentService
 from ref4ep.services.document_version_service import DocumentVersionService
-from ref4ep.services.permissions import AuthContext
+from ref4ep.services.permissions import AuthContext, can_write_document
 from ref4ep.services.storage_validation import validate_change_note, validate_mime
+from ref4ep.services.test_campaign_service import TestCampaignService
 from ref4ep.services.workpackage_service import WorkpackageService
 from ref4ep.storage import Storage
 
@@ -247,6 +250,29 @@ def create_document(
     return _document_out(document)
 
 
+def _campaign_links_out(
+    session: Session, document_id: str
+) -> list[DocumentCampaignLinkOut]:
+    links = TestCampaignService(session).list_links_for_document(document_id)
+    return [
+        DocumentCampaignLinkOut(
+            id=link.campaign.id,
+            code=link.campaign.code,
+            title=link.campaign.title,
+            status=link.campaign.status,
+            label=link.label,
+        )
+        for link in links
+    ]
+
+
+def _document_detail_out(document: Document, session: Session) -> DocumentDetailOut:
+    base = _document_out(document, with_versions=True)
+    return base.model_copy(
+        update={"test_campaigns": _campaign_links_out(session, document.id)}
+    )
+
+
 @router.get("/documents/{document_id}", response_model=DocumentDetailOut)
 def get_document(document_id: str, session: SessionDep, auth: AuthDep) -> DocumentDetailOut:
     try:
@@ -256,7 +282,90 @@ def get_document(document_id: str, session: SessionDep, auth: AuthDep) -> Docume
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": {"code": "not_found", "message": "Dokument nicht gefunden."}},
         ) from exc
-    return _document_out(document, with_versions=True)
+    return _document_detail_out(document, session)
+
+
+def _resolve_writable_document(
+    session: Session, auth: AuthContext, document_id: str
+) -> Document:
+    """Lädt ein Dokument, prüft Sichtbarkeit (404) und Schreibrecht (403).
+
+    Identische Schwelle wie ``PATCH /api/documents/{id}``.
+    """
+    try:
+        document = DocumentService(session, auth=auth).get_by_id(document_id)
+    except DocumentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": "Dokument nicht gefunden."}},
+        ) from exc
+    if not can_write_document(auth, document):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": {
+                    "code": "forbidden",
+                    "message": "Nicht berechtigt, dieses Dokument zu ändern.",
+                }
+            },
+        )
+    return document
+
+
+@router.post(
+    "/documents/{document_id}/test-campaigns",
+    response_model=DocumentDetailOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_csrf)],
+)
+def link_document_test_campaign(
+    document_id: str,
+    payload: DocumentTestCampaignLinkRequest,
+    session: SessionDep,
+    auth: AuthDep,
+    audit: AuditDep,
+) -> DocumentDetailOut:
+    document = _resolve_writable_document(session, auth, document_id)
+    try:
+        TestCampaignService(session, audit=audit).link_document(
+            document, campaign_id=payload.campaign_id, label=payload.label
+        )
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"error": {"code": "invalid", "message": str(exc)}},
+        ) from exc
+    return _document_detail_out(document, session)
+
+
+@router.delete(
+    "/documents/{document_id}/test-campaigns/{campaign_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_csrf)],
+)
+def unlink_document_test_campaign(
+    document_id: str,
+    campaign_id: str,
+    session: SessionDep,
+    auth: AuthDep,
+    audit: AuditDep,
+) -> None:
+    document = _resolve_writable_document(session, auth, document_id)
+    try:
+        TestCampaignService(session, audit=audit).unlink_document(
+            document, campaign_id=campaign_id
+        )
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    return None
 
 
 @router.patch(
@@ -499,7 +608,7 @@ def set_status_endpoint(
     document = _handle_lifecycle_call(
         lambda: _lifecycle(session, auth, audit).set_status(document_id, to=payload.to)
     )
-    return _document_out(document, with_versions=True)
+    return _document_detail_out(document, session)
 
 
 @router.post(
@@ -519,7 +628,7 @@ def release_endpoint(
             document_id, version_number=payload.version_number
         )
     )
-    return _document_out(document, with_versions=True)
+    return _document_detail_out(document, session)
 
 
 @router.post(
@@ -536,7 +645,7 @@ def unrelease_endpoint(
     document = _handle_lifecycle_call(
         lambda: _lifecycle(session, auth, audit).unrelease(document_id)
     )
-    return _document_out(document, with_versions=True)
+    return _document_detail_out(document, session)
 
 
 @router.post(
@@ -554,7 +663,7 @@ def set_visibility_endpoint(
     document = _handle_lifecycle_call(
         lambda: _lifecycle(session, auth, audit).set_visibility(document_id, to=payload.to)
     )
-    return _document_out(document, with_versions=True)
+    return _document_detail_out(document, session)
 
 
 @router.delete(

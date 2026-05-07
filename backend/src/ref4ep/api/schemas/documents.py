@@ -50,9 +50,25 @@ class DocumentOut(BaseModel):
     updated_at: datetime
 
 
+class DocumentCampaignLinkOut(BaseModel):
+    """Kompakte Sicht einer Testkampagne, die einem Dokument zugeordnet ist."""
+
+    id: str
+    code: str
+    title: str
+    status: str
+    label: str
+
+
 class DocumentDetailOut(DocumentOut):
     versions: list[DocumentVersionOut]
     released_version: DocumentVersionOut | None = None
+    test_campaigns: list[DocumentCampaignLinkOut] = Field(default_factory=list)
+
+
+class DocumentTestCampaignLinkRequest(BaseModel):
+    campaign_id: str = Field(min_length=36, max_length=36)
+    label: str = Field(default="other", min_length=1)
 
 
 class DocumentCreateRequest(BaseModel):
@@ -144,12 +160,14 @@ class PublicDocumentOut(BaseModel):
 __all__ = [
     "AuditActorOut",
     "AuditLogOut",
+    "DocumentCampaignLinkOut",
     "DocumentCreateRequest",
     "DocumentDetailOut",
     "DocumentOut",
     "DocumentPatchRequest",
     "DocumentReleaseRequest",
     "DocumentStatusRequest",
+    "DocumentTestCampaignLinkRequest",
     "DocumentVersionOut",
     "DocumentVersionUploadResponse",
     "DocumentVisibilityRequest",
