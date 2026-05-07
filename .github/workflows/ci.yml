@@ -8,6 +8,9 @@ on:
 jobs:
   backend-sqlite:
     runs-on: ubuntu-latest
+    env:
+      SESSION_SECRET: "test-secret"
+      REF4EP_DATABASE_URL: sqlite:///../data/test.db
     defaults:
       run:
         working-directory: backend
