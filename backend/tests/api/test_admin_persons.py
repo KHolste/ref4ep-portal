@@ -140,9 +140,7 @@ def test_patch_updates_display_name_and_partner(admin_client: TestClient, seeded
     assert body["partner"]["short_name"] == other["short_name"]
 
 
-def test_patch_updates_email(
-    admin_client: TestClient, member_person_id: str, app
-) -> None:
+def test_patch_updates_email(admin_client: TestClient, member_person_id: str, app) -> None:
     r = admin_client.patch(
         f"/api/admin/persons/{member_person_id}",
         json={"email": "  Renamed@Test.example  "},
@@ -179,9 +177,7 @@ def test_patch_email_session_survives_for_existing_user(
     # Email-Änderung über separaten Admin-Client, damit der Cookie-Jar
     # des member_client unverändert bleibt.
     admin_only = TestClient(app)
-    admin_only.post(
-        "/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}
-    )
+    admin_only.post("/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
     r = admin_only.patch(
         f"/api/admin/persons/{member_person_id}",
         json={"email": "rotated@test.example"},
@@ -210,9 +206,7 @@ def test_patch_email_conflict_returns_409(
     assert body["detail"]["error"]["code"] == "email_taken"
 
 
-def test_patch_email_invalid_returns_422(
-    admin_client: TestClient, member_person_id: str
-) -> None:
+def test_patch_email_invalid_returns_422(admin_client: TestClient, member_person_id: str) -> None:
     r = admin_client.patch(
         f"/api/admin/persons/{member_person_id}",
         json={"email": "not-an-email"},
@@ -221,9 +215,7 @@ def test_patch_email_invalid_returns_422(
     assert r.status_code == 422, r.text
 
 
-def test_patch_email_member_forbidden(
-    member_client: TestClient, admin_person_id: str
-) -> None:
+def test_patch_email_member_forbidden(member_client: TestClient, admin_person_id: str) -> None:
     r = member_client.patch(
         f"/api/admin/persons/{admin_person_id}",
         json={"email": "hijack@test.example"},

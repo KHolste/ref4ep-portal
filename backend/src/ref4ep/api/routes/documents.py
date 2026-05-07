@@ -250,9 +250,7 @@ def create_document(
     return _document_out(document)
 
 
-def _campaign_links_out(
-    session: Session, document_id: str
-) -> list[DocumentCampaignLinkOut]:
+def _campaign_links_out(session: Session, document_id: str) -> list[DocumentCampaignLinkOut]:
     links = TestCampaignService(session).list_links_for_document(document_id)
     return [
         DocumentCampaignLinkOut(
@@ -268,9 +266,7 @@ def _campaign_links_out(
 
 def _document_detail_out(document: Document, session: Session) -> DocumentDetailOut:
     base = _document_out(document, with_versions=True)
-    return base.model_copy(
-        update={"test_campaigns": _campaign_links_out(session, document.id)}
-    )
+    return base.model_copy(update={"test_campaigns": _campaign_links_out(session, document.id)})
 
 
 @router.get("/documents/{document_id}", response_model=DocumentDetailOut)
@@ -285,9 +281,7 @@ def get_document(document_id: str, session: SessionDep, auth: AuthDep) -> Docume
     return _document_detail_out(document, session)
 
 
-def _resolve_writable_document(
-    session: Session, auth: AuthContext, document_id: str
-) -> Document:
+def _resolve_writable_document(session: Session, auth: AuthContext, document_id: str) -> Document:
     """Lädt ein Dokument, prüft Sichtbarkeit (404) und Schreibrecht (403).
 
     Identische Schwelle wie ``PATCH /api/documents/{id}``.
@@ -357,9 +351,7 @@ def unlink_document_test_campaign(
 ) -> None:
     document = _resolve_writable_document(session, auth, document_id)
     try:
-        TestCampaignService(session, audit=audit).unlink_document(
-            document, campaign_id=campaign_id
-        )
+        TestCampaignService(session, audit=audit).unlink_document(document, campaign_id=campaign_id)
     except LookupError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

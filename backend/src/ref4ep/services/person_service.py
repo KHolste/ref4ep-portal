@@ -174,18 +174,14 @@ class PersonService:
             if normalized != person.email:
                 existing = self.get_by_email(normalized)
                 if existing is not None and existing.id != person.id:
-                    raise EmailAlreadyExists(
-                        f"E-Mail {normalized!r} ist bereits vergeben."
-                    )
+                    raise EmailAlreadyExists(f"E-Mail {normalized!r} ist bereits vergeben.")
                 person.email = normalized
 
         try:
             self.session.flush()
         except IntegrityError as exc:
             self.session.rollback()
-            raise EmailAlreadyExists(
-                f"E-Mail {person.email!r} ist bereits vergeben."
-            ) from exc
+            raise EmailAlreadyExists(f"E-Mail {person.email!r} ist bereits vergeben.") from exc
 
         if self.audit is not None:
             after = {

@@ -555,9 +555,7 @@ class TestCampaignService:
         doc = self.session.get(Document, document_id)
         if doc is None or doc.is_deleted:
             raise LookupError(f"Dokument {document_id} nicht gefunden.")
-        return self._persist_document_link(
-            campaign_id, document_id=document_id, label=label
-        )
+        return self._persist_document_link(campaign_id, document_id=document_id, label=label)
 
     def link_document(
         self,
@@ -578,12 +576,8 @@ class TestCampaignService:
             raise LookupError(f"Testkampagne {campaign_id} nicht gefunden.")
         campaign_wp_ids = {link.workpackage_id for link in campaign.workpackage_links}
         if document.workpackage_id not in campaign_wp_ids:
-            raise ValueError(
-                "Dokument-Workpackage gehört nicht zur Kampagne."
-            )
-        return self._persist_document_link(
-            campaign_id, document_id=document.id, label=label
-        )
+            raise ValueError("Dokument-Workpackage gehört nicht zur Kampagne.")
+        return self._persist_document_link(campaign_id, document_id=document.id, label=label)
 
     def remove_document_link(self, campaign_id: str, document_id: str) -> None:
         """Eintrittspunkt von der Kampagnen-Seite: erfordert
@@ -614,9 +608,7 @@ class TestCampaignService:
         campaign = self.get(campaign_id)
         if campaign is None:
             raise LookupError(f"Testkampagne {campaign_id} nicht gefunden.")
-        existing = self.session.get(
-            TestCampaignDocumentLink, (campaign_id, document.id)
-        )
+        existing = self.session.get(TestCampaignDocumentLink, (campaign_id, document.id))
         if existing is None:
             return
         label = existing.label

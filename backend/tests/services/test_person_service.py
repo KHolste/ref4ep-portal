@@ -155,11 +155,7 @@ def test_update_email_writes_audit_before_after(session: Session) -> None:
     admin.update(person.id, email="After@Example.com")
     session.flush()
 
-    entry = (
-        session.query(AuditLog)
-        .filter_by(action="person.update", entity_id=person.id)
-        .one()
-    )
+    entry = session.query(AuditLog).filter_by(action="person.update", entity_id=person.id).one()
     payload = json.loads(entry.details)
     assert payload["before"]["email"] == "before@example.com"
     assert payload["after"]["email"] == "after@example.com"
@@ -200,11 +196,7 @@ def test_update_same_email_no_audit_entry(session: Session) -> None:
     )
     admin.update(person.id, email="NoOp@example.com")  # nach Normalisierung gleich
     session.flush()
-    count = (
-        session.query(AuditLog)
-        .filter_by(action="person.update", entity_id=person.id)
-        .count()
-    )
+    count = session.query(AuditLog).filter_by(action="person.update", entity_id=person.id).count()
     assert count == 0
 
 

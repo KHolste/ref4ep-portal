@@ -140,9 +140,7 @@ def test_post_link_creates_audit_entry(
     seeded_session: Session,
 ) -> None:
     doc_id = _create_doc(member_client, wp_code="WP3", title="Audit")
-    campaign_id = _create_campaign(
-        seeded_session, code="TC-AUDIT", wp_codes=["WP3"]
-    )
+    campaign_id = _create_campaign(seeded_session, code="TC-AUDIT", wp_codes=["WP3"])
 
     r = member_client.post(
         f"/api/documents/{doc_id}/test-campaigns",
@@ -168,9 +166,7 @@ def test_post_link_idempotent_relabel_writes_before_after(
     seeded_session: Session,
 ) -> None:
     doc_id = _create_doc(member_client, wp_code="WP3", title="Idem")
-    campaign_id = _create_campaign(
-        seeded_session, code="TC-IDEM", wp_codes=["WP3"]
-    )
+    campaign_id = _create_campaign(seeded_session, code="TC-IDEM", wp_codes=["WP3"])
 
     r1 = member_client.post(
         f"/api/documents/{doc_id}/test-campaigns",
@@ -200,9 +196,7 @@ def test_post_link_idempotent_relabel_writes_before_after(
     assert second["after"]["label"] == "protocol"
 
 
-def test_post_link_unknown_campaign_returns_404(
-    member_client: TestClient, member_in_wp3
-) -> None:
+def test_post_link_unknown_campaign_returns_404(member_client: TestClient, member_in_wp3) -> None:
     doc_id = _create_doc(member_client, wp_code="WP3", title="X")
     r = member_client.post(
         f"/api/documents/{doc_id}/test-campaigns",
@@ -222,9 +216,7 @@ def test_post_link_invalid_label_returns_422(
     seeded_session: Session,
 ) -> None:
     doc_id = _create_doc(member_client, wp_code="WP3", title="L")
-    campaign_id = _create_campaign(
-        seeded_session, code="TC-INV", wp_codes=["WP3"]
-    )
+    campaign_id = _create_campaign(seeded_session, code="TC-INV", wp_codes=["WP3"])
     r = member_client.post(
         f"/api/documents/{doc_id}/test-campaigns",
         json={"campaign_id": campaign_id, "label": "not-a-label"},
@@ -241,9 +233,7 @@ def test_post_link_wp_mismatch_returns_422(
 ) -> None:
     """Dokument ist in WP3, Kampagne in WP4 — fachlich inkompatibel."""
     doc_id = _create_doc(member_client, wp_code="WP3", title="Mismatch")
-    campaign_id = _create_campaign(
-        seeded_session, code="TC-WP4", wp_codes=["WP4"]
-    )
+    campaign_id = _create_campaign(seeded_session, code="TC-WP4", wp_codes=["WP4"])
     r = member_client.post(
         f"/api/documents/{doc_id}/test-campaigns",
         json={"campaign_id": campaign_id, "label": "other"},
@@ -261,12 +251,8 @@ def test_post_link_invisible_document_returns_404(
 ) -> None:
     """Existenz-Leak-Schutz: ein WP-fremdes Doc mit visibility=workpackage
     ist für den Member unsichtbar → 404, nicht 403."""
-    foreign_doc_id = _create_doc_via_service(
-        seeded_session, wp_code="WP4", title="Fremd"
-    )
-    campaign_id = _create_campaign(
-        seeded_session, code="TC-FR", wp_codes=["WP4"]
-    )
+    foreign_doc_id = _create_doc_via_service(seeded_session, wp_code="WP4", title="Fremd")
+    campaign_id = _create_campaign(seeded_session, code="TC-FR", wp_codes=["WP4"])
     r = member_client.post(
         f"/api/documents/{foreign_doc_id}/test-campaigns",
         json={"campaign_id": campaign_id, "label": "other"},
@@ -287,9 +273,7 @@ def test_post_link_visible_but_no_write_returns_403(
     foreign_doc_id = _create_doc_via_service(
         seeded_session, wp_code="WP4", title="Intern", visibility="internal"
     )
-    campaign_id = _create_campaign(
-        seeded_session, code="TC-INT", wp_codes=["WP4"]
-    )
+    campaign_id = _create_campaign(seeded_session, code="TC-INT", wp_codes=["WP4"])
     # Sanity: Member kann das Doc lesen.
     visible = member_client.get(f"/api/documents/{foreign_doc_id}")
     assert visible.status_code == 200
@@ -309,9 +293,7 @@ def test_post_link_unknown_document_returns_404(
     admin_person_id: str,
     seeded_session: Session,
 ) -> None:
-    campaign_id = _create_campaign(
-        seeded_session, code="TC-UD", wp_codes=["WP3"]
-    )
+    campaign_id = _create_campaign(seeded_session, code="TC-UD", wp_codes=["WP3"])
     r = member_client.post(
         "/api/documents/00000000-0000-0000-0000-000000000000/test-campaigns",
         json={"campaign_id": campaign_id, "label": "other"},
@@ -327,9 +309,7 @@ def test_post_link_without_csrf_blocked(
     seeded_session: Session,
 ) -> None:
     doc_id = _create_doc(member_client, wp_code="WP3", title="NoCSRF")
-    campaign_id = _create_campaign(
-        seeded_session, code="TC-NCS", wp_codes=["WP3"]
-    )
+    campaign_id = _create_campaign(seeded_session, code="TC-NCS", wp_codes=["WP3"])
     r = member_client.post(
         f"/api/documents/{doc_id}/test-campaigns",
         json={"campaign_id": campaign_id, "label": "other"},
@@ -347,9 +327,7 @@ def test_delete_link_removes_and_audits(
     seeded_session: Session,
 ) -> None:
     doc_id = _create_doc(member_client, wp_code="WP3", title="Del")
-    campaign_id = _create_campaign(
-        seeded_session, code="TC-DEL", wp_codes=["WP3"]
-    )
+    campaign_id = _create_campaign(seeded_session, code="TC-DEL", wp_codes=["WP3"])
     add = member_client.post(
         f"/api/documents/{doc_id}/test-campaigns",
         json={"campaign_id": campaign_id, "label": "analysis"},
@@ -376,9 +354,7 @@ def test_delete_link_removes_and_audits(
     assert payload["before"]["label"] == "analysis"
 
 
-def test_delete_link_unknown_campaign_returns_404(
-    member_client: TestClient, member_in_wp3
-) -> None:
+def test_delete_link_unknown_campaign_returns_404(member_client: TestClient, member_in_wp3) -> None:
     doc_id = _create_doc(member_client, wp_code="WP3", title="DelU")
     r = member_client.delete(
         f"/api/documents/{doc_id}/test-campaigns/00000000-0000-0000-0000-000000000000",
@@ -395,9 +371,7 @@ def test_delete_link_idempotent_when_no_link(
 ) -> None:
     """Kampagne existiert, Link nicht — 204, kein Audit."""
     doc_id = _create_doc(member_client, wp_code="WP3", title="DelI")
-    campaign_id = _create_campaign(
-        seeded_session, code="TC-DELI", wp_codes=["WP3"]
-    )
+    campaign_id = _create_campaign(seeded_session, code="TC-DELI", wp_codes=["WP3"])
     r = member_client.delete(
         f"/api/documents/{doc_id}/test-campaigns/{campaign_id}",
         headers=_csrf(member_client),
@@ -418,12 +392,8 @@ def test_delete_link_invisible_document_returns_404(
     seeded_session: Session,
 ) -> None:
     """Existenz-Leak-Schutz beim DELETE: WP-fremdes Doc → 404."""
-    foreign_doc_id = _create_doc_via_service(
-        seeded_session, wp_code="WP4", title="Fr"
-    )
-    campaign_id = _create_campaign(
-        seeded_session, code="TC-FR2", wp_codes=["WP4"]
-    )
+    foreign_doc_id = _create_doc_via_service(seeded_session, wp_code="WP4", title="Fr")
+    campaign_id = _create_campaign(seeded_session, code="TC-FR2", wp_codes=["WP4"])
     # Verlinken als Admin via Service.
     admin = seeded_session.query(Person).filter_by(email="admin@test.example").one()
     TestCampaignService(
@@ -449,9 +419,7 @@ def test_delete_link_visible_but_no_write_returns_403(
     foreign_doc_id = _create_doc_via_service(
         seeded_session, wp_code="WP4", title="Int", visibility="internal"
     )
-    campaign_id = _create_campaign(
-        seeded_session, code="TC-INT2", wp_codes=["WP4"]
-    )
+    campaign_id = _create_campaign(seeded_session, code="TC-INT2", wp_codes=["WP4"])
     admin = seeded_session.query(Person).filter_by(email="admin@test.example").one()
     TestCampaignService(
         seeded_session, role=admin.platform_role, person_id=admin.id
