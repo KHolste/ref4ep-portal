@@ -37,7 +37,13 @@ function showInitialPassword(container, password, onClose) {
   container.replaceChildren(dialog);
 }
 
-function renderEditDialog(person, partners, onSaved) {
+function renderEditDialog(person, partners, me, onSaved) {
+  const emailInput = h("input", {
+    type: "email",
+    value: person.email,
+    required: true,
+    autocomplete: "off",
+  });
   const nameInput = h("input", { type: "text", value: person.display_name, required: true });
   const partnerSelect = h(
     "select",
@@ -52,6 +58,14 @@ function renderEditDialog(person, partners, onSaved) {
         ),
       ),
   );
+  const isSelf = me?.person?.id === person.id;
+  const selfHint = isSelf
+    ? h(
+        "p",
+        { class: "muted" },
+        "Hinweis: Diese E-Mail wird künftig für deinen Login verwendet.",
+      )
+    : null;
   const errorBox = h("p", { class: "error", style: "display:none" }, "");
 
   async function onSubmit(ev) {
@@ -59,6 +73,7 @@ function renderEditDialog(person, partners, onSaved) {
     errorBox.style.display = "none";
     try {
       await api("PATCH", `/api/admin/persons/${person.id}`, {
+        email: emailInput.value,
         display_name: nameInput.value,
         partner_id: partnerSelect.value,
       });
@@ -69,14 +84,15 @@ function renderEditDialog(person, partners, onSaved) {
     }
   }
 
-  return h(
-    "form",
-    { class: "stacked", onsubmit: onSubmit },
+  const fields = [
+    h("label", {}, "E-Mail", emailInput),
     h("label", {}, "Anzeigename", nameInput),
     h("label", {}, "Partner", partnerSelect),
-    errorBox,
-    h("button", { type: "submit" }, "Speichern"),
-  );
+  ];
+  if (selfHint) fields.push(selfHint);
+  fields.push(errorBox);
+  fields.push(h("button", { type: "submit" }, "Speichern"));
+  return h("form", { class: "stacked", onsubmit: onSubmit }, ...fields);
 }
 
 function renderRoleDialog(person, onSaved) {
@@ -258,7 +274,7 @@ export async function render(container, ctx) {
         onclick: () =>
           showDialog(
             "Person bearbeiten",
-            renderEditDialog(person, partners, reload),
+            renderEditDialog(person, partners, ctx.me, reload),
           ),
       },
       "Person bearbeiten …",

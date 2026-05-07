@@ -300,6 +300,7 @@ function renderMemberRow(wp, member, onChangeRole, onRemove) {
         {
           type: "button",
           class: "button-danger button-compact",
+          "data-action": "remove-member",
           onclick: () => onRemove(member),
         },
         "Entfernen",
@@ -308,12 +309,18 @@ function renderMemberRow(wp, member, onChangeRole, onRemove) {
   );
 }
 
-function renderWorkpackageCard(wp, partnerPersons, dialogSlot, onChanged) {
+function renderWorkpackageCard(wp, partnerPersons, onChanged) {
+  // Pro-Karten-Inline-Slot: Der Dialog erscheint direkt in der Karte,
+  // damit ein Klick auf „Mitglied hinzufügen …" sofort sichtbar ist.
+  // Vorher gab es einen einzigen Slot am Ende der WP-Sektion — bei
+  // mehreren Karten lag der Dialog außerhalb des Sichtbereichs und
+  // der Klick wirkte wie ohne Effekt.
+  const cardDialogSlot = h("div", { class: "lead-wp-card-dialog" });
   function clearDialog() {
-    dialogSlot.replaceChildren();
+    cardDialogSlot.replaceChildren();
   }
   function showDialog(title, body) {
-    dialogSlot.replaceChildren(
+    cardDialogSlot.replaceChildren(
       h("div", { class: "dialog" }, h("h3", {}, title), body),
     );
   }
@@ -377,7 +384,7 @@ function renderWorkpackageCard(wp, partnerPersons, dialogSlot, onChanged) {
 
   return h(
     "article",
-    { class: "lead-wp-card" },
+    { class: "lead-wp-card", "data-wp-code": wp.code },
     h(
       "header",
       { class: "lead-wp-card-head" },
@@ -395,12 +402,18 @@ function renderWorkpackageCard(wp, partnerPersons, dialogSlot, onChanged) {
       ),
     ),
     memberList,
+    cardDialogSlot,
     h(
       "div",
       { class: "lead-wp-card-footer" },
       h(
         "button",
-        { type: "button", class: "button-primary button-compact", onclick: onAdd },
+        {
+          type: "button",
+          class: "button-primary button-compact",
+          "data-action": "add-member",
+          onclick: onAdd,
+        },
         "Mitglied hinzufügen …",
       ),
     ),
@@ -530,7 +543,12 @@ export async function render(container, ctx) {
     h("h2", {}, personsHeadline),
     h(
       "button",
-      { type: "button", class: "button-primary", onclick: openCreatePerson },
+      {
+        type: "button",
+        class: "button-primary",
+        "data-action": "create-person",
+        onclick: openCreatePerson,
+      },
       "Person anlegen …",
     ),
   );
@@ -545,12 +563,15 @@ export async function render(container, ctx) {
     personDialogSlot,
   );
 
-  // WP-Karten.
-  const wpDialogSlot = h("div", {});
+  // WP-Karten. Jede Karte trägt ihren eigenen Inline-Dialog — siehe
+  // ``renderWorkpackageCard``. Das ist bewusst: ein gemeinsamer Slot
+  // unterhalb aller Karten lag (auf Desktop) deutlich unterhalb des
+  // Klicks und wirkte deshalb nach dem Redesign so, als würde der
+  // Button „Mitglied hinzufügen …" gar nicht reagieren.
   function rerender() {
     render(container, ctx);
   }
-  const wpsGridSlot = h("div", { class: "lead-wp-grid" });
+  const wpsGridSlot = h("div", {});
 
   function renderWpsGrid(filteredWps) {
     if (!leadWps.length) {
@@ -569,7 +590,7 @@ export async function render(container, ctx) {
       "div",
       { class: "lead-wp-grid" },
       ...filteredWps.map((wp) =>
-        renderWorkpackageCard(wp, partnerPersons, wpDialogSlot, rerender),
+        renderWorkpackageCard(wp, partnerPersons, rerender),
       ),
     );
   }
@@ -579,7 +600,6 @@ export async function render(container, ctx) {
     { class: "lead-team-wps" },
     h("h2", {}, "Meine Arbeitspakete"),
     wpsGridSlot,
-    wpDialogSlot,
   );
 
   function applyFilters() {

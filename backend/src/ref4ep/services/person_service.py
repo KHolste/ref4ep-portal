@@ -8,6 +8,7 @@ Operationen (``change_password``) sind ausgenommen. Audit-Pflicht
 from __future__ import annotations
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ref4ep.domain.models import PLATFORM_ROLES, Person
@@ -21,8 +22,22 @@ from ref4ep.services.auth import (
 from ref4ep.services.permissions import can_admin
 
 
+class EmailAlreadyExists(ValueError):
+    """E-Mail ist bereits an einen anderen Account vergeben."""
+
+
 def _norm_email(email: str) -> str:
     return email.strip().lower()
+
+
+def _validate_email_shape(email: str) -> None:
+    if not email:
+        raise ValueError("E-Mail darf nicht leer sein.")
+    if "@" not in email:
+        raise ValueError("E-Mail muss ein '@' enthalten.")
+    local, _, domain = email.rpartition("@")
+    if not local or "." not in domain:
+        raise ValueError("E-Mail ist nicht gültig.")
 
 
 class PersonService:
@@ -122,14 +137,24 @@ class PersonService:
         *,
         display_name: str | None = None,
         partner_id: str | None = None,
+        email: str | None = None,
     ) -> Person:
-        """Admin-Update von Anzeigename und/oder Partner-Zuordnung."""
+        """Admin-Update von Anzeigename, Partner-Zuordnung und/oder E-Mail.
+
+        E-Mail-Änderung lässt Passwort und ``must_change_password``
+        unangetastet. Bestehende Sessions sind ``person_id``-basiert und
+        bleiben gültig.
+        """
         self._require_admin()
         person = self.get_by_id(person_id)
         if person is None or person.is_deleted:
             raise LookupError(f"Person {person_id} nicht gefunden.")
 
-        before = {"display_name": person.display_name, "partner_id": person.partner_id}
+        before = {
+            "display_name": person.display_name,
+            "partner_id": person.partner_id,
+            "email": person.email,
+        }
 
         if display_name is not None:
             stripped = display_name.strip()
@@ -143,12 +168,30 @@ class PersonService:
             if target is None or target.is_deleted:
                 raise LookupError(f"Partner {partner_id} nicht gefunden.")
             person.partner_id = partner_id
+        if email is not None:
+            normalized = _norm_email(email)
+            _validate_email_shape(normalized)
+            if normalized != person.email:
+                existing = self.get_by_email(normalized)
+                if existing is not None and existing.id != person.id:
+                    raise EmailAlreadyExists(
+                        f"E-Mail {normalized!r} ist bereits vergeben."
+                    )
+                person.email = normalized
 
-        self.session.flush()
+        try:
+            self.session.flush()
+        except IntegrityError as exc:
+            self.session.rollback()
+            raise EmailAlreadyExists(
+                f"E-Mail {person.email!r} ist bereits vergeben."
+            ) from exc
+
         if self.audit is not None:
             after = {
                 "display_name": person.display_name,
                 "partner_id": person.partner_id,
+                "email": person.email,
             }
             if after != before:
                 self.audit.log(

@@ -2088,6 +2088,86 @@ def test_lead_team_redesigned_with_grid_and_filters() -> None:
     assert "Du leitest aktuell kein Arbeitspaket" in body
 
 
+# ---- „Mein Team": Action-Verdrahtung nach UI-Redesign -------------------
+#
+# Diese Tests sichern ab, dass der Klick-Pfad „Mitglied hinzufügen …"
+# nach dem Redesign weiterhin sichtbar reagiert. Der Auslöser für die
+# Tests war ein Bug, bei dem ein gemeinsamer Dialog-Slot unterhalb der
+# WP-Sektion lag — auf Desktop weit außerhalb des Sichtbereichs des
+# geklickten Buttons. Der Fix verschiebt den Slot in jede Karte
+# (``lead-wp-card-dialog``) und gibt jedem Action-Button ein stabiles
+# ``data-action``-Attribut, damit Tests die Verdrahtung prüfen können,
+# ohne sich auf zerbrechliche CSS-Klassen zu stützen.
+
+
+def test_lead_team_add_member_button_has_stable_action_marker() -> None:
+    body = (MODULES_DIR / "lead_team.js").read_text(encoding="utf-8")
+    # Stabiles data-action-Attribut auf dem Add-Button.
+    assert '"data-action": "add-member"' in body, (
+        "lead_team.js: Mitglied-hinzufuegen-Button braucht data-action='add-member'"
+    )
+    # Klick-Handler ist als onclick gebunden (h() hängt das via addEventListener).
+    assert "onclick: onAdd" in body
+    # Buttontext bleibt erhalten.
+    assert "Mitglied hinzufügen …" in body
+
+
+def test_lead_team_add_member_dialog_is_inline_per_card() -> None:
+    """Der Dialog-Slot wird pro Karte angelegt — nicht als gemeinsamer
+    Slot am Ende der Sektion (das war der UI-Redesign-Bug)."""
+    body = (MODULES_DIR / "lead_team.js").read_text(encoding="utf-8")
+    # Per-Card-Slot existiert.
+    assert "lead-wp-card-dialog" in body
+    assert 'h("div", { class: "lead-wp-card-dialog" })' in body, (
+        "lead_team.js sollte den Inline-Dialog-Slot pro Karte erzeugen"
+    )
+    # Kein gemeinsamer wpDialogSlot mehr — der Bug entstand genau dadurch.
+    assert "wpDialogSlot" not in body, (
+        "Gemeinsamer wpDialogSlot wieder eingeführt — Add-Dialog liegt"
+        " sonst außerhalb des sichtbaren Bereichs."
+    )
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # CSS für den neuen Slot.
+    assert ".lead-wp-card-dialog" in css
+
+
+def test_lead_team_remove_and_create_buttons_have_action_markers() -> None:
+    """Auch Entfernen- und Person-anlegen-Buttons bekommen stabile
+    data-action-Attribute, damit ein Redesign sie nicht stillschweigend
+    von ihren Klick-Handlern trennt."""
+    body = (MODULES_DIR / "lead_team.js").read_text(encoding="utf-8")
+    assert '"data-action": "remove-member"' in body
+    assert '"data-action": "create-person"' in body
+
+
+def test_lead_team_add_member_calls_existing_membership_endpoint() -> None:
+    """Der Add-Pfad ruft den vorhandenen Lead-API-Endpunkt auf — keine
+    neue Route, keine Modelländerung."""
+    body = (MODULES_DIR / "lead_team.js").read_text(encoding="utf-8")
+    assert "/api/lead/workpackages/" in body
+    assert "memberships" in body
+    assert '"POST"' in body
+
+
+def test_lead_team_action_buttons_are_type_button_not_submit() -> None:
+    """Aktionsbuttons in Karten duerfen nicht versehentlich Formulare
+    absenden - nach dem Redesign muss type='button' erhalten bleiben."""
+    body = (MODULES_DIR / "lead_team.js").read_text(encoding="utf-8")
+    # Mitglied-hinzufuegen-Button: muss type='button' tragen - sonst
+    # wuerde ein umschliessendes Formular ihn absenden. rfind, weil der
+    # erste Treffer im Modul-Kommentar liegt.
+    add_idx = body.rfind('"Mitglied hinzuf')
+    assert add_idx > 0
+    add_block = body[max(0, add_idx - 300) : add_idx]
+    assert 'type: "button"' in add_block
+    assert '"data-action": "add-member"' in add_block
+    # Entfernen-Button: dito.
+    rm_idx = body.index('"Entfernen"')
+    rm_block = body[max(0, rm_idx - 300) : rm_idx]
+    assert 'type: "button"' in rm_block
+    assert '"data-action": "remove-member"' in rm_block
+
+
 def test_navigation_admin_group_marker_in_index_and_app_js() -> None:
     index = (WEB_DIR / "index.html").read_text(encoding="utf-8")
     app_js = (WEB_DIR / "app.js").read_text(encoding="utf-8")

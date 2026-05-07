@@ -73,6 +73,7 @@ class AdminPersonCreateRequest(BaseModel):
 class AdminPersonPatchRequest(BaseModel):
     display_name: str | None = Field(default=None, min_length=1)
     partner_id: str | None = Field(default=None, min_length=36, max_length=36)
+    email: str | None = Field(default=None, min_length=3)
 
 
 class AdminSetRoleRequest(BaseModel):

@@ -140,6 +140,107 @@ def test_patch_updates_display_name_and_partner(admin_client: TestClient, seeded
     assert body["partner"]["short_name"] == other["short_name"]
 
 
+def test_patch_updates_email(
+    admin_client: TestClient, member_person_id: str, app
+) -> None:
+    r = admin_client.patch(
+        f"/api/admin/persons/{member_person_id}",
+        json={"email": "  Renamed@Test.example  "},
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["email"] == "renamed@test.example"
+    # Login mit alter Email schlägt fehl, neue Email funktioniert.
+    fresh = TestClient(app)
+    old = fresh.post(
+        "/api/auth/login",
+        json={"email": "member@test.example", "password": "M3mberP4ssword!"},
+    )
+    assert old.status_code == 401
+    new = fresh.post(
+        "/api/auth/login",
+        json={"email": "renamed@test.example", "password": "M3mberP4ssword!"},
+    )
+    assert new.status_code == 200
+    fresh.close()
+
+
+def test_patch_email_session_survives_for_existing_user(
+    member_client: TestClient,
+    member_person_id: str,
+    admin_person_id: str,
+    app,
+) -> None:
+    # member_client besitzt eine aktive Session vor der Email-Änderung.
+    me_before = member_client.get("/api/me").json()
+    assert me_before["person"]["email"] == "member@test.example"
+
+    # Email-Änderung über separaten Admin-Client, damit der Cookie-Jar
+    # des member_client unverändert bleibt.
+    admin_only = TestClient(app)
+    admin_only.post(
+        "/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}
+    )
+    r = admin_only.patch(
+        f"/api/admin/persons/{member_person_id}",
+        json={"email": "rotated@test.example"},
+        headers={"X-CSRF-Token": admin_only.cookies.get("ref4ep_csrf") or ""},
+    )
+    assert r.status_code == 200, r.text
+    admin_only.close()
+
+    # Cookie/Token bleibt gültig (person_id-basiert), /api/me liefert neue Email.
+    me_after = member_client.get("/api/me")
+    assert me_after.status_code == 200
+    assert me_after.json()["person"]["email"] == "rotated@test.example"
+
+
+def test_patch_email_conflict_returns_409(
+    admin_client: TestClient, member_person_id: str, admin_person_id: str
+) -> None:
+    # Versuch, Member auf Admin-Email zu setzen -> 409.
+    r = admin_client.patch(
+        f"/api/admin/persons/{member_person_id}",
+        json={"email": ADMIN_EMAIL},
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 409, r.text
+    body = r.json()
+    assert body["detail"]["error"]["code"] == "email_taken"
+
+
+def test_patch_email_invalid_returns_422(
+    admin_client: TestClient, member_person_id: str
+) -> None:
+    r = admin_client.patch(
+        f"/api/admin/persons/{member_person_id}",
+        json={"email": "not-an-email"},
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 422, r.text
+
+
+def test_patch_email_member_forbidden(
+    member_client: TestClient, admin_person_id: str
+) -> None:
+    r = member_client.patch(
+        f"/api/admin/persons/{admin_person_id}",
+        json={"email": "hijack@test.example"},
+        headers=_csrf(member_client),
+    )
+    assert r.status_code == 403
+
+
+def test_patch_email_unknown_person_returns_404(admin_client: TestClient) -> None:
+    r = admin_client.patch(
+        "/api/admin/persons/00000000-0000-0000-0000-000000000000",
+        json={"email": "ghost@test.example"},
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 404
+
+
 # ---- Rolle / Aktivieren / Deaktivieren ---------------------------------
 
 

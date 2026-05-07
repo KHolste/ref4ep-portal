@@ -2210,6 +2210,17 @@ button.button-compact {
   margin-top: auto;
 }
 
+/* Pro-Karte-Inline-Dialog (Add-Member). Erscheint zwischen Mitglieder-
+ * liste und Footer, damit „Mitglied hinzufügen …" sichtbar reagiert. */
+.lead-wp-card-dialog:empty {
+  display: none;
+}
+
+.lead-wp-card-dialog .dialog {
+  margin-top: 0.4rem;
+  padding: 0.6rem 0.7rem;
+}
+
 /* ---- Calendar — Typ-Legende + Agenda-Karten ---------------------- */
 
 .calendar-legend {

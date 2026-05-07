@@ -32,7 +32,7 @@ from ref4ep.domain.models import Person
 from ref4ep.services.audit_logger import AuditLogger
 from ref4ep.services.auth import generate_initial_password
 from ref4ep.services.permissions import AuthContext, can_admin
-from ref4ep.services.person_service import PersonService
+from ref4ep.services.person_service import EmailAlreadyExists, PersonService
 from ref4ep.services.workpackage_service import WorkpackageService
 
 router = APIRouter(prefix="/api/admin")
@@ -165,11 +165,17 @@ def patch_person(
             person_id,
             display_name=payload.display_name,
             partner_id=payload.partner_id,
+            email=payload.email,
         )
     except LookupError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    except EmailAlreadyExists as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": {"code": "email_taken", "message": str(exc)}},
         ) from exc
     except ValueError as exc:
         raise HTTPException(
