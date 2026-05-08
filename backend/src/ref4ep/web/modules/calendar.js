@@ -545,8 +545,8 @@ export async function render(container, _ctx) {
     container,
     pageHeader(
       "Kalender",
-      "Aggregierte Sicht auf Meetings, Testkampagnen, Meilensteine und " +
-        "Aufgaben mit Frist. Bearbeiten erfolgt weiter auf der jeweiligen Detailseite.",
+      "Gemeinsame Kalenderansicht für Meetings, Testkampagnen, Meilensteine und " +
+        "Aufgaben mit Frist. Bearbeitet werden die Einträge weiterhin auf der jeweiligen Detailseite.",
     ),
     navBar,
     filterBox,

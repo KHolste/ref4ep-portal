@@ -561,7 +561,7 @@ function renderBoard(board, mode, containerWidth) {
 
 export async function render(container, _ctx) {
   container.replaceChildren(
-    pageHeader("Projekt-Timeline", "Gantt-Sicht über Meilensteine, Testkampagnen und Meetings"),
+    pageHeader("Projekt-Timeline", "Zeitleiste über Meilensteine, Testkampagnen und Meetings."),
     renderLoading("Timeline wird geladen …"),
   );
 
@@ -599,7 +599,7 @@ export async function render(container, _ctx) {
   }
 
   container.replaceChildren(
-    pageHeader("Projekt-Timeline", "Gantt-Sicht über Meilensteine, Testkampagnen und Meetings"),
+    pageHeader("Projekt-Timeline", "Zeitleiste über Meilensteine, Testkampagnen und Meetings."),
     filterSlot,
     boardSlot,
     legendSlot,

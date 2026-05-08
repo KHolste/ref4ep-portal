@@ -206,7 +206,7 @@ export async function render(container, _ctx) {
     return [
       pageHeader(
         "Meilensteine",
-        "Projekt-Meilensteine aus dem Antrag. Bearbeiten dürfen Admins und der WP-Lead des Meilenstein-Arbeitspakets; den Gesamtprojekt-Meilenstein nur Admins.",
+        "Projekt-Meilensteine aus dem Antrag. Meilensteine mit Arbeitspaketbezug können von Admins und dem jeweiligen WP-Lead bearbeitet werden. Übergreifende Projektmeilensteine können nur von Admins bearbeitet werden.",
       ),
     ];
   }

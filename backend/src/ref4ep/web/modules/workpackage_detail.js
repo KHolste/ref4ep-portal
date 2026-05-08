@@ -93,7 +93,7 @@ function renderCockpitView(wp) {
       ? h(
           "p",
           { class: "muted" },
-          "Hauptpaket-Datumsfelder werden im Gantt aus den Sub-WPs aggregiert; manuelle Werte hier sind optional.",
+          "Datumsfelder am Hauptpaket werden im Zeitplan automatisch aus den Unterpaketen abgeleitet; manuelle Werte sind optional.",
         )
       : null,
   );

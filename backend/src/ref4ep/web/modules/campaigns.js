@@ -198,8 +198,8 @@ export async function render(container, _ctx) {
   const headerNodes = [
     pageHeader(
       "Testkampagnen",
-      "Eigene Sicht für experimentelle Durchführungen — Ringvergleiche, " +
-        "Referenzmessungen, Facility-Tests, Kalibrierungen und Langzeittests.",
+      "Übersicht der Testkampagnen — Ringvergleiche, Referenzmessungen, " +
+        "Facility-Tests, Kalibrierungen und Langzeittests.",
     ),
   ];
 
@@ -263,7 +263,7 @@ export async function render(container, _ctx) {
         qFilter.value.trim();
       const message = filtersActive
         ? "Passe die Filter an oder setze sie zurück."
-        : "Testkampagnen bündeln experimentelle Durchführungen, Ringvergleiche und Facility-Tests. " +
+        : "Testkampagnen bündeln Ringvergleiche, Referenzmessungen und Facility-Tests. " +
           "WP-Leads und Admins können hier neue Testkampagnen anlegen.";
       const action = filtersActive
         ? null
