@@ -156,7 +156,7 @@ function renderUploadsCard(status) {
   );
 }
 
-function renderBackupCard(status) {
+function renderBackupCard(status, onRefresh) {
   const b = status.backups;
   const items = [
     row("Verzeichnis", b.backup_dir),
@@ -172,7 +172,65 @@ function renderBackupCard(status) {
   } else {
     items.push(row("Neuestes Backup", "—"));
   }
-  return h("section", { class: "system-card" }, h("h2", {}, "Backups"), ...items);
+  // Block 0033 — manueller Backup-Trigger.
+  const hint = h(
+    "p",
+    { class: "muted backup-trigger-hint" },
+    "Erstellt ein serverseitiges Backup gemäß Betriebsroutine.",
+  );
+  const status_line = h("p", { class: "backup-trigger-status", style: "display:none" }, "");
+  const triggerBtn = h(
+    "button",
+    { type: "button", class: "backup-trigger-button" },
+    "Backup jetzt starten",
+  );
+  triggerBtn.addEventListener("click", async () => {
+    if (!confirm("Backup jetzt anstoßen? Das kann ein paar Minuten dauern.")) return;
+    triggerBtn.disabled = true;
+    const original = triggerBtn.textContent;
+    triggerBtn.textContent = "Backup wird gestartet …";
+    status_line.style.display = "none";
+    status_line.classList.remove("error");
+    try {
+      const res = await api("POST", "/api/admin/backup/start", {});
+      if (res && res.result === "success") {
+        status_line.textContent =
+          "Backup wurde gestartet. Die neueste Sicherung erscheint nach Abschluss in der Übersicht.";
+        status_line.classList.remove("error");
+      } else {
+        status_line.textContent =
+          (res && res.message) || "Backup-Start scheiterte.";
+        status_line.classList.add("error");
+      }
+      status_line.style.display = "";
+      if (typeof onRefresh === "function") {
+        await onRefresh();
+        return; // onRefresh re-rendert die Karte; lokale State-Änderungen
+                // brauchen nicht mehr aktualisiert zu werden.
+      }
+    } catch (err) {
+      status_line.textContent = err.message || "Backup-Start fehlgeschlagen.";
+      status_line.classList.add("error");
+      status_line.style.display = "";
+    } finally {
+      triggerBtn.disabled = false;
+      triggerBtn.textContent = original;
+    }
+  });
+  const triggerSection = h(
+    "div",
+    { class: "backup-trigger" },
+    hint,
+    h("div", { class: "form-actions" }, triggerBtn),
+    status_line,
+  );
+  return h(
+    "section",
+    { class: "system-card" },
+    h("h2", {}, "Backups"),
+    ...items,
+    triggerSection,
+  );
 }
 
 function renderStorageCard(status) {
@@ -235,7 +293,7 @@ function renderAll(container, status, onRefresh) {
   container.replaceChildren(
     pageHeader(
       "Systemstatus",
-      "Betriebs- und Smoke-Test-Werte für Admins. Keine destruktiven Aktionen — nur Lesesicht.",
+      "Betriebs- und Smoke-Test-Werte für Admins. Schreibende Aktionen sind auf den manuellen Backup-Start beschränkt.",
     ),
     h("div", { class: "actions" }, refreshBtn),
     h(
@@ -243,7 +301,7 @@ function renderAll(container, status, onRefresh) {
       { class: "system-grid" },
       renderHealthCard(status),
       renderDatabaseCard(status),
-      renderBackupCard(status),
+      renderBackupCard(status, onRefresh),
       renderUploadsCard(status),
       renderStorageCard(status),
       renderCountsCard(status),

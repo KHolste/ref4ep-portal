@@ -1,0 +1,30 @@
+# Beispiel-Drop-In für /etc/sudoers.d/ref4ep-backup
+#
+# Erlaubt dem Webprozess-User AUSSCHLIESSLICH den Start des
+# ref4ep-backup.service. Keine anderen systemctl-Aktionen, keine
+# anderen Units, kein Passwort-Prompt.
+#
+# Installation:
+#   sudo cp ref4ep-backup.sudoers.example /etc/sudoers.d/ref4ep-backup
+#   sudo chmod 0440 /etc/sudoers.d/ref4ep-backup
+#   sudo visudo -c   # Syntax prüfen — niemals überspringen
+#
+# Voraussetzungen:
+#   - <USER> durch den tatsächlichen Webprozess-User ersetzen
+#     (siehe infra/systemd/ref4ep-portal.service.example, Feld ``User=``).
+#   - Beide möglichen systemctl-Pfade sind gelistet, damit die Regel
+#     auf Distributionen mit /bin/systemctl UND solchen mit
+#     /usr/bin/systemctl greift. sudo akzeptiert exakt diese Argumente
+#     und nichts anderes.
+#   - Defaults:<USER> !requiretty erlaubt subprocess-Aufrufe ohne TTY.
+#
+# Sicherheit:
+#   - Das ist KEINE breite sudo-Berechtigung. Es ist genau eine
+#     Argumentliste pro Zeile zugelassen. Andere Argumente (z. B.
+#     ``stop``, ``restart`` oder andere Unit-Namen) werden von sudo
+#     abgelehnt.
+#   - Die Webprozess-Logik ergänzt vor dem Aufruf nichts dynamisch.
+
+<USER> ALL=(root) NOPASSWD: /bin/systemctl start ref4ep-backup.service
+<USER> ALL=(root) NOPASSWD: /usr/bin/systemctl start ref4ep-backup.service
+Defaults:<USER> !requiretty

@@ -119,6 +119,51 @@ tar -tzf "$(ls -t /opt/ref4ep-backups/*.tar.gz | head -1)" | head
 Im Archiv müssen DB-Dump und Inhalt von
 `/opt/ref4ep-portal/data/storage/` enthalten sein.
 
+### 4.1 Manueller Backup-Trigger über das Webinterface (Block 0033)
+
+Admins können das Backup zusätzlich über die Systemstatus-Seite
+auslösen — der Webprozess startet dabei genau denselben
+`ref4ep-backup.service`. Voraussetzung: einmalig eine eng gefasste
+sudoers-Drop-In-Regel installieren.
+
+```bash
+# 1) Beispieldatei kopieren und <USER> auf den tatsächlichen
+#    Webprozess-User setzen (siehe infra/systemd/ref4ep-portal.service.example).
+sudo cp /opt/ref4ep-portal/infra/sudoers/ref4ep-backup.sudoers.example \
+    /etc/sudoers.d/ref4ep-backup
+sudo $EDITOR /etc/sudoers.d/ref4ep-backup
+sudo chmod 0440 /etc/sudoers.d/ref4ep-backup
+
+# 2) Pflichtcheck — Tippfehler in sudoers können die Anmeldung sperren.
+sudo visudo -c
+
+# 3) Funktionstest als Webprozess-User.
+sudo -u <USER> sudo -n /usr/bin/systemctl start ref4ep-backup.service
+sudo journalctl -u ref4ep-backup.service -n 50 --no-pager
+```
+
+Sicherheitsmerkmale der Drop-In-Regel:
+
+- nur genau `systemctl start ref4ep-backup.service`, keine anderen
+  Aktionen oder Units;
+- NOPASSWD nur für diesen einen Befehl;
+- `!requiretty`, damit Aufrufe ohne TTY funktionieren.
+
+Im Webinterface erscheint im Bereich **Systemstatus → Backups** der
+Button **„Backup jetzt starten"**. Erfolgsmeldung lautet
+„Backup wurde gestartet." Das Backup läuft anschließend asynchron in
+der systemd-Unit weiter; die neueste Sicherung erscheint nach
+Abschluss in der Übersicht.
+
+Override des verwendeten Befehls (falls `systemctl` an einem anderen
+Pfad liegt) per Env-Variable in der `.env` des Webprozesses:
+
+```
+REF4EP_BACKUP_TRIGGER_COMMAND=/usr/bin/sudo -n /usr/bin/systemctl start ref4ep-backup.service
+```
+
+Der Validator akzeptiert nur absolute Pfade ohne Shell-Metazeichen.
+
 ---
 
 ## 5. Restore

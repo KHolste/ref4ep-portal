@@ -1166,20 +1166,24 @@ def test_system_status_module_renders_required_sections() -> None:
     assert "/api/admin/system/status" in body
 
 
-def test_system_status_module_has_no_destructive_actions() -> None:
-    """Block 0019 erlaubt explizit nur Lesesicht — keine Backup-/
-    Restore-/Lösch-Trigger im Modul."""
+def test_system_status_module_has_no_destructive_actions_apart_from_backup_start() -> None:
+    """Block 0019 war ursprünglich Lesesicht-only. Block 0033 ergänzt
+    bewusst genau einen schreibenden Trigger: ``POST /api/admin/backup/start``.
+    Andere destruktive Aktionen (Restore, Lösch-, DELETE-Aufrufe)
+    bleiben verboten."""
     body = (MODULES_DIR / "system_status.js").read_text(encoding="utf-8")
     for forbidden in (
-        "Backup auslösen",
-        "Backup starten",
         "Wiederherstellen",
         "Restore",
         "Löschen",
         '"DELETE"',
-        '"POST"',
     ):
         assert forbidden not in body, f"system_status.js darf {forbidden!r} nicht enthalten"
+    # POST ist erlaubt — aber nur für den Backup-Start-Endpoint.
+    if '"POST"' in body:
+        assert "/api/admin/backup/start" in body, (
+            "POST in system_status.js ist nur für /api/admin/backup/start zulässig."
+        )
 
 
 def test_system_status_module_does_not_print_env_or_secrets() -> None:
@@ -1328,35 +1332,38 @@ def test_system_status_uploads_card_shows_backup_contents_lines() -> None:
 def test_system_status_card_order_keeps_existing_cards_and_adds_uploads() -> None:
     body = (MODULES_DIR / "system_status.js").read_text(encoding="utf-8")
     # Alle bisherigen Karten sind weiterhin im Render-Tree verdrahtet.
+    # ``renderBackupCard`` bekommt seit Block 0033 zusätzlich einen
+    # ``onRefresh``-Callback — wir prüfen daher nur die Funktion, nicht
+    # den exakten Aufruf-String.
     for fn in (
         "renderHealthCard(status)",
         "renderDatabaseCard(status)",
-        "renderBackupCard(status)",
         "renderStorageCard(status)",
         "renderCountsCard(status)",
         "renderLogsCard(status)",
     ):
         assert fn in body, f"{fn!r} fehlt im Render-Tree"
-    # Die neue Karte hängt zwischen Backups und Speicherplatz. Wir
-    # vergleichen die letzten Vorkommen — die liegen im Render-Tree, die
-    # ersten Vorkommen wären die Funktionsdefinitionen weiter oben.
-    backup_pos = body.rindex("renderBackupCard(status)")
+    assert "renderBackupCard(status, onRefresh)" in body, (
+        "renderBackupCard sollte mit onRefresh-Callback aufgerufen werden"
+    )
+    # Die neue Karte hängt zwischen Backups und Speicherplatz.
+    backup_pos = body.rindex("renderBackupCard(")
     uploads_pos = body.rindex("renderUploadsCard(status)")
     storage_pos = body.rindex("renderStorageCard(status)")
     assert backup_pos < uploads_pos < storage_pos
 
 
-def test_system_status_module_still_has_no_destructive_actions() -> None:
-    """Block 0021 fügt keine Schreibpfade hinzu — Regression-Sicherung."""
+def test_system_status_module_still_has_no_unrelated_destructive_actions() -> None:
+    """Block 0021 fügt keine Schreibpfade hinzu. Block 0033 ergänzt
+    explizit genau einen Backup-Trigger; weitere destruktive Aktionen
+    bleiben verboten."""
     body = (MODULES_DIR / "system_status.js").read_text(encoding="utf-8")
     for forbidden in (
         "Backup auslösen",
-        "Backup starten",
         "Wiederherstellen",
         "Restore",
         "Löschen",
         '"DELETE"',
-        '"POST"',
     ):
         assert forbidden not in body, f"system_status.js darf {forbidden!r} nicht enthalten"
 
@@ -3443,3 +3450,50 @@ def test_campaign_gallery_uses_thumbnail_endpoint() -> None:
     # loading="lazy" und decoding="async" sind gesetzt.
     assert 'loading: "lazy"' in body
     assert 'decoding: "async"' in body
+
+
+# ---- Block 0033 — Manueller Admin-Backup-Trigger ---------------------
+
+
+def test_system_status_has_manual_backup_trigger_button() -> None:
+    body = (MODULES_DIR / "system_status.js").read_text(encoding="utf-8")
+    assert '"Backup jetzt starten"' in body
+    assert "Erstellt ein serverseitiges Backup gemäß Betriebsroutine." in body
+    assert "/api/admin/backup/start" in body
+    # Confirm-Dialog vorhanden.
+    assert "confirm(" in body
+    # Bestehende Lesesicht-Behauptung im Header wurde angepasst,
+    # damit sie nicht mehr lügt.
+    assert "Keine destruktiven Aktionen — nur Lesesicht" not in body
+
+
+def test_system_status_backup_trigger_uses_no_eval_or_new_function() -> None:
+    body = (MODULES_DIR / "system_status.js").read_text(encoding="utf-8")
+    assert "eval(" not in body
+    assert "new Function(" not in body
+
+
+def test_system_status_backup_trigger_styles_present() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (".backup-trigger", ".backup-trigger-hint", ".backup-trigger-status"):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+
+
+def test_sudoers_example_is_strict_and_documented() -> None:
+    """Die ausgelieferte sudoers-Beispieldatei darf nur den engen
+    ``systemctl start ref4ep-backup.service``-Befehl freigeben."""
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    sudoers = repo_root / "infra" / "sudoers" / "ref4ep-backup.sudoers.example"
+    text = sudoers.read_text(encoding="utf-8")
+    assert "systemctl start ref4ep-backup.service" in text
+    # Keine breite ``ALL``-Erlaubnis ohne genauen Befehl.
+    assert "NOPASSWD: ALL" not in text
+    # Nicht versehentlich andere systemctl-Aktionen freigeben.
+    for forbidden in ("systemctl stop", "systemctl restart", "systemctl reload"):
+        assert forbidden not in text
+    # Hinweis auf visudo -c als Pflichtcheck ist drin.
+    assert "visudo -c" in text
+    # Platzhalter <USER> für den tatsächlichen Webprozess-User.
+    assert "<USER>" in text

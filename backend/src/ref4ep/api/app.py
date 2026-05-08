@@ -25,6 +25,7 @@ from ref4ep import __version__
 from ref4ep.api.config import Settings, get_settings
 from ref4ep.api.routes.actions import router as actions_router
 from ref4ep.api.routes.activity import router as activity_router
+from ref4ep.api.routes.admin_backup import router as admin_backup_router
 from ref4ep.api.routes.admin_partners import router as admin_partners_router
 from ref4ep.api.routes.admin_persons import router as admin_persons_router
 from ref4ep.api.routes.admin_system import router as admin_system_router
@@ -118,6 +119,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(admin_persons_router)
     app.include_router(admin_partners_router)
     app.include_router(admin_system_router)
+    app.include_router(admin_backup_router)
     app.include_router(public_documents_router)
     # Web (server-rendered)
     app.include_router(public_pages_router)

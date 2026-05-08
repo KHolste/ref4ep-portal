@@ -55,6 +55,21 @@ class Settings(BaseSettings):
     # (siehe systemd-Setup). Pfad muss nicht existieren — der
     # SystemStatusService meldet ein Fehlen als Warning.
     backup_dir: str = "/opt/ref4ep-backups"
+    # Block 0033 — manueller Backup-Trigger.
+    # Argumentliste, die der Webprozess via ``subprocess.run`` (ohne
+    # Shell) ausführt, um den ``ref4ep-backup.service`` zu starten.
+    # Defaults setzen auf eine eng definierte sudoers-Regel
+    # (siehe ``infra/sudoers/ref4ep-backup.sudoers.example``).
+    # Override per ``REF4EP_BACKUP_TRIGGER_COMMAND`` als
+    # whitespace-getrennte Argumentliste.
+    backup_trigger_command: tuple[str, ...] = (
+        "/usr/bin/sudo",
+        "-n",
+        "/usr/bin/systemctl",
+        "start",
+        "ref4ep-backup.service",
+    )
+    backup_trigger_timeout_seconds: int = Field(default=30, ge=1, le=600)
 
     model_config = SettingsConfigDict(
         env_prefix="REF4EP_",
@@ -72,6 +87,40 @@ class Settings(BaseSettings):
                 f"{MIN_SESSION_SECRET_LEN} Zeichen haben "
                 "(siehe .env.example und docs/server_operations.md)."
             )
+        return value
+
+    @field_validator("backup_trigger_command", mode="before")
+    @classmethod
+    def _coerce_backup_trigger_command(cls, value):
+        """Erlaubt das Override per Env-Variable als
+        Whitespace-getrennten String und konvertiert ihn zur Liste."""
+        if isinstance(value, str):
+            parts = value.split()
+            return tuple(parts)
+        if isinstance(value, list):
+            return tuple(value)
+        return value
+
+    @field_validator("backup_trigger_command")
+    @classmethod
+    def _validate_backup_trigger_command(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        if not value:
+            raise ValueError("REF4EP_BACKUP_TRIGGER_COMMAND darf nicht leer sein.")
+        first = value[0]
+        if not first.startswith("/") or ".." in first:
+            raise ValueError(
+                "REF4EP_BACKUP_TRIGGER_COMMAND[0] muss ein absoluter Pfad sein "
+                "(kein relatives Argument, kein '..')."
+            )
+        forbidden = {";", "|", "&", "$", "`", "\n", "\r", "<", ">"}
+        for arg in value:
+            if not isinstance(arg, str) or not arg:
+                raise ValueError("REF4EP_BACKUP_TRIGGER_COMMAND-Eintrag darf nicht leer sein.")
+            if any(ch in forbidden for ch in arg):
+                raise ValueError(
+                    "REF4EP_BACKUP_TRIGGER_COMMAND enthält Shell-Metazeichen — "
+                    "nur literale Argumente erlaubt."
+                )
         return value
 
 
