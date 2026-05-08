@@ -1,0 +1,36 @@
+# Beispiel-Konfiguration — Platzhalter in <> ersetzen.
+#
+# Installation (Debian/Ubuntu-Layout):
+#   sudo cp ref4ep-portal.conf.example /etc/nginx/sites-available/ref4ep-portal.conf
+#   sudo $EDITOR /etc/nginx/sites-available/ref4ep-portal.conf   # <DOMAIN> setzen
+#   sudo ln -s /etc/nginx/sites-available/ref4ep-portal.conf /etc/nginx/sites-enabled/
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# Annahme: Backend lauscht auf 127.0.0.1:8000 (siehe
+# ref4ep-portal.service.example).
+
+server {
+    listen 80;
+    server_name <DOMAIN>;
+
+    # Maximale Upload-Größe für das Dokumentenregister.
+    # Muss ≥ REF4EP_MAX_UPLOAD_MB sein (Default 100 MB), sonst lehnt
+    # nginx mit 413 ab, bevor der Server den 422-Pfad sieht.
+    client_max_body_size 100m;
+
+    # SSL/TLS via certbot/Let's Encrypt:
+    #   sudo certbot --nginx -d <DOMAIN>
+    # Certbot ergänzt anschließend automatisch:
+    #   listen 443 ssl http2;
+    #   ssl_certificate     /etc/letsencrypt/live/<DOMAIN>/fullchain.pem;
+    #   ssl_certificate_key /etc/letsencrypt/live/<DOMAIN>/privkey.pem;
+    # und richtet einen 80 → 443-Redirect ein.
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

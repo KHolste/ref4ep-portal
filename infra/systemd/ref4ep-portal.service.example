@@ -1,0 +1,33 @@
+# Beispiel-Konfiguration — Platzhalter in <> ersetzen.
+#
+# Installation:
+#   sudo cp ref4ep-portal.service.example \
+#       /etc/systemd/system/ref4ep-portal.service
+#   sudo $EDITOR /etc/systemd/system/ref4ep-portal.service   # <…> setzen
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now ref4ep-portal.service
+#
+# Voraussetzungen:
+#   - Python-venv unter <INSTALL_DIR>/backend/.venv (pip install -e ".[dev]")
+#   - .env unter <INSTALL_DIR>/.env mit REF4EP_SESSION_SECRET (≥ 32 Zeichen),
+#     REF4EP_DATABASE_URL, REF4EP_STORAGE_DIR, REF4EP_PUBLIC_BASE_URL.
+#   - REF4EP_COOKIE_SECURE bleibt beim sicheren Default true (HTTPS-only),
+#     muss in .env nicht gesetzt werden.
+
+[Unit]
+Description=Ref4EP-Portal Backend (FastAPI/uvicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=<USER>
+Group=<GROUP>
+WorkingDirectory=<INSTALL_DIR>/backend
+EnvironmentFile=<INSTALL_DIR>/.env
+ExecStart=<INSTALL_DIR>/backend/.venv/bin/uvicorn ref4ep.api.asgi:app \
+    --host 127.0.0.1 --port 8000 --workers 2
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
