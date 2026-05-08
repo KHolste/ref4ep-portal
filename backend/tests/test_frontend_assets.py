@@ -2717,6 +2717,46 @@ def test_workpackages_filter_bar_sub_list_sections_remain() -> None:
     assert "buildHierarchy" in body or "groupedSubs" in body
 
 
+def test_document_detail_has_comments_section() -> None:
+    """Block 0024: Comments-Section im Dokumentdetail.
+
+    Prüft, dass das Modul den neuen Abschnitt rendert, die Reverse-Endpunkte
+    ansteuert und beide Lebenszyklus-Stati mit deutschen Beschriftungen
+    mappt.
+    """
+    body = (MODULES_DIR / "document_detail.js").read_text(encoding="utf-8")
+
+    # Sichtbare Marker
+    assert "Kommentare" in body
+    assert "Einreichen" in body
+    assert "Bearbeiten" in body
+
+    # Reverse-API-Aufrufe
+    assert "/api/document-versions/${versionId}/comments" in body
+    assert "/api/document-comments/${comment.id}" in body
+    assert "/api/document-comments/${comment.id}/submit" in body
+
+    # Status-Mapping
+    for key, label in (("open", "offen"), ("submitted", "eingereicht")):
+        assert key in body, f"Status-Key {key!r} fehlt"
+        assert label in body, f"Status-Label {label!r} fehlt"
+
+
+def test_document_comments_overview_module_exists() -> None:
+    """Block 0024: globale Übersichtsseite hat einen Filter, lädt
+    /api/document-comments und mappt die zwei Status-Werte."""
+    path = MODULES_DIR / "document_comments.js"
+    assert path.exists(), "document_comments.js fehlt"
+    body = path.read_text(encoding="utf-8")
+    assert "/api/document-comments" in body
+    assert "Status:" in body or "status" in body
+    for label in ("offen", "eingereicht"):
+        assert label in body
+    # Eingebunden im SPA-Router
+    app_js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    assert "document_comments" in app_js
+
+
 def test_document_detail_has_test_campaigns_section() -> None:
     """Phase-2-UI: Reverse-Pfad Dokument → Testkampagnen.
 

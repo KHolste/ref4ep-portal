@@ -53,6 +53,12 @@ const CAMPAIGN_STATUS_LABELS = {
   postponed: "verschoben",
 };
 
+// Block 0024 — Lebenszyklus eines Review-Kommentars.
+const DOCUMENT_COMMENT_STATUS_LABELS = {
+  open: "offen",
+  submitted: "eingereicht",
+};
+
 function formatBytes(n) {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KiB`;
@@ -351,7 +357,231 @@ function renderVisibilityDialog(documentId, current, canPublic, onSuccess) {
   );
 }
 
-function renderTestCampaignsSection(doc, canEdit, openLinkDialog, onUnlinked) {
+// ---- Kommentare (Block 0024) ---------------------------------------------
+
+// Spiegelung der Backend-Logik ``can_comment_document``:
+// - Released-Doc: jedes Konsortiumsmitglied (eingeloggt).
+// - Sonst: Admin oder WP-Mitglied.
+function canCommentDocument(me, doc) {
+  if (!me?.person) return false;
+  if (doc.is_deleted) return false;
+  if (isAdmin(me)) return true;
+  if (doc.status === "released") return true;
+  return isWpMember(me, doc.workpackage.code);
+}
+
+function isOwnComment(me, comment) {
+  return me?.person?.email === comment.author.email;
+}
+
+function fmtDateTime(isoString) {
+  if (!isoString) return "";
+  return new Date(isoString).toLocaleString("de-DE");
+}
+
+function renderAddCommentBox(versionId, onSaved) {
+  const textArea = h("textarea", {
+    rows: "3",
+    placeholder: "Neuer Kommentar (wird zunächst privat als „offen“ gespeichert)",
+    required: true,
+    minlength: "1",
+  });
+  const errorBox = h("p", { class: "error", style: "display:none" }, "");
+  const submitBtn = h("button", { type: "submit" }, "Kommentar speichern");
+
+  async function onSubmit(ev) {
+    ev.preventDefault();
+    errorBox.style.display = "none";
+    const cleaned = textArea.value.trim();
+    if (!cleaned) {
+      errorBox.textContent = "Bitte Text eingeben.";
+      errorBox.style.display = "";
+      return;
+    }
+    submitBtn.disabled = true;
+    try {
+      await api(
+        "POST",
+        `/api/document-versions/${versionId}/comments`,
+        { text: cleaned },
+      );
+      onSaved();
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.style.display = "";
+    } finally {
+      submitBtn.disabled = false;
+    }
+  }
+
+  return h(
+    "form",
+    { class: "stacked comment-add-form", onsubmit: onSubmit },
+    h("label", {}, "Neuer Kommentar", textArea),
+    errorBox,
+    submitBtn,
+  );
+}
+
+function renderEditCommentForm(comment, onSaved, onCancel) {
+  const textArea = h("textarea", { rows: "3", required: true }, comment.text);
+  const errorBox = h("p", { class: "error", style: "display:none" }, "");
+
+  async function onSubmit(ev) {
+    ev.preventDefault();
+    errorBox.style.display = "none";
+    const cleaned = textArea.value.trim();
+    if (!cleaned) {
+      errorBox.textContent = "Bitte Text eingeben.";
+      errorBox.style.display = "";
+      return;
+    }
+    try {
+      await api("PATCH", `/api/document-comments/${comment.id}`, { text: cleaned });
+      onSaved();
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.style.display = "";
+    }
+  }
+
+  return h(
+    "form",
+    { class: "stacked comment-edit-form", onsubmit: onSubmit },
+    textArea,
+    errorBox,
+    h(
+      "div",
+      { class: "actions" },
+      h("button", { type: "submit" }, "Übernehmen"),
+      h("button", { type: "button", onclick: onCancel }, "Abbrechen"),
+    ),
+  );
+}
+
+function renderCommentItem(comment, me, onChanged) {
+  const own = isOwnComment(me, comment);
+  const admin = isAdmin(me);
+  const statusBadge = h(
+    "span",
+    { class: `badge badge-comment-${comment.status}` },
+    DOCUMENT_COMMENT_STATUS_LABELS[comment.status] || comment.status,
+  );
+
+  const meta = h(
+    "p",
+    { class: "muted" },
+    `${comment.author.display_name} · ${fmtDateTime(comment.created_at)}`,
+    comment.submitted_at
+      ? ` · eingereicht ${fmtDateTime(comment.submitted_at)}`
+      : "",
+  );
+
+  const body = h("p", { class: "comment-text" }, comment.text);
+  const container = h("article", { class: "comment-item" });
+
+  function rerender() {
+    container.replaceChildren(
+      h("div", { class: "comment-header" }, statusBadge, " ", meta),
+      body,
+    );
+    const actions = [];
+    if (own && comment.status === "open") {
+      actions.push(
+        h(
+          "button",
+          {
+            type: "button",
+            onclick: () => {
+              container.replaceChildren(
+                h("div", { class: "comment-header" }, statusBadge, " ", meta),
+                renderEditCommentForm(comment, onChanged, rerender),
+              );
+            },
+          },
+          "Bearbeiten",
+        ),
+        h(
+          "button",
+          {
+            type: "button",
+            onclick: async () => {
+              if (!confirm("Kommentar einreichen? Danach unveränderlich.")) return;
+              try {
+                await api("POST", `/api/document-comments/${comment.id}/submit`, {});
+                onChanged();
+              } catch (err) {
+                alert(err.message);
+              }
+            },
+          },
+          "Einreichen",
+        ),
+      );
+    }
+    if (admin) {
+      actions.push(
+        h(
+          "button",
+          {
+            type: "button",
+            class: "danger",
+            onclick: async () => {
+              if (!confirm("Kommentar wirklich löschen? Audit-Log hält die Aktion fest.")) return;
+              try {
+                await api("DELETE", `/api/document-comments/${comment.id}`);
+                onChanged();
+              } catch (err) {
+                alert(err.message);
+              }
+            },
+          },
+          "Löschen",
+        ),
+      );
+    }
+    if (actions.length) {
+      container.appendChild(h("div", { class: "actions" }, ...actions));
+    }
+  }
+
+  rerender();
+  return container;
+}
+
+function renderCommentsSection(doc, me, versions, commentsByVersion, onChanged) {
+  const canComment = canCommentDocument(me, doc);
+  if (!versions.length) {
+    return h(
+      "section",
+      {},
+      h("h2", {}, "Kommentare"),
+      renderEmpty("Kommentare sind erst möglich, wenn eine Version hochgeladen wurde."),
+    );
+  }
+  const blocks = versions
+    .slice()
+    .reverse()
+    .map((v) => {
+      const list = commentsByVersion.get(v.id) || [];
+      const heading = h(
+        "h3",
+        {},
+        `v${v.version_number}`,
+        v.version_label ? ` — ${v.version_label}` : "",
+        h("span", { class: "muted" }, ` · ${list.length} Kommentar(e)`),
+      );
+      const items = list.length
+        ? list.map((c) => renderCommentItem(c, me, onChanged))
+        : [renderEmpty("Noch keine Kommentare zu dieser Version.")];
+      const children = [heading, ...items];
+      if (canComment) {
+        children.push(renderAddCommentBox(v.id, onChanged));
+      }
+      return h("div", { class: "comments-version-block" }, ...children);
+    });
+  return h("section", {}, h("h2", {}, "Kommentare"), ...blocks);
+}
   const links = doc.test_campaigns || [];
   const headerActions = canEdit
     ? h(
@@ -799,12 +1029,36 @@ export async function render(container, ctx) {
     unlinkCampaign,
   );
 
+  // Comments asynchron pro Version laden — failt eine Version, bleibt
+  // die Seite trotzdem rendierbar.
+  const commentsByVersion = new Map();
+  const commentResults = await Promise.all(
+    versions.map(async (v) => {
+      try {
+        const list = await api("GET", `/api/document-versions/${v.id}/comments`);
+        return [v.id, list];
+      } catch {
+        return [v.id, []];
+      }
+    }),
+  );
+  for (const [vid, list] of commentResults) commentsByVersion.set(vid, list);
+
+  const commentsBlock = renderCommentsSection(
+    doc,
+    me,
+    versions,
+    commentsByVersion,
+    reload,
+  );
+
   container.replaceChildren(
     header,
     visibilityNotice || h("div", {}),
     actionsBar || h("div", {}),
     versionsBlock,
     campaignsBlock,
+    commentsBlock,
     dialogContainer,
     crossNav(),
   );
