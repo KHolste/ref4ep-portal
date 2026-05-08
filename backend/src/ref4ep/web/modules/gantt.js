@@ -19,10 +19,14 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 
 // Layout-Konstanten — Pixel.
 const LABEL_WIDTH_MIN = 180;
-const LABEL_WIDTH_MAX = 280;
+const LABEL_WIDTH_MAX = 340;
 const LABEL_PADDING = 16; // links/rechts im Label-Bereich
+const SUBTRACK_INDENT = 8; // Einrückung von Unter-Arbeitspaketen
+// Heuristischer Faktor für die Pixel-Schätzung pro Zeichen. Empirisch
+// kalibriert: 0.55 schnitt zu viele Titel ab — 0.60 ist konservativer.
+const TEXT_WIDTH_FACTOR = 0.6;
 const RIGHT_MARGIN = 20;
-const ROW_HEIGHT = 36;
+const ROW_HEIGHT = 42;
 const HEADER_HEIGHT = 48; // Achsen-Skala oben
 const MARKER_RADIUS = 7; // Meilenstein-Punkt
 const MEETING_RADIUS = 4; // Meeting-Punkt
@@ -88,8 +92,26 @@ function firstOfMonth(d) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 }
 
-function isoMonthLabel(d) {
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+// Deutsche 3-Buchstaben-Monatsabkürzungen für die Achsenbeschriftung.
+// Reihenfolge identisch zu Date.getUTCMonth() (0 = Januar).
+const MONTH_LABELS_DE = [
+  "Jan",
+  "Feb",
+  "Mär",
+  "Apr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Okt",
+  "Nov",
+  "Dez",
+];
+
+function shortMonthLabel(d) {
+  const yy = String(d.getUTCFullYear() % 100).padStart(2, "0");
+  return `${MONTH_LABELS_DE[d.getUTCMonth()]} ${yy}`;
 }
 
 // Berechnet das aktuell sichtbare Datumsfenster auf Basis des
@@ -107,12 +129,11 @@ function computeVisibleWindow(mode, today, projectStart, projectEnd) {
   return [start, end];
 }
 
-// Pixel-Schätzung: bei einer typischen Sans-Serif liegt die mittlere
-// Glyphbreite bei ~0.55 × Schriftgröße. Reicht für Layout-Entscheidungen
-// (Label-Breite, Ellipsis-Kürzung) — exakte Messung über DOM würde
-// jedem Render-Pass kostbare ms aufdrücken.
+// Pixel-Schätzung: konservativer Faktor TEXT_WIDTH_FACTOR pro Zeichen
+// reicht für Layout-Entscheidungen (Label-Breite, Ellipsis-Kürzung).
+// Exakte DOM-Messung würde jeden Render-Pass kostbare ms aufdrücken.
 function estimateTextWidth(text, fontSize) {
-  return Math.ceil((text || "").length * fontSize * 0.55);
+  return Math.ceil((text || "").length * fontSize * TEXT_WIDTH_FACTOR);
 }
 
 // Schriftgrößen passen sich an die verfügbare Achsenbreite an.
@@ -125,13 +146,25 @@ function chooseFontSizes(axisWidth) {
   return { axis: 11, track: 12, today: 11 };
 }
 
+// Hauptpakete sind Codes ohne Punkt (``WP1``, ``WP3`` …); Unterpakete
+// haben einen Sub-Index (``WP1.1``). Die Konsortium-Sammelspur
+// (``KONSORTIUM``) enthält ebenfalls keinen Punkt und wird damit als
+// Top-Level-Eintrag dargestellt, was fachlich passt.
+function isTopLevelTrack(track) {
+  return !track.code.includes(".");
+}
+
 // Berechnet die linke Label-Spalte aus dem längsten Track-Label.
-function chooseLabelWidth(tracks, fontSize) {
+// Hauptpakete sind +1 px größer, deshalb sind sie der Worst Case.
+function chooseLabelWidth(tracks, baseFontSize) {
   if (!tracks.length) return LABEL_WIDTH_MIN;
   let widest = 0;
   for (const t of tracks) {
     const text = `${t.code} — ${t.title}`;
-    const w = estimateTextWidth(text, fontSize) + LABEL_PADDING * 2;
+    const isTop = isTopLevelTrack(t);
+    const fs = isTop ? baseFontSize + 1 : baseFontSize;
+    const indent = isTop ? 0 : SUBTRACK_INDENT;
+    const w = estimateTextWidth(text, fs) + LABEL_PADDING * 2 + indent;
     if (w > widest) widest = w;
   }
   return Math.max(LABEL_WIDTH_MIN, Math.min(LABEL_WIDTH_MAX, widest));
@@ -265,7 +298,7 @@ function renderBoard(board, mode, containerWidth) {
           "font-size": fontSizes.axis,
           fill: "#555",
         },
-        isoMonthLabel(cursor),
+        shortMonthLabel(cursor),
       ),
     );
     cursor = addMonths(cursor, 1);
@@ -302,31 +335,46 @@ function renderBoard(board, mode, containerWidth) {
   tracks.forEach((track, idx) => {
     const yTop = HEADER_HEIGHT + idx * ROW_HEIGHT;
     const yMid = yTop + ROW_HEIGHT / 2;
+    const isTop = isTopLevelTrack(track);
 
-    // Zeilen-Hintergrund (alternierend hell).
-    if (idx % 2 === 0) {
+    // Zeilen-Hintergrund.
+    // Hauptpakete: einheitlicher heller Akzent (entspricht
+    // ``--cockpit-divider`` aus style.css) — visuelle Hierarchie.
+    // Unterpakete: alternierend wie bisher.
+    let rowFill = null;
+    if (isTop) {
+      rowFill = "#eef2f7";
+    } else if (idx % 2 === 0) {
+      rowFill = "#fafafa";
+    }
+    if (rowFill) {
       root.append(
         svg("rect", {
           x: 0,
           y: yTop,
           width: totalWidth,
           height: ROW_HEIGHT,
-          fill: "#fafafa",
+          fill: rowFill,
         }),
       );
     }
 
     // Label links (Code + Titel) mit Ellipsis bei Überlauf, voller Text
-    // im Tooltip.
+    // im Tooltip. Hauptpakete: fett, +1 px Schrift, ohne Einrückung.
+    // Unterpakete: normal, eingerückt (``SUBTRACK_INDENT``).
     const fullLabel = `${track.code} — ${track.title}`;
-    const fitted = fitLabelText(fullLabel, maxLabelTextWidth, fontSizes.track);
+    const labelFontSize = isTop ? fontSizes.track + 1 : fontSizes.track;
+    const labelX = LABEL_PADDING / 2 + (isTop ? 0 : SUBTRACK_INDENT);
+    const labelMaxPx = maxLabelTextWidth - (isTop ? 0 : SUBTRACK_INDENT);
+    const fitted = fitLabelText(fullLabel, labelMaxPx, labelFontSize);
     const labelText = svg(
       "text",
       {
-        x: LABEL_PADDING / 2,
+        x: labelX,
         y: yMid + 4,
-        class: "gantt-track-label",
-        "font-size": fontSizes.track,
+        class: isTop ? "gantt-track-label gantt-track-top" : "gantt-track-label",
+        "font-size": labelFontSize,
+        "font-weight": isTop ? "bold" : "normal",
         fill: "#222",
       },
       fitted,
