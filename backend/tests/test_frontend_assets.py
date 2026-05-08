@@ -129,6 +129,38 @@ def test_navigation_includes_milestones_link() -> None:
     assert "milestones" in app_js
 
 
+def test_navigation_includes_gantt_and_comments_links() -> None:
+    """Block 0024 + 0026: globale Übersichten brauchen Hauptnav-Anker."""
+    body = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    assert 'href="/portal/gantt"' in body
+    assert "Zeitplan" in body
+    assert 'href="/portal/document-comments"' in body
+    assert "Kommentare" in body
+
+
+def test_stylesheet_has_classes_for_new_features() -> None:
+    """Block 0024 / 0025 / 0026: CSS-Klassen für die neuen Module sind
+    im zentralen Stylesheet definiert."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Comments
+    for cls in (".comment-item", ".comment-text", ".comment-add-form", ".comment-edit-form"):
+        assert cls in css, f"CSS-Klasse {cls!r} fehlt"
+    # Ampel-Punkte
+    for cls in (
+        ".traffic-dot-green",
+        ".traffic-dot-yellow",
+        ".traffic-dot-red",
+        ".traffic-dot-gray",
+    ):
+        assert cls in css, f"Ampel-Klasse {cls!r} fehlt"
+    # Cockpit-Erweiterungen
+    for cls in (".cockpit-progressbar", ".cockpit-wp-health", ".cockpit-timeline"):
+        assert cls in css, f"Dashboard-Klasse {cls!r} fehlt"
+    # Gantt
+    for cls in (".gantt-scroll", ".gantt-svg", ".gantt-range-btn", ".gantt-filter-bar"):
+        assert cls in css, f"Gantt-Klasse {cls!r} fehlt"
+
+
 def test_milestones_page_renders_timeline() -> None:
     """UX-Polish: Meilensteine werden als vertikale Timeline statt
     Tabelle dargestellt — die Labels für Edit-Form / Card-Meta bleiben

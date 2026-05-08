@@ -3677,3 +3677,179 @@ main#app .detail-section > h3 {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
 }
+
+/* =====================================================================
+ * Block 0024 / 0025 / 0026 — Comments, Ampel-Dashboard, Gantt-Timeline
+ * ===================================================================== */
+
+/* ---- Dokumentkommentare (Block 0024) -------------------------------- */
+
+.comments-version-block {
+  border-top: 1px solid var(--cockpit-divider);
+  padding-top: 0.75rem;
+  margin-top: 0.75rem;
+}
+.comments-version-block:first-of-type {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+.comment-item {
+  border: 1px solid var(--cockpit-card-border);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  margin: 0.5rem 0;
+  background: #fafbfc;
+}
+.comment-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+.comment-text {
+  white-space: pre-wrap;
+  margin: 0.25rem 0 0.5rem;
+}
+.comment-text-cell {
+  white-space: pre-wrap;
+  max-width: 38rem;
+}
+.comment-add-form,
+.comment-edit-form {
+  margin: 0.6rem 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px dashed var(--cockpit-card-border);
+  border-radius: 6px;
+  background: #fff;
+}
+.comment-add-form textarea,
+.comment-edit-form textarea {
+  width: 100%;
+  font: inherit;
+}
+.badge-comment-open {
+  background: #fff4d6;
+  color: #8a6d00;
+}
+.badge-comment-submitted {
+  background: #d6e9d6;
+  color: #1a4f1a;
+}
+
+/* ---- Ampel-Dashboard (Block 0025) ----------------------------------- */
+
+.traffic-dot {
+  font-size: 1.1em;
+  line-height: 1;
+  vertical-align: -0.05em;
+}
+.traffic-dot-green   { color: #2e7d32; }
+.traffic-dot-yellow  { color: #f9a825; }
+.traffic-dot-red     { color: #c62828; }
+.traffic-dot-gray    { color: #9e9e9e; }
+
+.cockpit-progressbar {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--cockpit-divider);
+  overflow: hidden;
+  margin: 0.4rem 0;
+}
+.cockpit-progressbar-fill {
+  height: 100%;
+  background: #2e7d32;
+  transition: width 0.2s ease;
+}
+.cockpit-wp-health {
+  width: 100%;
+  border-collapse: collapse;
+}
+.cockpit-wp-health th,
+.cockpit-wp-health td {
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--cockpit-divider);
+  vertical-align: top;
+}
+.cockpit-doc-counts {
+  font-variant-numeric: tabular-nums;
+  color: var(--cockpit-text-muted);
+}
+.cockpit-campaign-counts {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin: 0;
+}
+.cockpit-timeline {
+  width: 100%;
+  border-collapse: collapse;
+}
+.cockpit-timeline th,
+.cockpit-timeline td {
+  text-align: left;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--cockpit-divider);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Gantt-Timeline (Block 0026) ------------------------------------ */
+
+.gantt-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0.75rem;
+  flex-wrap: wrap;
+}
+.gantt-range-btn {
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--cockpit-card-border);
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+}
+.gantt-range-btn:hover {
+  background: #f3f6fb;
+}
+.gantt-range-btn-active {
+  background: #1c2c4c;
+  color: #fff;
+  border-color: #1c2c4c;
+}
+.gantt-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--cockpit-card-border);
+  border-radius: var(--cockpit-card-radius);
+  background: #fff;
+  padding: 4px;
+}
+.gantt-svg {
+  display: block;
+  min-width: 100%;
+}
+.gantt-track-label {
+  font-family: inherit;
+  pointer-events: none;
+}
+.gantt-axis-label {
+  font-family: inherit;
+  pointer-events: none;
+}
+.gantt-milestone {
+  cursor: help;
+}
+.gantt-meeting {
+  cursor: help;
+}
+.gantt-campaign-bar {
+  cursor: help;
+}
+.gantt-legend {
+  margin-top: 0.5rem;
+  font-size: 0.9em;
+}
