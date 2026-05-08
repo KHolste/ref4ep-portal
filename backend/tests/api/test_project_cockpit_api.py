@@ -116,3 +116,107 @@ def test_no_deliverables_endpoint_remains(member_client: TestClient) -> None:
     """Sicherheit: in diesem Block kommt KEIN Deliverable-Endpoint hinzu."""
     r = member_client.get("/api/deliverables")
     assert r.status_code == 404
+
+
+# ---- Block 0025 — Ampel-Dashboard ----------------------------------------
+
+
+def test_dashboard_carries_workpackage_health(
+    member_client: TestClient, seeded_session: Session
+) -> None:
+    r = member_client.get("/api/cockpit/project")
+    body = r.json()
+    assert "workpackage_health" in body
+    health = body["workpackage_health"]
+    assert isinstance(health, list)
+    if health:
+        entry = health[0]
+        for key in (
+            "code",
+            "title",
+            "status",
+            "traffic_light",
+            "milestone_counts",
+            "document_counts",
+            "next_milestone",
+        ):
+            assert key in entry, f"Feld {key!r} fehlt"
+        assert entry["traffic_light"] in {"green", "yellow", "red", "gray"}
+        # milestone_counts mit allen vier Keys
+        assert set(entry["milestone_counts"].keys()) == {"green", "yellow", "red", "gray"}
+        # document_counts mit allen drei Statuswerten
+        assert set(entry["document_counts"].keys()) == {"draft", "in_review", "released"}
+
+
+def test_dashboard_carries_milestone_progress(
+    member_client: TestClient, seeded_session: Session
+) -> None:
+    r = member_client.get("/api/cockpit/project")
+    body = r.json()
+    assert "milestone_progress" in body
+    progress = body["milestone_progress"]
+    assert {"achieved", "total"} == set(progress.keys())
+    assert progress["achieved"] >= 0
+    assert progress["total"] >= progress["achieved"]
+
+
+def test_dashboard_carries_open_meeting_actions(
+    member_client: TestClient, seeded_session: Session
+) -> None:
+    r = member_client.get("/api/cockpit/project")
+    body = r.json()
+    assert "open_meeting_actions" in body
+    assert isinstance(body["open_meeting_actions"], int)
+    assert body["open_meeting_actions"] >= 0
+
+
+def test_dashboard_carries_campaign_status_counts(
+    member_client: TestClient, seeded_session: Session
+) -> None:
+    r = member_client.get("/api/cockpit/project")
+    body = r.json()
+    assert "campaign_status_counts" in body
+    # Alle 7 erlaubten Status-Werte vorhanden, mit 0 default.
+    expected = {
+        "planned",
+        "preparing",
+        "running",
+        "completed",
+        "evaluated",
+        "cancelled",
+        "postponed",
+    }
+    assert expected == set(body["campaign_status_counts"].keys())
+
+
+def test_dashboard_carries_60_day_timeline(
+    member_client: TestClient, seeded_session: Session
+) -> None:
+    r = member_client.get("/api/cockpit/project")
+    body = r.json()
+    assert "timeline_next_60_days" in body
+    timeline = body["timeline_next_60_days"]
+    assert isinstance(timeline, list)
+    for ev in timeline:
+        assert ev["kind"] in {"milestone", "meeting", "campaign"}
+        assert "date" in ev
+        assert "title" in ev
+        assert "id" in ev
+
+
+def test_dashboard_health_aggregates_at_risk_to_red(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """Setzt einen Meilenstein auf at_risk; das zugehörige WP muss
+    in workpackage_health auf 'red' aggregieren."""
+    from ref4ep.domain.models import Milestone
+
+    ms = seeded_session.query(Milestone).filter(Milestone.workpackage_id.isnot(None)).first()
+    assert ms is not None
+    ms.status = "at_risk"
+    seeded_session.commit()
+    r = admin_client.get("/api/cockpit/project")
+    body = r.json()
+    matching = [h for h in body["workpackage_health"] if h["code"] == ms.workpackage.code]
+    assert matching, f"WP {ms.workpackage.code!r} fehlt in workpackage_health"
+    assert matching[0]["traffic_light"] == "red"

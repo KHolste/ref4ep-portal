@@ -14,8 +14,12 @@ from sqlalchemy.orm import Session
 
 from ref4ep.api.deps import get_current_person, get_session
 from ref4ep.api.schemas import (
+    CockpitMilestoneCountsOut,
     CockpitMilestoneOut,
+    CockpitMilestoneProgressOut,
     CockpitOpenIssueOut,
+    CockpitTimelineEventOut,
+    CockpitWorkpackageHealthOut,
     CockpitWorkpackageStatusOut,
     MyActionOut,
     MyCockpitOut,
@@ -28,6 +32,8 @@ from ref4ep.services.project_dashboard_service import (
     DEFAULT_UPCOMING_LIMIT,
     MilestoneSummary,
     ProjectDashboardService,
+    TimelineEvent,
+    WorkpackageHealthEntry,
     WorkpackageOpenIssue,
     WorkpackageStatusEntry,
 )
@@ -71,6 +77,34 @@ def _status_entry_out(entry: WorkpackageStatusEntry) -> CockpitWorkpackageStatus
     )
 
 
+def _wp_health_out(entry: WorkpackageHealthEntry) -> CockpitWorkpackageHealthOut:
+    return CockpitWorkpackageHealthOut(
+        code=entry.code,
+        title=entry.title,
+        status=entry.status,
+        traffic_light=entry.traffic_light,
+        milestone_counts=CockpitMilestoneCountsOut(
+            green=entry.milestone_counts.green,
+            yellow=entry.milestone_counts.yellow,
+            red=entry.milestone_counts.red,
+            gray=entry.milestone_counts.gray,
+        ),
+        document_counts=entry.document_counts,
+        next_milestone=_ms_out(entry.next_milestone) if entry.next_milestone else None,
+    )
+
+
+def _timeline_event_out(event: TimelineEvent) -> CockpitTimelineEventOut:
+    return CockpitTimelineEventOut(
+        date=event.date,
+        kind=event.kind,
+        id=event.id,
+        title=event.title,
+        workpackage_code=event.workpackage_code,
+        status=event.status,
+    )
+
+
 @router.get("/cockpit/project", response_model=ProjectCockpitOut)
 def get_project_cockpit(
     _: PersonDep,
@@ -89,6 +123,14 @@ def get_project_cockpit(
         workpackage_status_overview=[
             _status_entry_out(e) for e in dashboard.workpackage_status_overview
         ],
+        workpackage_health=[_wp_health_out(e) for e in dashboard.workpackage_health],
+        milestone_progress=CockpitMilestoneProgressOut(
+            achieved=dashboard.milestone_progress.achieved,
+            total=dashboard.milestone_progress.total,
+        ),
+        open_meeting_actions=dashboard.open_meeting_actions,
+        campaign_status_counts=dashboard.campaign_status_counts,
+        timeline_next_60_days=[_timeline_event_out(e) for e in dashboard.timeline_next_60_days],
     )
 
 

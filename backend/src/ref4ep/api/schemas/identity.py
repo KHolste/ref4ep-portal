@@ -255,6 +255,43 @@ class CockpitWorkpackageStatusOut(BaseModel):
     status: str
 
 
+class CockpitMilestoneCountsOut(BaseModel):
+    """Mini-Histogramm pro WP — Anzahl Meilensteine je Ampelwert."""
+
+    green: int = 0
+    yellow: int = 0
+    red: int = 0
+    gray: int = 0
+
+
+class CockpitWorkpackageHealthOut(BaseModel):
+    """Ampel-Sicht pro Arbeitspaket (Block 0025)."""
+
+    code: str
+    title: str
+    status: str
+    traffic_light: str  # green | yellow | red | gray
+    milestone_counts: CockpitMilestoneCountsOut
+    document_counts: dict[str, int] = Field(default_factory=dict)
+    next_milestone: CockpitMilestoneOut | None = None
+
+
+class CockpitMilestoneProgressOut(BaseModel):
+    achieved: int = 0
+    total: int = 0
+
+
+class CockpitTimelineEventOut(BaseModel):
+    """Eintrag im 60-Tage-Zeitstrahl."""
+
+    date: date
+    kind: str  # milestone | meeting | campaign
+    id: str
+    title: str
+    workpackage_code: str | None = None
+    status: str | None = None
+
+
 class ProjectCockpitOut(BaseModel):
     today: date
     upcoming_milestones: list[CockpitMilestoneOut] = Field(default_factory=list)
@@ -262,6 +299,14 @@ class ProjectCockpitOut(BaseModel):
     workpackages_with_open_issues: list[CockpitOpenIssueOut] = Field(default_factory=list)
     status_counts: dict[str, int] = Field(default_factory=dict)
     workpackage_status_overview: list[CockpitWorkpackageStatusOut] = Field(default_factory=list)
+    # Block 0025 — Ampel-Dashboard:
+    workpackage_health: list[CockpitWorkpackageHealthOut] = Field(default_factory=list)
+    milestone_progress: CockpitMilestoneProgressOut = Field(
+        default_factory=CockpitMilestoneProgressOut
+    )
+    open_meeting_actions: int = 0
+    campaign_status_counts: dict[str, int] = Field(default_factory=dict)
+    timeline_next_60_days: list[CockpitTimelineEventOut] = Field(default_factory=list)
 
 
 class MembershipOut(BaseModel):
