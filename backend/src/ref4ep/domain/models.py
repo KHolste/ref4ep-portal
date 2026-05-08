@@ -250,6 +250,15 @@ DOCUMENT_TYPES = ("deliverable", "report", "note", "other")
 DOCUMENT_STATUSES = ("draft", "in_review", "released")
 DOCUMENT_VISIBILITIES = ("workpackage", "internal", "public")
 
+# Block 0024 — Lebenszyklus eines Review-Kommentars auf einer
+# Dokumentversion. ``open`` = Autor sieht/editiert allein;
+# ``submitted`` = für alle sichtbar, unveränderlich.
+DOCUMENT_COMMENT_STATUSES = ("open", "submitted")
+DOCUMENT_COMMENT_STATUS_LABELS_DE = {
+    "open": "offen",
+    "submitted": "eingereicht",
+}
+
 # Sichtbarkeit der Kontaktpersonen (Block 0007). ``public`` ist im
 # Datenmodell vorbereitet, wird aber in diesem Block noch nicht
 # öffentlich ausgespielt.
@@ -527,6 +536,10 @@ class DocumentVersion(Base):
 
     document: Mapped[Document] = relationship(back_populates="versions", foreign_keys=[document_id])
     uploaded_by: Mapped[Person] = relationship()
+    comments: Mapped[list[DocumentComment]] = relationship(
+        back_populates="document_version",
+        order_by="DocumentComment.created_at",
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -932,3 +945,48 @@ class TestCampaignDocumentLink(Base):
 
     campaign: Mapped[TestCampaign] = relationship(back_populates="document_links")
     document: Mapped[Document] = relationship()
+
+
+# --------------------------------------------------------------------------- #
+# Block 0024 — Dokumentkommentare auf Versionsebene                          #
+# --------------------------------------------------------------------------- #
+
+
+class DocumentComment(Base):
+    """Review-Kommentar zu einer konkreten Dokumentversion.
+
+    Lebenszyklus zwei-stufig: ``open`` ist privat (nur Autor sieht und
+    editiert), ``submitted`` ist eingefroren und für alle Sichten
+    sichtbar, die das Dokument lesen dürfen. ``submitted_at`` markiert
+    den Übergang. Admin-Soft-Delete via ``is_deleted=True``; **kein**
+    Hard-Delete (Konsortium-Prinzip).
+    """
+
+    __tablename__ = "document_comment"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('open','submitted')",
+            name="ck_document_comment_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    document_version_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("document_version.id"), nullable=False
+    )
+    author_person_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("person.id"), nullable=False
+    )
+    text: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="open")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc, onupdate=_now_utc
+    )
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    document_version: Mapped[DocumentVersion] = relationship(back_populates="comments")
+    author: Mapped[Person] = relationship()

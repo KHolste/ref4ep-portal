@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0011_test_campaigns"
+CURRENT_HEAD = "0012_document_comments"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -691,9 +691,74 @@ def test_downgrade_to_0010_drops_test_campaign_tables(tmp_db_path: Path) -> None
     db_url = f"sqlite:///{tmp_db_path}"
     cfg = _make_config(db_url)
     command.upgrade(cfg, "head")
+    # Erst 0012 wegräumen (document_comment hängt an document_version).
+    command.downgrade(cfg, "0011_test_campaigns")
     command.downgrade(cfg, "0010_meetings")
     inspector = inspect(create_engine(db_url))
     tables = set(inspector.get_table_names())
     assert tables.isdisjoint(TEST_CAMPAIGN_TABLES)
     # Meeting-Tabellen müssen aber noch da sein.
     assert MEETING_TABLES.issubset(tables)
+
+
+# ---- Block 0024 — Dokumentkommentare ----------------------------------
+
+
+DOCUMENT_COMMENT_COLUMNS = {
+    "id",
+    "document_version_id",
+    "author_person_id",
+    "text",
+    "status",
+    "created_at",
+    "updated_at",
+    "submitted_at",
+    "is_deleted",
+}
+
+
+def test_document_comment_table_exists_with_expected_columns(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    assert "document_comment" in set(inspector.get_table_names())
+    cols = {c["name"] for c in inspector.get_columns("document_comment")}
+    assert DOCUMENT_COMMENT_COLUMNS == cols
+
+
+def test_document_comment_has_version_and_author_fk(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    fks = inspector.get_foreign_keys("document_comment")
+    referred = {fk.get("referred_table") for fk in fks}
+    assert {"document_version", "person"}.issubset(referred)
+
+
+def test_document_comment_nullability(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    cols = {c["name"]: c for c in inspector.get_columns("document_comment")}
+    # submitted_at darf NULL sein, der Rest nicht.
+    assert cols["submitted_at"]["nullable"] is True
+    for required in (
+        "id",
+        "document_version_id",
+        "author_person_id",
+        "text",
+        "status",
+        "created_at",
+        "updated_at",
+        "is_deleted",
+    ):
+        assert cols[required]["nullable"] is False
+
+
+def test_downgrade_to_0011_drops_document_comment(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0011_test_campaigns")
+    inspector = inspect(create_engine(db_url))
+    assert "document_comment" not in set(inspector.get_table_names())

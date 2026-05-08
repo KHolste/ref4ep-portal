@@ -126,6 +126,22 @@ def can_soft_delete_document(auth: AuthContext | None) -> bool:
     return can_admin(auth.platform_role)
 
 
+def can_comment_document(auth: AuthContext | None, document: Document) -> bool:
+    """Kommentar zu einem Dokument anlegen.
+
+    - Freigegebene Dokumente: jedes Konsortiumsmitglied (eingeloggt).
+    - Nicht freigegebene Dokumente: WP-Mitglied oder Admin
+      (gleiche Schwelle wie Schreibrecht auf das Dokument).
+    """
+    if auth is None or document.is_deleted:
+        return False
+    if can_admin(auth.platform_role):
+        return True
+    if document.status == "released":
+        return True
+    return is_member_of(auth, document.workpackage_id)
+
+
 def can_view_audit_log(auth: AuthContext | None) -> bool:
     if auth is None:
         return False
