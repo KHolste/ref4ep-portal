@@ -970,9 +970,177 @@ function renderNoteCard(note, onEdit, onDelete) {
   );
 }
 
-function renderNoteComposer(onSubmit) {
+// ---- Block 0031 — Markdown-Editor mit Toolbar + Live-Vorschau --------
+//
+// Eigener kleiner Editor — kein WYSIWYG, keine Library. Nutzer klicken
+// Toolbar-Buttons, der Markdown-Quelltext bleibt im Speicher; eine
+// Live-Vorschau rendert ``renderMarkdown(textarea.value)``. So müssen
+// Nutzer keine Markdown-Syntax kennen.
+
+const TOOLBAR_ACTIONS = [
+  { key: "bold", label: "Fett", title: "Fett", apply: wrapInline("**", "**", "fetter Text") },
+  { key: "italic", label: "Kursiv", title: "Kursiv", apply: wrapInline("*", "*", "kursiver Text") },
+  { key: "code", label: "Code", title: "Inline-Code", apply: wrapInline("`", "`", "code") },
+  { key: "heading", label: "Überschrift", title: "Überschrift (H3)", apply: prefixLines("### ", "Überschrift") },
+  { key: "ul", label: "Liste", title: "Aufzählung", apply: prefixLines("- ", "Listenpunkt") },
+  { key: "ol", label: "Nummerierte Liste", title: "Nummerierte Liste", apply: prefixLines("1. ", "Listenpunkt") },
+  { key: "quote", label: "Zitat", title: "Zitat", apply: prefixLines("> ", "Zitat") },
+  { key: "table", label: "Tabelle", title: "Beispiel-Tabelle einfügen", apply: insertTable },
+  { key: "link", label: "Link", title: "Link", apply: insertLink },
+];
+
+function wrapInline(openMark, closeMark, placeholder) {
+  return (textarea) => {
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = textarea.value.slice(start, end);
+    const inner = selected || placeholder;
+    const replacement = openMark + inner + closeMark;
+    textarea.setRangeText(replacement, start, end, "end");
+    if (!selected) {
+      // Selektion auf den Platzhalter setzen, damit man ihn direkt
+      // überschreiben kann.
+      const innerStart = start + openMark.length;
+      textarea.setSelectionRange(innerStart, innerStart + placeholder.length);
+    }
+  };
+}
+
+function prefixLines(marker, placeholder) {
+  return (textarea) => {
+    const value = textarea.value;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    // Block-Anfang/-Ende auf Zeilengrenzen ausweiten.
+    const blockStart = value.lastIndexOf("\n", start - 1) + 1;
+    const blockEnd = end === start ? end : end;
+    const original = value.slice(blockStart, blockEnd);
+    const baseLines = (original || placeholder).split("\n");
+    const prefixed = baseLines.map((l) => marker + l).join("\n");
+    // Wenn der Cursor nicht am Zeilenanfang sitzt UND keine Selektion
+    // existiert, einen Zeilenumbruch davor sicherstellen — sonst landet
+    // der Marker mitten im laufenden Text.
+    let leadingBreak = "";
+    if (start === end && blockStart < start && !value.slice(blockStart, start).match(/^\s*$/)) {
+      leadingBreak = "\n";
+    }
+    textarea.setRangeText(leadingBreak + prefixed, blockStart, blockEnd, "end");
+  };
+}
+
+function insertTable(textarea) {
+  const tpl =
+    "\n| Spalte A | Spalte B |\n| --- | --- |\n| Wert 1 | Wert 2 |\n| Wert 3 | Wert 4 |\n";
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  textarea.setRangeText(tpl, start, end, "end");
+}
+
+function insertLink(textarea) {
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selected = textarea.value.slice(start, end);
+  const linkText = selected || "Linktext";
+  const replacement = "[" + linkText + "](https://)";
+  textarea.setRangeText(replacement, start, end, "end");
+  if (!selected) {
+    const textStart = start + 1;
+    textarea.setSelectionRange(textStart, textStart + linkText.length);
+  }
+}
+
+function renderToolbar(textarea) {
+  const buttons = TOOLBAR_ACTIONS.map((action) =>
+    h(
+      "button",
+      {
+        type: "button",
+        class: "campaign-note-toolbar-button",
+        title: action.title,
+        "aria-label": action.title,
+        onclick: () => {
+          action.apply(textarea);
+          textarea.focus();
+          textarea.dispatchEvent(new Event("input", { bubbles: true }));
+        },
+      },
+      action.label,
+    ),
+  );
+  return h(
+    "div",
+    { class: "campaign-note-toolbar", role: "toolbar", "aria-label": "Notiz-Editor" },
+    ...buttons,
+  );
+}
+
+// Gibt ``{ container, textarea, getValue, setValue }`` zurück. Container
+// enthält Toolbar, Textarea und Live-Vorschau in dieser Reihenfolge.
+function renderMarkdownEditor(initialText, options = {}) {
+  const minRows = options.rows || 8;
   const textarea = h("textarea", {
-    rows: "4",
+    class: "campaign-note-textarea",
+    rows: String(minRows),
+    placeholder: options.placeholder || "",
+  });
+  if (initialText) textarea.value = initialText;
+
+  const previewLabel = h(
+    "div",
+    { class: "campaign-note-preview-label muted" },
+    "Vorschau",
+  );
+  const previewBody = h("div", { class: "campaign-note-preview-body" });
+  const preview = h(
+    "div",
+    { class: "campaign-note-preview", "aria-live": "polite" },
+    previewLabel,
+    previewBody,
+  );
+
+  function updatePreview() {
+    const raw = textarea.value || "";
+    if (raw.trim() === "") {
+      preview.classList.add("is-empty");
+      previewBody.innerHTML = "";
+    } else {
+      preview.classList.remove("is-empty");
+      previewBody.innerHTML = renderMarkdown(textarea.value);
+    }
+  }
+  textarea.addEventListener("input", updatePreview);
+  updatePreview();
+
+  const toolbar = renderToolbar(textarea);
+  const help = h(
+    "p",
+    { class: "muted campaign-note-editor-help" },
+    "Formatierung über die Buttons möglich; Markdown-Kenntnisse sind nicht erforderlich.",
+  );
+
+  const container = h(
+    "div",
+    { class: "campaign-note-editor" },
+    toolbar,
+    textarea,
+    help,
+    preview,
+  );
+
+  return {
+    container,
+    textarea,
+    getValue: () => textarea.value,
+    setValue: (v) => {
+      textarea.value = v || "";
+      updatePreview();
+    },
+  };
+}
+
+function renderNoteComposer(onSubmit) {
+  const editor = renderMarkdownEditor("", {
+    rows: 7,
     placeholder: "Idee, Beobachtung oder offene Frage notieren …",
   });
   const errorBox = h("p", { class: "error", style: "display:none" }, "");
@@ -980,7 +1148,7 @@ function renderNoteComposer(onSubmit) {
   async function handle(ev) {
     ev.preventDefault();
     errorBox.style.display = "none";
-    const body = (textarea.value || "").trim();
+    const body = editor.getValue().trim();
     if (!body) {
       errorBox.textContent = "Bitte einen Text eingeben.";
       errorBox.style.display = "";
@@ -989,7 +1157,7 @@ function renderNoteComposer(onSubmit) {
     submitBtn.disabled = true;
     try {
       await onSubmit(body);
-      textarea.value = "";
+      editor.setValue("");
     } catch (err) {
       errorBox.textContent = err.message;
       errorBox.style.display = "";
@@ -1000,19 +1168,22 @@ function renderNoteComposer(onSubmit) {
   return h(
     "form",
     { class: "campaign-note-composer stacked", onsubmit: handle },
-    textarea,
+    editor.container,
     errorBox,
     h("div", { class: "form-actions" }, submitBtn),
   );
 }
 
 function renderNoteEditDialog(note, onSaved, onCancel) {
-  const textarea = h("textarea", { rows: "6" }, note.body_md);
+  const editor = renderMarkdownEditor(note.body_md, {
+    rows: 10,
+    placeholder: "Notiztext",
+  });
   const errorBox = h("p", { class: "error", style: "display:none" }, "");
   async function handle(ev) {
     ev.preventDefault();
     errorBox.style.display = "none";
-    const body = (textarea.value || "").trim();
+    const body = editor.getValue().trim();
     if (!body) {
       errorBox.textContent = "Bitte einen Text eingeben.";
       errorBox.style.display = "";
@@ -1028,8 +1199,8 @@ function renderNoteEditDialog(note, onSaved, onCancel) {
   }
   return h(
     "form",
-    { class: "stacked", onsubmit: handle },
-    h("label", {}, "Notiztext", textarea),
+    { class: "stacked campaign-note-edit-dialog", onsubmit: handle },
+    h("label", {}, "Notiztext", editor.container),
     errorBox,
     h(
       "div",

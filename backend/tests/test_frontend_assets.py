@@ -3224,3 +3224,111 @@ def test_document_detail_has_render_test_campaigns_section_function() -> None:
     assert body_idx > header_idx, (
         "Body von renderTestCampaignsSection darf nicht vor dem Header stehen"
     )
+
+
+# ---- Block 0031 — Editor-Polish Kampagnennotizen ---------------------
+
+
+def test_campaign_note_editor_helper_is_shared_between_composer_and_dialog() -> None:
+    """Composer und Edit-Dialog teilen sich den ``renderMarkdownEditor``-
+    Helfer — keine Duplikation, ein Style."""
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    assert "function renderMarkdownEditor(" in body
+    composer_idx = body.index("function renderNoteComposer(")
+    dialog_idx = body.index("function renderNoteEditDialog(")
+    composer_block = body[composer_idx : composer_idx + 1500]
+    dialog_block = body[dialog_idx : dialog_idx + 1500]
+    assert "renderMarkdownEditor(" in composer_block
+    assert "renderMarkdownEditor(" in dialog_block
+
+
+def test_campaign_note_toolbar_has_all_required_actions() -> None:
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    assert "campaign-note-toolbar" in body
+    assert "campaign-note-toolbar-button" in body
+    # Deutsche Beschriftungen (sind gleichzeitig die aria-labels via title).
+    for label in (
+        "Fett",
+        "Kursiv",
+        "Code",
+        "Überschrift",
+        "Liste",
+        "Nummerierte Liste",
+        "Zitat",
+        "Tabelle",
+        "Link",
+    ):
+        assert f'"{label}"' in body, f"Toolbar sollte Beschriftung {label!r} bieten"
+    # role + aria-label für Screenreader.
+    assert 'role: "toolbar"' in body
+    assert "Notiz-Editor" in body
+
+
+def test_campaign_note_toolbar_uses_setrangetext_or_selection_api() -> None:
+    """Vanilla-JS-Selektion: setRangeText + selectionStart/-End,
+    keine WYSIWYG-/contentEditable-Magie."""
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    assert "setRangeText" in body
+    assert "selectionStart" in body
+    assert "selectionEnd" in body
+    # Kein contentEditable, kein document.execCommand.
+    assert "contentEditable" not in body
+    assert "execCommand" not in body
+
+
+def test_campaign_note_live_preview_uses_existing_renderer() -> None:
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    # Vorschau-Container.
+    assert "campaign-note-preview" in body
+    assert "campaign-note-preview-body" in body
+    assert '"Vorschau"' in body
+    # Vorschau wird per Input-Event aktualisiert und rendert die
+    # Markdown-Quelle über den bestehenden Renderer.
+    assert 'addEventListener("input"' in body
+    assert "renderMarkdown(textarea.value)" in body
+
+
+def test_campaign_note_editor_help_text_present() -> None:
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    assert "Markdown-Kenntnisse sind nicht erforderlich" in body
+
+
+def test_campaign_note_textarea_uses_full_width_styles() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Volle Breite + box-sizing border-box mit sinnvoller Mindesthöhe.
+    assert ".campaign-note-textarea" in css
+    block = css.split(".campaign-note-textarea")[1].split("}")[0]
+    assert "width: 100%" in block
+    assert "box-sizing: border-box" in block
+    assert "min-height" in block
+    assert "line-height" in block
+
+
+def test_campaign_note_toolbar_and_preview_styles_present() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (
+        ".campaign-note-toolbar",
+        ".campaign-note-toolbar-button",
+        ".campaign-note-editor",
+        ".campaign-note-preview",
+        ".campaign-note-preview-body",
+        ".campaign-note-preview-label",
+    ):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+    # Leere Vorschau wird ausgeblendet.
+    assert ".is-empty" in css
+
+
+def test_campaign_note_editor_no_external_editor_or_npm() -> None:
+    """Patch 0031 darf KEINE WYSIWYG-Library oder npm-Abhängigkeit
+    einführen. Wortgrenzen-Match, damit harmlose Substrings wie
+    ``Testmatrix`` nicht als ``trix`` gewertet werden."""
+    import re
+
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8").lower()
+    for forbidden in ("trix", "tinymce", "ckeditor", "quill", "tiptap", "prosemirror"):
+        assert not re.search(rf"\b{re.escape(forbidden)}\b", body), (
+            f"{forbidden!r} sollte nicht referenziert sein"
+        )
+    for forbidden in ("unpkg.com", "cdn.jsdelivr.net", "esm.sh"):
+        assert forbidden not in body, f"{forbidden!r} sollte nicht eingebunden sein"

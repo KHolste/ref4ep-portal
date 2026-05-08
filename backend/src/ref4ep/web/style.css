@@ -1396,6 +1396,121 @@ tr.row-released {
   margin: 0 0 0.8rem 0;
 }
 
+/* Block 0031 — Editor mit Toolbar, voller Breite und Live-Vorschau. */
+.campaign-note-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.campaign-note-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid #d6dfe9;
+  border-radius: 4px;
+  background: #f3f5f8;
+}
+
+.campaign-note-toolbar-button {
+  font-size: 0.82rem;
+  padding: 0.15rem 0.55rem;
+  background: #fff;
+  border: 1px solid #d6dfe9;
+  border-radius: 3px;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.campaign-note-toolbar-button:hover {
+  background: #eef1f5;
+}
+
+.campaign-note-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 9rem;
+  line-height: 1.45;
+  font-family: ui-monospace, "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.92rem;
+  resize: vertical;
+}
+
+.campaign-note-editor-help {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.campaign-note-preview {
+  border: 1px dashed #c0c8d4;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  background: #fcfdff;
+}
+
+.campaign-note-preview.is-empty {
+  display: none;
+}
+
+.campaign-note-preview-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.3rem;
+}
+
+.campaign-note-preview-body {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.campaign-note-preview-body p {
+  margin: 0.25rem 0;
+}
+
+.campaign-note-preview-body code {
+  background: #eef1f5;
+  padding: 0 0.25rem;
+  border-radius: 2px;
+  font-size: 0.85em;
+}
+
+.campaign-note-preview-body blockquote {
+  margin: 0.25rem 0;
+  padding: 0.1rem 0.6rem;
+  border-left: 3px solid #c0c8d4;
+  color: #3a4a64;
+}
+
+.campaign-note-preview-body ul,
+.campaign-note-preview-body ol {
+  margin: 0.25rem 0 0.25rem 1.2rem;
+  padding: 0;
+}
+
+.campaign-note-preview-body table {
+  border-collapse: collapse;
+  margin: 0.25rem 0;
+}
+
+.campaign-note-preview-body table th,
+.campaign-note-preview-body table td {
+  border: 1px solid #d6dfe9;
+  padding: 0.2rem 0.5rem;
+  text-align: left;
+}
+
+.campaign-note-preview-body table th {
+  background: #f3f5f8;
+}
+
+/* Edit-Dialog: Editor genauso breit wie der Composer. */
+.campaign-note-edit-dialog .campaign-note-editor {
+  width: 100%;
+}
+
 .campaign-note-list {
   display: flex;
   flex-direction: column;
