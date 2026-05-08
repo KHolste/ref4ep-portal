@@ -12,12 +12,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Spiegelt ``ref4ep.services.auth.MIN_SESSION_SECRET_LEN``. Bewusst
-# dupliziert, damit ``config`` keine Abhängigkeit auf ``services`` hat.
-MIN_SESSION_SECRET_LEN = 32
+# Konstante lebt in ``services/auth`` (fachliche Heimat: HMAC-Token-Logik).
+# ``services/auth`` importiert keine ``config``-Module — der Import hier
+# ist zirkelfrei.
+from ref4ep.services.auth import MIN_SESSION_SECRET_LEN
 
 # Absoluter Pfad zur ``.env``. ``pydantic-settings`` interpretierte den
 # relativen Default ``.env`` zum Working-Directory des Prozesses — eine
@@ -37,7 +38,10 @@ class Settings(BaseSettings):
     # Beim Start ohne gesetzte Variable schlägt Settings() bewusst fehl
     # — kein stiller Default mit leerem Secret.
     session_secret: str
-    session_max_age: int = 7 * 24 * 60 * 60  # 7 Tage in Sekunden
+    # 7 Tage in Sekunden. Untergrenze 5 Min — verhindert
+    # ``REF4EP_SESSION_MAX_AGE=0`` o. ä., das sofort ablaufende Sessions
+    # erzeugen würde.
+    session_max_age: int = Field(default=7 * 24 * 60 * 60, ge=300)
     # Sicherer Default: Cookies nur über HTTPS senden. Lokale
     # Entwicklung über HTTP muss ``REF4EP_COOKIE_SECURE=false``
     # explizit setzen, sonst speichert der Browser das Session-Cookie
