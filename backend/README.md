@@ -4,7 +4,8 @@ Python-Backend für das Ref4EP-Projektportal. FastAPI + SQLAlchemy +
 Alembic, statisch ausgeliefertes HTML/CSS + Vanilla-JS für die UI.
 Lokaler Default: SQLite. Konfigurierbar über `REF4EP_DATABASE_URL`.
 
-Stand: Sprint 0 (Skelett).
+Eine Übersicht des aktuellen Funktionsumfangs steht in der
+[Repo-README](../README.md).
 
 ## Schnellstart
 
@@ -18,13 +19,16 @@ alembic upgrade head
 uvicorn ref4ep.api.asgi:app --reload --port 8000
 ```
 
-Dann im Browser:
+Dann im Browser (Auswahl):
 
-- http://localhost:8000/ — Projektsteckbrief (Platzhalter)
-- http://localhost:8000/legal/imprint — Impressum (Platzhalter)
-- http://localhost:8000/legal/privacy — Datenschutz (Platzhalter)
-- http://localhost:8000/portal/ — leere SPA-Shell (Sprint 1+)
+- http://localhost:8000/ — öffentlicher Projektsteckbrief
+- http://localhost:8000/legal/imprint — Impressum
+- http://localhost:8000/legal/privacy — Datenschutzhinweis
+- http://localhost:8000/portal/ — internes Portal (Login erforderlich)
 - http://localhost:8000/api/health — JSON-Health-Endpoint
+- http://localhost:8000/openapi.json — OpenAPI-Schema
+
+Initialer Admin-Account und Seed siehe `ref4ep-admin --help`.
 
 ## Tests, Linter, CLI
 
@@ -69,9 +73,14 @@ alembic upgrade head
 pytest
 ```
 
-## Was Sprint 0 nicht enthält
+## Doku-Pflege
 
-Keine Domain-Modelle, keine Authentifizierung, keine Berechtigungen,
-kein Storage, kein Audit-Log, kein Seed. Siehe
-`docs/sprint0_implementation_plan.md` und
-`docs/mvp_specification.md` §12.
+Bei Änderungen am sichtbaren Funktionsumfang, am Setup, am Betrieb,
+am Datenmodell oder am Deployment-Ablauf: Repo-`README.md`,
+diese Backend-`README.md` und ggf. `../docs/server_operations.md`
+mit anpassen — siehe Hinweis in der Repo-`README.md`.
+
+Die Sprint- und MVP-Pläne unter `../docs/` (z. B.
+`sprint0_implementation_plan.md`, `mvp_specification.md`) sind
+**historische Planungsdokumente** zum jeweiligen Sprint-Stand und
+spiegeln nicht den aktuellen Implementierungsstand wider.
