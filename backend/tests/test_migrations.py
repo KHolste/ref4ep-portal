@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0014_seed_workpackage_schedule"
+CURRENT_HEAD = "0015_test_campaign_photos"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -984,3 +984,49 @@ def test_migration_0014_values_match_yaml() -> None:
         "wenn die YAML bewusst geändert wird, muss eine NEUE Migration die Differenz "
         "auf Bestands-DBs nachziehen."
     )
+
+
+# ---- Block 0028 — Foto-Upload für Testkampagnen ----------------------
+
+
+TEST_CAMPAIGN_PHOTO_COLUMNS = {
+    "id",
+    "campaign_id",
+    "uploaded_by_person_id",
+    "storage_key",
+    "original_filename",
+    "mime_type",
+    "file_size_bytes",
+    "sha256",
+    "caption",
+    "taken_at",
+    "created_at",
+    "updated_at",
+    "is_deleted",
+}
+
+
+def test_test_campaign_photo_table_exists(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    assert "test_campaign_photo" in set(inspector.get_table_names())
+    cols = {c["name"] for c in inspector.get_columns("test_campaign_photo")}
+    assert TEST_CAMPAIGN_PHOTO_COLUMNS == cols
+
+
+def test_test_campaign_photo_has_fks(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    fks = inspect(create_engine(db_url)).get_foreign_keys("test_campaign_photo")
+    referred = {fk.get("referred_table") for fk in fks}
+    assert {"test_campaign", "person"}.issubset(referred)
+
+
+def test_downgrade_to_0014_drops_photo_table(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0014_seed_workpackage_schedule")
+    inspector = inspect(create_engine(db_url))
+    assert "test_campaign_photo" not in set(inspector.get_table_names())

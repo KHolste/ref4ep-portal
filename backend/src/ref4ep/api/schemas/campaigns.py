@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -75,6 +75,7 @@ class CampaignDetailOut(BaseModel):
     participants: list[CampaignParticipantOut] = Field(default_factory=list)
     documents: list[CampaignDocumentOut] = Field(default_factory=list)
     can_edit: bool = False
+    can_upload_photo: bool = False
 
 
 # ---- Requests ---------------------------------------------------------
@@ -134,6 +135,27 @@ class CampaignDocumentLinkAddRequest(BaseModel):
     label: str = "other"
 
 
+# ---- Block 0028 — Foto-Upload für Testkampagnen -----------------------
+
+
+class CampaignPhotoOut(BaseModel):
+    id: str
+    original_filename: str
+    mime_type: str
+    file_size_bytes: int
+    sha256: str
+    caption: str | None = None
+    taken_at: datetime | None = None
+    uploaded_by: CampaignPersonOut
+    created_at: datetime
+    updated_at: datetime
+    can_edit: bool = False
+
+
+class CampaignPhotoCaptionRequest(BaseModel):
+    caption: str | None = None
+
+
 __all__ = [
     "CampaignCreateRequest",
     "CampaignDetailOut",
@@ -145,5 +167,7 @@ __all__ = [
     "CampaignParticipantPatchRequest",
     "CampaignPatchRequest",
     "CampaignPersonOut",
+    "CampaignPhotoCaptionRequest",
+    "CampaignPhotoOut",
     "CampaignWorkpackageOut",
 ]

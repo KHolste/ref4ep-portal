@@ -882,6 +882,11 @@ class TestCampaign(Base):
     document_links: Mapped[list[TestCampaignDocumentLink]] = relationship(
         back_populates="campaign", cascade="all, delete-orphan"
     )
+    photos: Mapped[list[TestCampaignPhoto]] = relationship(
+        back_populates="campaign",
+        cascade="all, delete-orphan",
+        order_by="TestCampaignPhoto.created_at",
+    )
 
 
 class TestCampaignWorkpackage(Base):
@@ -995,3 +1000,48 @@ class DocumentComment(Base):
 
     document_version: Mapped[DocumentVersion] = relationship(back_populates="comments")
     author: Mapped[Person] = relationship()
+
+
+# --------------------------------------------------------------------------- #
+# Block 0028 — Foto-Upload für Testkampagnen                                 #
+# --------------------------------------------------------------------------- #
+
+
+class TestCampaignPhoto(Base):
+    """Informelle Aufnahme zu einer Testkampagne.
+
+    Bewusst kein ``Document``-Subtyp: Documents sind formale,
+    versionierte Unterlagen mit Review-/Release-Lifecycle. Photos
+    sind Schnappschüsse mit Caption + Soft-Delete.
+    """
+
+    __tablename__ = "test_campaign_photo"
+    # pytest sammelt sonst diese Klasse als Test-Klasse ein.
+    __test__ = False
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    campaign_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("test_campaign.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    uploaded_by_person_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("person.id"), nullable=False
+    )
+    storage_key: Mapped[str] = mapped_column(String, nullable=False)
+    original_filename: Mapped[str] = mapped_column(String, nullable=False)
+    mime_type: Mapped[str] = mapped_column(String, nullable=False)
+    file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    caption: Mapped[str | None] = mapped_column(String, nullable=True)
+    taken_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc, onupdate=_now_utc
+    )
+    is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    campaign: Mapped[TestCampaign] = relationship(back_populates="photos")
+    uploaded_by: Mapped[Person] = relationship()

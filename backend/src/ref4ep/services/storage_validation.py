@@ -27,8 +27,14 @@ MIME_WHITELIST: frozenset[str] = frozenset(
 
 CHANGE_NOTE_MIN_LEN = 5
 
+# Block 0028 — engere MIME-Whitelist nur für Fotos (Schnappschüsse aus
+# der Vakuumkammer o. ä.). Bewusst kein PDF/Office hier: das wäre eine
+# fachliche Type-Verwechslung — formale Unterlagen gehören als Document.
+PHOTO_MIME_WHITELIST: frozenset[str] = frozenset({"image/png", "image/jpeg"})
+
 _UUID_PATTERN = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 _STORAGE_KEY_RE = re.compile(rf"^documents/{_UUID_PATTERN}/{_UUID_PATTERN}\.bin$")
+_PHOTO_STORAGE_KEY_RE = re.compile(rf"^photos/{_UUID_PATTERN}/{_UUID_PATTERN}\.bin$")
 
 
 def validate_mime(mime: str) -> None:
@@ -60,3 +66,20 @@ def compute_storage_key(document_id: str, version_id: str) -> str:
 def validate_storage_key(key: str) -> None:
     if not _STORAGE_KEY_RE.match(key):
         raise ValueError(f"Storage-Key ungültig: {key!r}")
+
+
+# ---- Block 0028 — Foto-Upload-Helfer ---------------------------------
+
+
+def validate_photo_mime(mime: str) -> None:
+    if mime not in PHOTO_MIME_WHITELIST:
+        raise ValueError(f"Foto-MIME-Typ nicht erlaubt: {mime!r} — nur PNG und JPEG.")
+
+
+def compute_photo_storage_key(campaign_id: str, photo_id: str) -> str:
+    return f"photos/{campaign_id}/{photo_id}.bin"
+
+
+def validate_photo_storage_key(key: str) -> None:
+    if not _PHOTO_STORAGE_KEY_RE.match(key):
+        raise ValueError(f"Foto-Storage-Key ungültig: {key!r}")

@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ref4ep.domain.models import Document
+    from ref4ep.domain.models import Document, TestCampaign
 
 
 @dataclass(frozen=True)
@@ -146,3 +146,22 @@ def can_view_audit_log(auth: AuthContext | None) -> bool:
     if auth is None:
         return False
     return can_admin(auth.platform_role)
+
+
+# --------------------------------------------------------------------------- #
+# Block 0028 — Testkampagnen-Beteiligung                                      #
+# --------------------------------------------------------------------------- #
+
+
+def is_campaign_participant(auth: AuthContext | None, campaign: TestCampaign) -> bool:
+    """Wahr, wenn der Aufrufer als Participant in der Kampagne eingetragen
+    ist. Admin gilt zusätzlich, weil er ohnehin überall schreiben darf.
+
+    Nutzung u. a. für Foto-Uploads (Block 0028) und Kampagnennotizen
+    (Block 0029): „darf in dieser Kampagne aktiv beitragen".
+    """
+    if auth is None:
+        return False
+    if can_admin(auth.platform_role):
+        return True
+    return any(link.person_id == auth.person_id for link in campaign.participant_links)

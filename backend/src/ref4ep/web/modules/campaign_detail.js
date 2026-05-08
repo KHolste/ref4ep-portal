@@ -1,13 +1,15 @@
 // Testkampagnen-Detailseite (Block 0022 + UX-Folgepass).
 //
-// Aufbau in fünf klar getrennten Sektionen:
+// Aufbau in sechs klar getrennten Sektionen:
 //   1. Übersicht           — Code, Kategorie, Status, Zeitraum, Facility
 //   2. Fachliche Details   — Ziel, Testmatrix, Messgrößen, Randbedingungen,
 //                            Erfolgskriterien, Risiken (mit Empty-State)
 //   3. Arbeitspakete       — Liste der WP-Codes
-//   4. Beteiligte Personen — Karten pro Person mit Rollen-Pill (deutsch,
+//   4. Fotos (Block 0028)  — Galerie mit Bildunterschrift, Upload für
+//                            Teilnehmende und Admin
+//   5. Beteiligte Personen — Karten pro Person mit Rollen-Pill (deutsch,
 //                            kein UPPER-Badge)
-//   5. Dokumente           — Karten mit Label, Titel, WP, Entknüpfen-Button
+//   6. Dokumente           — Karten mit Label, Titel, WP, Entknüpfen-Button
 //
 // Aktionen erscheinen nur, wenn ``can_edit=true``. Es gibt KEINEN
 // Datei-Upload — Dokumente werden ausschließlich über
@@ -614,6 +616,215 @@ function renderDocumentCard(doc, canEdit, onUnlink) {
   );
 }
 
+// ---- Block 0028 — Fotos -----------------------------------------------
+
+function formatDateTime(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${dd}.${mm}.${yyyy} ${hh}:${mi}`;
+}
+
+function formatBytes(n) {
+  if (!Number.isFinite(n) || n <= 0) return "—";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KiB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MiB`;
+}
+
+function renderPhotoUploadDialog(campaignId, onSuccess, onCancel) {
+  const fileInput = h("input", {
+    type: "file",
+    accept: "image/png,image/jpeg",
+    required: true,
+  });
+  const captionInput = h("textarea", {
+    rows: "2",
+    placeholder: "Bildunterschrift (optional)",
+  });
+  const takenAtInput = h("input", { type: "datetime-local" });
+  const errorBox = h("p", { class: "error", style: "display:none" }, "");
+  const statusBox = h("p", { class: "muted", style: "display:none" }, "Lade hoch …");
+  const submitBtn = h("button", { type: "submit" }, "Hochladen");
+
+  async function onSubmit(ev) {
+    ev.preventDefault();
+    errorBox.style.display = "none";
+    if (!fileInput.files.length) {
+      errorBox.textContent = "Bitte eine Bilddatei wählen.";
+      errorBox.style.display = "";
+      return;
+    }
+    submitBtn.disabled = true;
+    statusBox.style.display = "";
+    try {
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+      const cap = (captionInput.value || "").trim();
+      if (cap) formData.append("caption", cap);
+      if (takenAtInput.value) formData.append("taken_at", takenAtInput.value);
+
+      const csrf = (document.cookie.match(/(?:^|;\s*)ref4ep_csrf=([^;]+)/) || [])[1];
+      const response = await fetch(`/api/campaigns/${campaignId}/photos`, {
+        method: "POST",
+        body: formData,
+        credentials: "same-origin",
+        headers: csrf ? { "X-CSRF-Token": decodeURIComponent(csrf) } : {},
+      });
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message = payload?.detail?.error?.message || `HTTP ${response.status}`;
+        throw new Error(message);
+      }
+      onSuccess(payload);
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.style.display = "";
+    } finally {
+      submitBtn.disabled = false;
+      statusBox.style.display = "none";
+    }
+  }
+
+  return h(
+    "form",
+    { class: "stacked", onsubmit: onSubmit, enctype: "multipart/form-data" },
+    h("p", { class: "muted" }, "Erlaubt: PNG oder JPEG. Keine Thumbnails, keine EXIF-Auswertung."),
+    h("label", {}, "Bilddatei", fileInput),
+    h("label", {}, "Bildunterschrift", captionInput),
+    h("label", {}, "Aufnahmezeitpunkt (optional)", takenAtInput),
+    statusBox,
+    errorBox,
+    h(
+      "div",
+      { class: "form-actions" },
+      submitBtn,
+      h("button", { type: "button", onclick: onCancel }, "Abbrechen"),
+    ),
+  );
+}
+
+function renderPhotoCaptionEditDialog(campaignId, photo, onSaved, onCancel) {
+  const captionInput = h(
+    "textarea",
+    { rows: "3", placeholder: "Bildunterschrift" },
+    photo.caption || "",
+  );
+  const errorBox = h("p", { class: "error", style: "display:none" }, "");
+  async function onSubmit(ev) {
+    ev.preventDefault();
+    errorBox.style.display = "none";
+    try {
+      await api(
+        "PATCH",
+        `/api/campaigns/${campaignId}/photos/${photo.id}`,
+        { caption: nullIfBlank(captionInput.value) },
+      );
+      onSaved();
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.style.display = "";
+    }
+  }
+  return h(
+    "form",
+    { class: "stacked", onsubmit: onSubmit },
+    h("label", {}, "Bildunterschrift", captionInput),
+    errorBox,
+    h(
+      "div",
+      { class: "form-actions" },
+      h("button", { type: "submit" }, "Speichern"),
+      h("button", { type: "button", onclick: onCancel }, "Abbrechen"),
+    ),
+  );
+}
+
+function renderPhotoCard(campaignId, photo, onEditCaption, onDelete) {
+  const meta = [
+    `${photo.uploaded_by.display_name}`,
+    formatDateTime(photo.taken_at || photo.created_at),
+    formatBytes(photo.file_size_bytes),
+  ].join(" · ");
+  const actions = [];
+  if (photo.can_edit) {
+    actions.push(
+      h(
+        "button",
+        { type: "button", class: "linklike", onclick: () => onEditCaption(photo) },
+        "Bildunterschrift bearbeiten …",
+      ),
+      h(
+        "button",
+        { type: "button", class: "linklike danger", onclick: () => onDelete(photo) },
+        "löschen",
+      ),
+    );
+  }
+  return h(
+    "article",
+    { class: "campaign-photo-card" },
+    h(
+      "a",
+      {
+        class: "campaign-photo-image-link",
+        href: `/api/campaigns/${campaignId}/photos/${photo.id}/download`,
+        target: "_blank",
+        rel: "noopener",
+      },
+      h("img", {
+        class: "campaign-photo-image",
+        src: `/api/campaigns/${campaignId}/photos/${photo.id}/download`,
+        alt: photo.caption || photo.original_filename,
+        loading: "lazy",
+      }),
+    ),
+    photo.caption
+      ? h("div", { class: "campaign-photo-caption preserve-line" }, photo.caption)
+      : null,
+    h("div", { class: "campaign-photo-meta muted" }, meta),
+    actions.length ? h("div", { class: "form-actions" }, ...actions) : null,
+  );
+}
+
+function renderPhotosBlock(campaign, photos, onUpload, onEditCaption, onDelete) {
+  const heading = h(
+    "div",
+    { class: "section-header" },
+    h("h2", {}, "Fotos"),
+    campaign.can_upload_photo
+      ? h("button", { type: "button", onclick: onUpload }, "Foto hochladen …")
+      : null,
+  );
+  if (!photos.length) {
+    return h(
+      "section",
+      { class: "campaign-section" },
+      heading,
+      renderEmpty("Noch keine Fotos zur Kampagne hochgeladen."),
+    );
+  }
+  return h(
+    "section",
+    { class: "campaign-section" },
+    heading,
+    h(
+      "div",
+      { class: "campaign-photo-grid" },
+      ...photos.map((p) => renderPhotoCard(campaign.id, p, onEditCaption, onDelete)),
+    ),
+  );
+}
+
 function renderDocumentsBlock(campaign, canEdit, onLink, onUnlink) {
   const heading = h(
     "div",
@@ -656,12 +867,14 @@ export async function render(container, ctx) {
   let workpackages = [];
   let persons = [];
   let documents = [];
+  let photos = [];
   try {
-    [campaign, workpackages, persons, documents] = await Promise.all([
+    [campaign, workpackages, persons, documents, photos] = await Promise.all([
       api("GET", `/api/campaigns/${campaignId}`),
       api("GET", "/api/workpackages"),
       api("GET", "/api/persons"),
       api("GET", "/api/documents?include_archived=false").catch(() => []),
+      api("GET", `/api/campaigns/${campaignId}/photos`).catch(() => []),
     ]);
   } catch (err) {
     appendChildren(container, pageHeader("Testkampagne"), renderError(err));
@@ -677,7 +890,10 @@ export async function render(container, ctx) {
   }
   async function reload() {
     try {
-      campaign = await api("GET", `/api/campaigns/${campaignId}`);
+      [campaign, photos] = await Promise.all([
+        api("GET", `/api/campaigns/${campaignId}`),
+        api("GET", `/api/campaigns/${campaignId}/photos`).catch(() => []),
+      ]);
     } catch (err) {
       appendChildren(container, pageHeader("Testkampagne"), renderError(err));
       return;
@@ -771,6 +987,42 @@ export async function render(container, ctx) {
       alert(err.message);
     }
   }
+  function onUploadPhoto() {
+    showDialog(
+      "Foto hochladen",
+      renderPhotoUploadDialog(
+        campaignId,
+        () => {
+          clearDialog();
+          reload();
+        },
+        clearDialog,
+      ),
+    );
+  }
+  function onEditPhotoCaption(photo) {
+    showDialog(
+      "Bildunterschrift bearbeiten",
+      renderPhotoCaptionEditDialog(
+        campaignId,
+        photo,
+        () => {
+          clearDialog();
+          reload();
+        },
+        clearDialog,
+      ),
+    );
+  }
+  async function onDeletePhoto(photo) {
+    if (!confirm("Foto wirklich löschen?")) return;
+    try {
+      await api("DELETE", `/api/campaigns/${campaignId}/photos/${photo.id}`);
+      reload();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
 
   function rerender() {
     const actionButtons = [];
@@ -807,6 +1059,7 @@ export async function render(container, ctx) {
       renderOverviewCard(campaign),
       renderFactualBlock(campaign),
       renderWpsBlock(campaign),
+      renderPhotosBlock(campaign, photos, onUploadPhoto, onEditPhotoCaption, onDeletePhoto),
       renderParticipantsBlock(
         campaign,
         campaign.can_edit,

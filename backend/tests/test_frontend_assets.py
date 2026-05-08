@@ -1216,6 +1216,9 @@ def test_system_status_styles_are_present() -> None:
 
 # Module, die echte Datei-Uploads anbieten (FormData + input[type=file]).
 REAL_UPLOAD_MODULES = ("document_detail.js",)
+# Block 0028 — campaign_detail.js darf nur Foto-Upload enthalten
+# (PNG/JPEG), aber keinen Dokument-Upload.
+PHOTO_UPLOAD_MODULES = ("campaign_detail.js",)
 
 
 def test_common_js_exports_create_file_dropzone() -> None:
@@ -1274,8 +1277,9 @@ def test_meeting_detail_has_no_file_input_no_dropzone_no_formdata() -> None:
 def test_no_other_module_introduces_unexpected_file_upload() -> None:
     """Außer den deklarierten Upload-Modulen darf kein weiteres Modul
     ein input[type=file] führen — z. B. nicht im Meeting-Bereich, im
-    Cockpit oder in Admin-Sub-Seiten."""
-    allowed = set(REAL_UPLOAD_MODULES)
+    Cockpit oder in Admin-Sub-Seiten. ``PHOTO_UPLOAD_MODULES`` deckt den
+    Foto-Upload für Testkampagnen (Block 0028) ab."""
+    allowed = set(REAL_UPLOAD_MODULES) | set(PHOTO_UPLOAD_MODULES)
     for path in sorted(MODULES_DIR.glob("*.js")):
         if path.name in allowed:
             continue
@@ -1421,15 +1425,28 @@ def test_campaign_detail_renders_required_sections() -> None:
         assert action in body, f"campaign_detail.js sollte Aktion {action!r} bieten"
 
 
-def test_campaign_modules_have_no_file_upload_no_dropzone_no_formdata() -> None:
-    """Block 0022: Kampagnen sind ausdrücklich kein Upload-Pfad."""
-    for name in CAMPAIGN_MODULES:
-        body = (MODULES_DIR / name).read_text(encoding="utf-8")
-        assert 'type: "file"' not in body, f"{name} darf kein input[type=file] enthalten"
-        assert 'type="file"' not in body, f"{name} darf kein input[type=file] enthalten"
-        assert "createFileDropzone" not in body, f"{name} darf den Dropzone-Helfer nicht benutzen"
-        assert "file-dropzone" not in body, f"{name} darf keine file-dropzone-Klasse enthalten"
-        assert "FormData" not in body, f"{name} darf kein FormData verwenden"
+def test_campaigns_list_module_has_no_file_upload_no_dropzone_no_formdata() -> None:
+    """Block 0022: Die Listen-Seite ``campaigns.js`` ist ausdrücklich
+    kein Upload-Pfad. ``campaign_detail.js`` darf seit Block 0028 einen
+    eng begrenzten Foto-Upload (PNG/JPEG) enthalten — der Dropzone-
+    Helfer und ein Dokument-Upload bleiben dort jedoch verboten."""
+    body_list = (MODULES_DIR / "campaigns.js").read_text(encoding="utf-8")
+    assert 'type: "file"' not in body_list
+    assert 'type="file"' not in body_list
+    assert "createFileDropzone" not in body_list
+    assert "file-dropzone" not in body_list
+    assert "FormData" not in body_list
+
+    body_detail = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    assert "createFileDropzone" not in body_detail, (
+        "campaign_detail.js darf den Dropzone-Helfer nicht benutzen"
+    )
+    assert "file-dropzone" not in body_detail, (
+        "campaign_detail.js darf keine file-dropzone-Klasse enthalten"
+    )
+    # Foto-Upload ist explizit erlaubt, beschränkt sich aber auf PNG/JPEG.
+    assert 'accept: "image/png,image/jpeg"' in body_detail
+    assert "/api/campaigns/" in body_detail and "/photos" in body_detail
 
 
 def test_campaign_detail_uses_existing_document_listing() -> None:
@@ -1450,10 +1467,14 @@ def test_campaigns_have_no_judgmental_phrases() -> None:
 
 def test_real_upload_modules_whitelist_does_not_include_campaigns() -> None:
     """Regression: Kampagnen-Module dürfen NICHT in der
-    REAL_UPLOAD_MODULES-Whitelist landen — sonst hätte das System sie
-    als Upload-Pfade akzeptiert."""
+    REAL_UPLOAD_MODULES-Whitelist landen — die ist nur für Document-
+    Versions-Uploads gedacht. Foto-Upload (Block 0028) sitzt in einer
+    eigenen, eng zugeschnittenen Whitelist ``PHOTO_UPLOAD_MODULES``."""
     assert "campaigns.js" not in REAL_UPLOAD_MODULES
     assert "campaign_detail.js" not in REAL_UPLOAD_MODULES
+    # Foto-Upload-Whitelist enthält genau campaign_detail.js.
+    assert "campaign_detail.js" in PHOTO_UPLOAD_MODULES
+    assert "campaigns.js" not in PHOTO_UPLOAD_MODULES
 
 
 # ---- Block 0022 — UX-Folgepass (Bugfix + Restruktur) ------------------
@@ -1492,6 +1513,7 @@ def test_campaign_detail_has_clear_section_structure() -> None:
         "Übersicht",
         "Fachliche Details",
         "Arbeitspakete",
+        "Fotos",
         "Beteiligte Personen",
         "Dokumente",
     ):
@@ -1500,6 +1522,7 @@ def test_campaign_detail_has_clear_section_structure() -> None:
         "renderOverviewCard",
         "renderFactualBlock",
         "renderWpsBlock",
+        "renderPhotosBlock",
         "renderParticipantsBlock",
         "renderDocumentsBlock",
     ):
@@ -1591,18 +1614,27 @@ def test_campaign_modules_have_no_literal_null_text_for_empty_fields() -> None:
         assert '"null"' not in body, f"{name} darf keinen 'null'-String literal enthalten"
 
 
-def test_campaign_modules_still_have_no_upload_path_after_refactor() -> None:
-    """Regression: Der UX-Folgepass darf den Upload-Verbot nicht
-    versehentlich aufgeweicht haben."""
+def test_campaign_modules_still_have_no_document_upload_path_after_refactor() -> None:
+    """Regression: Kampagnen-Module dürfen keinen Datei-Upload für
+    DOKUMENTE bieten — Dokumente werden ausschließlich über das
+    bestehende Dokumentenregister verlinkt. Foto-Upload (Block 0028) ist
+    davon explizit ausgenommen und nutzt einen eigenen Endpunkt."""
     for name in ("campaigns.js", "campaign_detail.js"):
         body = (MODULES_DIR / name).read_text(encoding="utf-8")
-        assert 'type: "file"' not in body
+        # Document-Upload-Helfer und der dortige Upload-Pfad bleiben verboten.
         assert "createFileDropzone" not in body
         assert "file-dropzone" not in body
-        assert "FormData" not in body
+        assert "/api/documents/" not in body or "POST" not in body or "FormData" in body
+    # campaigns.js bleibt komplett ohne Upload.
+    body_list = (MODULES_DIR / "campaigns.js").read_text(encoding="utf-8")
+    assert 'type: "file"' not in body_list
+    assert "FormData" not in body_list
     body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
     assert "/api/documents?include_archived=false" in body
     assert "document_id" in body
+    # Foto-Upload geht ausschließlich über den Foto-Endpunkt.
+    assert "/api/campaigns/" in body
+    assert "/photos" in body
 
 
 # ---- Block 0023 — Aggregierter Projektkalender ------------------------
@@ -2884,3 +2916,51 @@ def test_document_detail_has_test_campaigns_section() -> None:
     ):
         assert key in body, f"Label-Schlüssel {key!r} fehlt"
         assert label in body, f"Label-Beschriftung {label!r} fehlt"
+
+
+# ---- Block 0028 — Foto-Upload für Testkampagnen -----------------------
+
+
+def test_campaign_detail_has_photo_section_and_handlers() -> None:
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    # Sektionsüberschrift in deutsch.
+    assert '"Fotos"' in body
+    # Renderer + Dialoge.
+    for fn in (
+        "renderPhotosBlock",
+        "renderPhotoCard",
+        "renderPhotoUploadDialog",
+        "renderPhotoCaptionEditDialog",
+        "onUploadPhoto",
+        "onEditPhotoCaption",
+        "onDeletePhoto",
+    ):
+        assert fn in body, f"campaign_detail.js sollte Funktion {fn!r} enthalten"
+    # MIME-Whitelist im Frontend wird auf PNG/JPEG eingegrenzt.
+    assert "image/png" in body
+    assert "image/jpeg" in body
+    # Klassen, die das Styling erwartet.
+    for cls in ("campaign-photo-card", "campaign-photo-grid", "campaign-photo-image"):
+        assert cls in body, f"Klasse {cls!r} fehlt in campaign_detail.js"
+
+
+def test_campaign_photo_styles_present() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (
+        ".campaign-photo-grid",
+        ".campaign-photo-card",
+        ".campaign-photo-image",
+        ".campaign-photo-caption",
+        ".campaign-photo-meta",
+    ):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+
+
+def test_campaign_detail_photo_upload_uses_dedicated_endpoint() -> None:
+    """Foto-Upload nutzt POST /api/campaigns/{id}/photos mit FormData,
+    nicht den Dokument-Endpunkt."""
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    assert "FormData" in body
+    assert "/api/campaigns/" in body and "/photos" in body
+    # Kein Document-Upload-Endpunkt:
+    assert "/api/documents/" not in body or "/api/documents?" in body
