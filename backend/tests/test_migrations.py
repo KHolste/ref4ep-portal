@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0016_test_campaign_notes"
+CURRENT_HEAD = "0017_test_campaign_photo_thumbnails"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -1003,6 +1003,10 @@ TEST_CAMPAIGN_PHOTO_COLUMNS = {
     "created_at",
     "updated_at",
     "is_deleted",
+    # Block 0032 — Thumbnail-Felder.
+    "thumbnail_storage_key",
+    "thumbnail_mime_type",
+    "thumbnail_size_bytes",
 }
 
 
@@ -1070,3 +1074,36 @@ def test_downgrade_to_0015_drops_note_table(tmp_db_path: Path) -> None:
     command.downgrade(cfg, "0015_test_campaign_photos")
     inspector = inspect(create_engine(db_url))
     assert "test_campaign_note" not in set(inspector.get_table_names())
+
+
+# ---- Block 0032 — Foto-Thumbnails -----------------------------------
+
+
+def test_test_campaign_photo_thumbnail_columns_present(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    cols = {c["name"] for c in inspect(create_engine(db_url)).get_columns("test_campaign_photo")}
+    assert {
+        "thumbnail_storage_key",
+        "thumbnail_mime_type",
+        "thumbnail_size_bytes",
+    }.issubset(cols)
+
+
+def test_thumbnail_columns_are_nullable(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    cols = {c["name"]: c for c in inspect(create_engine(db_url)).get_columns("test_campaign_photo")}
+    for name in ("thumbnail_storage_key", "thumbnail_mime_type", "thumbnail_size_bytes"):
+        assert cols[name]["nullable"] is True
+
+
+def test_downgrade_to_0016_drops_thumbnail_columns(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0016_test_campaign_notes")
+    cols = {c["name"] for c in inspect(create_engine(db_url)).get_columns("test_campaign_photo")}
+    assert "thumbnail_storage_key" not in cols
+    assert "thumbnail_mime_type" not in cols
+    assert "thumbnail_size_bytes" not in cols

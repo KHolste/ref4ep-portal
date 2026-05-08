@@ -541,6 +541,9 @@ def _photo_out(photo: TestCampaignPhoto, auth: AuthContext) -> CampaignPhotoOut:
         created_at=photo.created_at,
         updated_at=photo.updated_at,
         can_edit=can_edit,
+        thumbnail_mime_type=photo.thumbnail_mime_type,
+        thumbnail_size_bytes=photo.thumbnail_size_bytes,
+        has_thumbnail=photo.thumbnail_storage_key is not None,
     )
 
 
@@ -866,3 +869,43 @@ def delete_campaign_note(
             detail={"error": {"code": "forbidden", "message": str(exc)}},
         ) from exc
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/campaigns/{campaign_id}/photos/{photo_id}/thumbnail")
+def thumbnail_campaign_photo(
+    campaign_id: str,
+    photo_id: str,
+    auth: AuthDep,
+    session: SessionDep,
+    storage: StorageDep,
+) -> StreamingResponse:
+    """Block 0032 — liefert das Thumbnail, wenn vorhanden; sonst das
+    Original (Fallback für Bestandsfotos)."""
+    try:
+        photo, fh, mime_type, size_bytes, _is_thumb = _photo_service(
+            session, auth, storage=storage
+        ).open_thumbnail_stream(photo_id)
+    except CampaignPhotoNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+
+    def iterator():
+        try:
+            while True:
+                chunk = fh.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            fh.close()
+
+    safe_name = photo.original_filename.replace('"', "")
+    headers = {
+        "Content-Disposition": f'inline; filename="{safe_name}"',
+        "Content-Length": str(size_bytes),
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "private",
+    }
+    return StreamingResponse(iterator(), media_type=mime_type, headers=headers)

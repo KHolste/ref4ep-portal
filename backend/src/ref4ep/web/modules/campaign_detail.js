@@ -785,9 +785,13 @@ function renderPhotoCard(campaignId, photo, onEditCaption, onDelete) {
       },
       h("img", {
         class: "campaign-photo-image",
-        src: `/api/campaigns/${campaignId}/photos/${photo.id}/download`,
+        // Block 0032 — Galerie nutzt Thumbnail-Endpoint; bei
+        // Bestandsfotos ohne Thumbnail liefert der Server einen
+        // Fallback auf das Original.
+        src: `/api/campaigns/${campaignId}/photos/${photo.id}/thumbnail`,
         alt: photo.caption || photo.original_filename,
         loading: "lazy",
+        decoding: "async",
       }),
     ),
     photo.caption

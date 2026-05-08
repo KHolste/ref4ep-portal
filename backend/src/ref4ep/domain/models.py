@@ -1040,6 +1040,11 @@ class TestCampaignPhoto(Base):
     sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     caption: Mapped[str | None] = mapped_column(String, nullable=True)
     taken_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Block 0032 — Thumbnail-Artefakt (optional). Bestandsfotos haben
+    # diese Felder NULL und fallen im Frontend auf das Original zurück.
+    thumbnail_storage_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    thumbnail_mime_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    thumbnail_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_now_utc
     )

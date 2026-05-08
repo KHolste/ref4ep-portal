@@ -366,3 +366,112 @@ def test_upload_emits_audit_entry(admin_seeded: Session, tmp_storage_dir: Path) 
     admin_seeded.commit()
     actions = {row.action for row in admin_seeded.query(AuditLog).all()}
     assert "campaign.photo.upload" in actions
+
+
+# ---- Block 0032 — Thumbnail-Pipeline ---------------------------------
+
+
+def _real_jpeg_bytes(width: int = 800, height: int = 600) -> bytes:
+    """Echtes JPEG (groß genug für sinnvolles Thumbnail)."""
+    from io import BytesIO as _BytesIO
+
+    from PIL import Image as _Image
+
+    buf = _BytesIO()
+    _Image.new("RGB", (width, height), (180, 60, 120)).save(buf, format="JPEG", quality=90)
+    return buf.getvalue()
+
+
+def _real_png_alpha_bytes(width: int = 600, height: int = 400) -> bytes:
+    from io import BytesIO as _BytesIO
+
+    from PIL import Image as _Image
+
+    buf = _BytesIO()
+    _Image.new("RGBA", (width, height), (0, 200, 255, 128)).save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def test_upload_jpeg_creates_jpeg_thumbnail(admin_seeded: Session, tmp_storage_dir: Path) -> None:
+    cid = _create_campaign(admin_seeded, code="TC-PHOTO-THUMB-JPG")
+    _, auth = _admin_auth(admin_seeded)
+    storage = LocalFileStorage(tmp_storage_dir)
+    photo = TestCampaignPhotoService(admin_seeded, auth=auth, storage=storage).upload(
+        cid,
+        file_stream=io.BytesIO(_real_jpeg_bytes()),
+        original_filename="kammer.jpg",
+        mime_type="image/jpeg",
+    )
+    assert photo.thumbnail_storage_key is not None
+    assert photo.thumbnail_mime_type == "image/jpeg"
+    assert photo.thumbnail_size_bytes is not None
+    assert photo.thumbnail_size_bytes > 0
+    # Thumbnail kleiner als Original.
+    assert photo.thumbnail_size_bytes < photo.file_size_bytes
+    # Thumbnail liegt im Storage und beginnt mit JPEG-Magic.
+    with storage.open_read(photo.thumbnail_storage_key) as fh:
+        head = fh.read(3)
+    assert head == b"\xff\xd8\xff"
+
+
+def test_upload_png_with_alpha_creates_png_thumbnail(
+    admin_seeded: Session, tmp_storage_dir: Path
+) -> None:
+    cid = _create_campaign(admin_seeded, code="TC-PHOTO-THUMB-PNG")
+    _, auth = _admin_auth(admin_seeded)
+    storage = LocalFileStorage(tmp_storage_dir)
+    photo = TestCampaignPhotoService(admin_seeded, auth=auth, storage=storage).upload(
+        cid,
+        file_stream=io.BytesIO(_real_png_alpha_bytes()),
+        original_filename="overlay.png",
+        mime_type="image/png",
+    )
+    assert photo.thumbnail_mime_type == "image/png"
+    with storage.open_read(photo.thumbnail_storage_key) as fh:
+        head = fh.read(8)
+    assert head[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_upload_corrupted_image_succeeds_without_thumbnail(
+    admin_seeded: Session, tmp_storage_dir: Path
+) -> None:
+    """MIME ist erlaubt, Inhalt ist Müll: Upload bleibt erfolgreich,
+    Thumbnail-Felder bleiben NULL."""
+    cid = _create_campaign(admin_seeded, code="TC-PHOTO-THUMB-CORRUPT")
+    _, auth = _admin_auth(admin_seeded)
+    storage = LocalFileStorage(tmp_storage_dir)
+    photo = TestCampaignPhotoService(admin_seeded, auth=auth, storage=storage).upload(
+        cid,
+        file_stream=io.BytesIO(b"not a real image"),
+        original_filename="x.jpg",
+        mime_type="image/jpeg",
+    )
+    assert photo.id is not None
+    assert photo.thumbnail_storage_key is None
+    assert photo.thumbnail_mime_type is None
+    assert photo.thumbnail_size_bytes is None
+
+
+def test_thumbnail_error_is_recorded_in_audit(admin_seeded: Session, tmp_storage_dir: Path) -> None:
+    from ref4ep.services.audit_logger import AuditLogger
+
+    cid = _create_campaign(admin_seeded, code="TC-PHOTO-THUMB-AUDIT")
+    _, auth = _admin_auth(admin_seeded)
+    audit = AuditLogger(admin_seeded, actor_person_id=auth.person_id)
+    storage = LocalFileStorage(tmp_storage_dir)
+    TestCampaignPhotoService(admin_seeded, auth=auth, audit=audit, storage=storage).upload(
+        cid,
+        file_stream=io.BytesIO(b"corrupt"),
+        original_filename="x.jpg",
+        mime_type="image/jpeg",
+    )
+    admin_seeded.commit()
+    log = (
+        admin_seeded.query(AuditLog)
+        .filter_by(action="campaign.photo.upload")
+        .order_by(AuditLog.created_at.desc())
+        .first()
+    )
+    assert log is not None
+    # ``details`` ist ein JSON-Blob mit ``after``-Sektion.
+    assert "thumbnail_error" in str(log.details)

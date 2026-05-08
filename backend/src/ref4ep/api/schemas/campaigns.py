@@ -151,6 +151,10 @@ class CampaignPhotoOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     can_edit: bool = False
+    # Block 0032 — Thumbnail-Metadaten (NULL für Bestandsfotos).
+    thumbnail_mime_type: str | None = None
+    thumbnail_size_bytes: int | None = None
+    has_thumbnail: bool = False
 
 
 class CampaignPhotoCaptionRequest(BaseModel):

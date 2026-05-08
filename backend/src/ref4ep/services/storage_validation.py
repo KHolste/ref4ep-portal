@@ -35,6 +35,9 @@ PHOTO_MIME_WHITELIST: frozenset[str] = frozenset({"image/png", "image/jpeg"})
 _UUID_PATTERN = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 _STORAGE_KEY_RE = re.compile(rf"^documents/{_UUID_PATTERN}/{_UUID_PATTERN}\.bin$")
 _PHOTO_STORAGE_KEY_RE = re.compile(rf"^photos/{_UUID_PATTERN}/{_UUID_PATTERN}\.bin$")
+_PHOTO_THUMBNAIL_STORAGE_KEY_RE = re.compile(
+    rf"^photos/{_UUID_PATTERN}/{_UUID_PATTERN}\.thumb\.bin$"
+)
 
 
 def validate_mime(mime: str) -> None:
@@ -83,3 +86,15 @@ def compute_photo_storage_key(campaign_id: str, photo_id: str) -> str:
 def validate_photo_storage_key(key: str) -> None:
     if not _PHOTO_STORAGE_KEY_RE.match(key):
         raise ValueError(f"Foto-Storage-Key ungültig: {key!r}")
+
+
+# ---- Block 0032 — Thumbnail-Storage-Key ------------------------------
+
+
+def compute_photo_thumbnail_storage_key(campaign_id: str, photo_id: str) -> str:
+    return f"photos/{campaign_id}/{photo_id}.thumb.bin"
+
+
+def validate_photo_thumbnail_storage_key(key: str) -> None:
+    if not _PHOTO_THUMBNAIL_STORAGE_KEY_RE.match(key):
+        raise ValueError(f"Foto-Thumbnail-Storage-Key ungültig: {key!r}")

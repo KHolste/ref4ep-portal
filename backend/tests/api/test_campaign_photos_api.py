@@ -334,3 +334,86 @@ def test_download_returns_404_for_soft_deleted_photo(
     admin_client.delete(f"/api/campaigns/{cid}/photos/{pid}", headers=_csrf(admin_client))
     r = admin_client.get(f"/api/campaigns/{cid}/photos/{pid}/download")
     assert r.status_code == 404
+
+
+# ---- Block 0032 — Thumbnail-Endpoint ---------------------------------
+
+
+def _real_jpeg_bytes(width: int = 800, height: int = 600) -> bytes:
+    from io import BytesIO as _BytesIO
+
+    from PIL import Image as _Image
+
+    buf = _BytesIO()
+    _Image.new("RGB", (width, height), (180, 60, 120)).save(buf, format="JPEG", quality=90)
+    return buf.getvalue()
+
+
+def test_anonymous_cannot_get_thumbnail(client: TestClient) -> None:
+    client.cookies.clear()
+    r = client.get(
+        "/api/campaigns/00000000-0000-0000-0000-000000000000/"
+        "photos/00000000-0000-0000-0000-000000000000/thumbnail"
+    )
+    assert r.status_code == 401
+
+
+def test_thumbnail_endpoint_returns_thumbnail_when_present(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    cid = _create_campaign(seeded_session, code="TC-PHOTO-THUMB-API", wp_codes=["WP3"])
+    out = _upload(
+        admin_client, cid, content=_real_jpeg_bytes(), filename="kammer.jpg", mime="image/jpeg"
+    )
+    assert out["status"] == 201, out["raw"].text
+    pid = out["json"]["id"]
+    assert out["json"]["has_thumbnail"] is True
+    assert out["json"]["thumbnail_mime_type"] == "image/jpeg"
+
+    r = admin_client.get(f"/api/campaigns/{cid}/photos/{pid}/thumbnail")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("image/jpeg")
+    assert "inline" in r.headers["content-disposition"].lower()
+    assert r.headers.get("cache-control") == "private"
+    assert r.headers.get("x-content-type-options") == "nosniff"
+    # Body sind echte Bytes — kleiner als das Original.
+    assert r.content[:3] == b"\xff\xd8\xff"
+    assert len(r.content) < len(_real_jpeg_bytes())
+
+
+def test_thumbnail_endpoint_falls_back_to_original_for_legacy_photo(
+    admin_client: TestClient,
+    seeded_session: Session,
+    tmp_storage_dir,
+) -> None:
+    """Bestandsfoto ohne Thumbnail-Felder → Endpoint liefert Original."""
+    cid = _create_campaign(seeded_session, code="TC-PHOTO-THUMB-LEGACY", wp_codes=["WP3"])
+    admin = seeded_session.query(Person).filter_by(email="admin@test.example").one()
+    pid = _upload_via_service(
+        seeded_session, tmp_storage_dir, campaign_id=cid, uploader=admin, caption="alt"
+    )
+    # Thumbnail-Felder manuell auf NULL zurücksetzen, um ein Legacy-
+    # Foto aus Patch 0028 zu simulieren.
+    from ref4ep.domain.models import TestCampaignPhoto
+
+    photo = seeded_session.get(TestCampaignPhoto, pid)
+    photo.thumbnail_storage_key = None
+    photo.thumbnail_mime_type = None
+    photo.thumbnail_size_bytes = None
+    seeded_session.commit()
+
+    r = admin_client.get(f"/api/campaigns/{cid}/photos/{pid}/thumbnail")
+    assert r.status_code == 200
+    # Fallback: Original-MIME (PNG).
+    assert r.headers["content-type"].startswith("image/png")
+    assert r.content == PNG_BYTES
+
+
+def test_thumbnail_endpoint_returns_404_for_soft_deleted(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    cid = _create_campaign(seeded_session, code="TC-PHOTO-THUMB-DEL", wp_codes=["WP3"])
+    pid = _upload(admin_client, cid)["json"]["id"]
+    admin_client.delete(f"/api/campaigns/{cid}/photos/{pid}", headers=_csrf(admin_client))
+    r = admin_client.get(f"/api/campaigns/{cid}/photos/{pid}/thumbnail")
+    assert r.status_code == 404

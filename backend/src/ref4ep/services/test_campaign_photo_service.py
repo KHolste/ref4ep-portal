@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from io import BytesIO
 from typing import BinaryIO
 
 from sqlalchemy import select
@@ -23,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from ref4ep.domain.models import TestCampaign, TestCampaignPhoto
 from ref4ep.services.audit_logger import AuditLogger
+from ref4ep.services.image_thumbnail import ThumbnailError, generate_thumbnail
 from ref4ep.services.permissions import (
     AuthContext,
     can_admin,
@@ -30,6 +32,7 @@ from ref4ep.services.permissions import (
 )
 from ref4ep.services.storage_validation import (
     compute_photo_storage_key,
+    compute_photo_thumbnail_storage_key,
     validate_photo_mime,
 )
 from ref4ep.storage import Storage
@@ -117,6 +120,34 @@ class TestCampaignPhotoService:
         photo = self._load_visible_photo(photo_id)
         return photo, self.storage.open_read(photo.storage_key)
 
+    def open_thumbnail_stream(
+        self, photo_id: str
+    ) -> tuple[TestCampaignPhoto, BinaryIO, str, int, bool]:
+        """Liefert ``(photo, stream, mime_type, size_bytes, is_thumbnail)``.
+
+        Wenn das Foto kein Thumbnail-Artefakt hat, wird das Original
+        zurückgegeben (``is_thumbnail=False``); MIME und Größe sind
+        dann die des Originals.
+        """
+        if self.storage is None:
+            raise RuntimeError("Storage-Backend nicht konfiguriert.")
+        photo = self._load_visible_photo(photo_id)
+        if photo.thumbnail_storage_key:
+            return (
+                photo,
+                self.storage.open_read(photo.thumbnail_storage_key),
+                photo.thumbnail_mime_type or photo.mime_type,
+                photo.thumbnail_size_bytes or photo.file_size_bytes,
+                True,
+            )
+        return (
+            photo,
+            self.storage.open_read(photo.storage_key),
+            photo.mime_type,
+            photo.file_size_bytes,
+            False,
+        )
+
     # ---- write ----------------------------------------------------------
 
     def upload(
@@ -151,6 +182,25 @@ class TestCampaignPhotoService:
         cleaned_caption = (caption or "").strip() or None
         cleaned_filename = (original_filename or "").strip() or "unbenannt"
 
+        # Block 0032 — Thumbnail-Pipeline. Fehler hier dürfen den
+        # Upload nicht scheitern lassen; das Foto bleibt im Bestand.
+        thumbnail_storage_key: str | None = None
+        thumbnail_mime_type: str | None = None
+        thumbnail_size_bytes: int | None = None
+        thumbnail_error: str | None = None
+        try:
+            with self.storage.open_read(storage_key) as fh:
+                source_bytes = fh.read()
+            thumb_bytes, thumb_mime = generate_thumbnail(source_bytes)
+            thumbnail_storage_key = compute_photo_thumbnail_storage_key(campaign_id, photo_id)
+            thumb_write = self.storage.put_stream(thumbnail_storage_key, BytesIO(thumb_bytes))
+            thumbnail_mime_type = thumb_mime
+            thumbnail_size_bytes = thumb_write.file_size_bytes
+        except ThumbnailError as exc:
+            thumbnail_error = str(exc)
+        except OSError as exc:
+            thumbnail_error = f"Thumbnail-IO fehlgeschlagen: {exc}"
+
         photo = TestCampaignPhoto(
             id=photo_id,
             campaign_id=campaign_id,
@@ -162,23 +212,31 @@ class TestCampaignPhotoService:
             sha256=write_result.sha256,
             caption=cleaned_caption,
             taken_at=taken_at,
+            thumbnail_storage_key=thumbnail_storage_key,
+            thumbnail_mime_type=thumbnail_mime_type,
+            thumbnail_size_bytes=thumbnail_size_bytes,
         )
         self.session.add(photo)
         self.session.flush()
         if self.audit is not None:
+            after = {
+                "campaign_id": campaign_id,
+                "original_filename": photo.original_filename,
+                "mime_type": photo.mime_type,
+                "file_size_bytes": photo.file_size_bytes,
+                "sha256": photo.sha256,
+                "caption": photo.caption,
+                "taken_at": photo.taken_at,
+                "thumbnail_mime_type": photo.thumbnail_mime_type,
+                "thumbnail_size_bytes": photo.thumbnail_size_bytes,
+            }
+            if thumbnail_error is not None:
+                after["thumbnail_error"] = thumbnail_error
             self.audit.log(
                 "campaign.photo.upload",
                 entity_type="test_campaign_photo",
                 entity_id=photo.id,
-                after={
-                    "campaign_id": campaign_id,
-                    "original_filename": photo.original_filename,
-                    "mime_type": photo.mime_type,
-                    "file_size_bytes": photo.file_size_bytes,
-                    "sha256": photo.sha256,
-                    "caption": photo.caption,
-                    "taken_at": photo.taken_at,
-                },
+                after=after,
             )
         return photo
 

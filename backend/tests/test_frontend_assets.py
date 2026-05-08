@@ -3427,3 +3427,19 @@ def test_campaign_note_toolbar_buttons_styled_consistently() -> None:
     # Hover- und Focus-Stile vorhanden.
     assert ".campaign-note-toolbar-button:hover" in css
     assert ".campaign-note-toolbar-button:focus-visible" in css
+
+
+# ---- Block 0032 — Galerie nutzt Thumbnail-Endpoint -------------------
+
+
+def test_campaign_gallery_uses_thumbnail_endpoint() -> None:
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    # Galerie-<img src> zeigt auf /thumbnail.
+    assert "/thumbnail" in body
+    # Für das <img>-Markup speziell: ``src`` enthält den Thumbnail-Pfad.
+    assert "/photos/${photo.id}/thumbnail" in body
+    # Der äußere Link für Original/Download bleibt erhalten.
+    assert "/photos/${photo.id}/download" in body
+    # loading="lazy" und decoding="async" sind gesetzt.
+    assert 'loading: "lazy"' in body
+    assert 'decoding: "async"' in body
