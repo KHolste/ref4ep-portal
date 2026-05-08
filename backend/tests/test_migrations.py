@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0013_workpackage_schedule"
+CURRENT_HEAD = "0014_seed_workpackage_schedule"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -787,3 +787,200 @@ def test_downgrade_to_0012_drops_schedule_columns(tmp_db_path: Path) -> None:
     cols = {c["name"] for c in inspector.get_columns("workpackage")}
     assert "start_date" not in cols
     assert "end_date" not in cols
+
+
+# ---- Block 0027 — Folge-Migration 0014 (Seed-Datumswerte) ------------
+
+
+def _setup_partner_and_wp(
+    db_url: str,
+    *,
+    code: str,
+    start: str | None,
+    end: str | None,
+    partner_id: str = "11111111-1111-1111-1111-111111111111",
+    wp_id_suffix: str = "AAAA",
+) -> str:
+    """Helfer: erzeuge minimale Partner-/WP-Daten direkt per SQL.
+
+    Wir testen die Migration auf einer fortgeschrittenen Schema-Version
+    (head). Der Workpackage-Insert erfordert lead_partner_id und
+    sort_order — das kürzeste Setup geht direkt am Cursor.
+    """
+    engine = create_engine(db_url)
+    wp_id = f"99999999-9999-9999-9999-{wp_id_suffix:>012}"
+    with engine.begin() as conn:
+        # Partner anlegen, falls noch nicht vorhanden.
+        existing = conn.exec_driver_sql(
+            "SELECT id FROM partner WHERE id = :pid",
+            {"pid": partner_id},
+        ).fetchone()
+        if existing is None:
+            conn.exec_driver_sql(
+                "INSERT INTO partner (id, name, short_name, country, is_deleted, "
+                "created_at, updated_at, is_active, unit_address_same_as_organization) "
+                "VALUES (:pid, 'P', :short, 'DE', 0, datetime('now'), datetime('now'), 1, 1)",
+                {"pid": partner_id, "short": partner_id[:8]},
+            )
+        conn.exec_driver_sql(
+            "INSERT INTO workpackage (id, code, title, lead_partner_id, sort_order, "
+            "is_deleted, created_at, updated_at, status, start_date, end_date) "
+            "VALUES (:wid, :code, 'X', :pid, 0, 0, datetime('now'), datetime('now'), "
+            "'planned', :start, :end)",
+            {"wid": wp_id, "code": code, "pid": partner_id, "start": start, "end": end},
+        )
+    engine.dispose()
+    return wp_id
+
+
+def _read_dates(db_url: str, code: str) -> tuple[str | None, str | None]:
+    engine = create_engine(db_url)
+    with engine.connect() as conn:
+        row = conn.exec_driver_sql(
+            "SELECT start_date, end_date FROM workpackage WHERE code = :code",
+            {"code": code},
+        ).fetchone()
+    engine.dispose()
+    return (row[0], row[1]) if row else (None, None)
+
+
+def test_upgrade_0014_sets_dates_for_null_pairs(tmp_db_path: Path) -> None:
+    """Bestands-WP mit NULL/NULL bekommt durch Migration 0014 die
+    Seed-Werte."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    # Erst auf 0013 hochfahren (Spalten existieren, Seed-Migration noch nicht).
+    command.upgrade(cfg, "0013_workpackage_schedule")
+    _setup_partner_and_wp(db_url, code="WP3.1", start=None, end=None, wp_id_suffix="000031A")
+    # Dann auf head (= 0014) — Werte sollten gesetzt sein.
+    command.upgrade(cfg, "head")
+    start, end = _read_dates(db_url, "WP3.1")
+    assert start == "2026-03-01"
+    assert end == "2028-02-29"
+
+
+def test_upgrade_0014_skips_existing_full_dates(tmp_db_path: Path) -> None:
+    """Wenn beide Werte bereits gesetzt sind (manuell), bleibt alles
+    unverändert."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "0013_workpackage_schedule")
+    _setup_partner_and_wp(
+        db_url,
+        code="WP4.1",
+        start="2027-01-15",
+        end="2027-09-30",
+        wp_id_suffix="000041B",
+    )
+    command.upgrade(cfg, "head")
+    start, end = _read_dates(db_url, "WP4.1")
+    assert start == "2027-01-15"
+    assert end == "2027-09-30"
+
+
+def test_upgrade_0014_skips_partial_dates(tmp_db_path: Path) -> None:
+    """Wenn nur eines der beiden Felder gesetzt ist, wird der
+    Datensatz NICHT überschrieben."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "0013_workpackage_schedule")
+    _setup_partner_and_wp(
+        db_url, code="WP6.3", start="2027-04-01", end=None, wp_id_suffix="000063C"
+    )
+    command.upgrade(cfg, "head")
+    start, end = _read_dates(db_url, "WP6.3")
+    assert start == "2027-04-01"
+    assert end is None
+
+
+def test_downgrade_0014_clears_unmodified_seed_values(tmp_db_path: Path) -> None:
+    """Wenn die Werte exakt dem Seed entsprechen, räumt das Downgrade
+    sie wieder auf (zurück zu NULL/NULL)."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "0013_workpackage_schedule")
+    _setup_partner_and_wp(db_url, code="WP3.1", start=None, end=None, wp_id_suffix="000031D")
+    command.upgrade(cfg, "head")
+    # Sanity
+    assert _read_dates(db_url, "WP3.1") == ("2026-03-01", "2028-02-29")
+    # Down auf 0013
+    command.downgrade(cfg, "0013_workpackage_schedule")
+    assert _read_dates(db_url, "WP3.1") == (None, None)
+
+
+def test_downgrade_0014_keeps_modified_values(tmp_db_path: Path) -> None:
+    """Manuell veränderte Werte bleiben beim Downgrade erhalten."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "0013_workpackage_schedule")
+    _setup_partner_and_wp(db_url, code="WP3.1", start=None, end=None, wp_id_suffix="000031E")
+    command.upgrade(cfg, "head")
+    # Admin ändert das End-Datum manuell.
+    engine = create_engine(db_url)
+    with engine.begin() as conn:
+        conn.exec_driver_sql(
+            "UPDATE workpackage SET end_date = :new_end WHERE code = 'WP3.1'",
+            {"new_end": "2028-06-30"},
+        )
+    engine.dispose()
+    # Down auf 0013 — start_date ist Seed-Wert, end_date weicht ab.
+    # Da die Bedingung „beide exakt Seed" verlangt, wird nichts angerührt.
+    command.downgrade(cfg, "0013_workpackage_schedule")
+    start, end = _read_dates(db_url, "WP3.1")
+    assert start == "2026-03-01"
+    assert end == "2028-06-30"
+
+
+def test_upgrade_0014_safe_on_unknown_codes(tmp_db_path: Path) -> None:
+    """Eine DB ohne die bekannten WP-Codes überlebt das Upgrade
+    schadlos (kein Crash, keine Inserts)."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "0013_workpackage_schedule")
+    _setup_partner_and_wp(db_url, code="WP-FREMD", start=None, end=None, wp_id_suffix="000FREM")
+    command.upgrade(cfg, "head")
+    # Unbekannter Code bleibt unverändert.
+    assert _read_dates(db_url, "WP-FREMD") == (None, None)
+
+
+def test_migration_0014_values_match_yaml() -> None:
+    """Sync-Sicherung: WP_SCHEDULE in der Migration entspricht 1:1
+    den ``start_month``/``end_month``-Werten in
+    ``antrag_initial.yaml``. Driftet einer der beiden, bricht der
+    Test, bevor jemand Bestands-DBs in ein inkonsistentes Schema
+    überführt.
+    """
+    import importlib.util
+
+    import yaml as yaml_lib
+
+    # Migrations-Dateinamen beginnen mit einer Ziffer und sind über
+    # ``importlib.import_module`` nicht erreichbar. Direkt per
+    # File-Location laden.
+    mig_path = ALEMBIC_DIR / "versions" / "0014_seed_workpackage_schedule.py"
+    spec = importlib.util.spec_from_file_location("_mig_0014", mig_path)
+    assert spec is not None and spec.loader is not None
+    mig = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mig)
+
+    mig_pairs = {code: (sm, em) for code, sm, em in mig.WP_SCHEDULE}
+
+    seed_path = (
+        Path(__file__).resolve().parent.parent
+        / "src"
+        / "ref4ep"
+        / "cli"
+        / "seed_data"
+        / "antrag_initial.yaml"
+    )
+    seed_data = yaml_lib.safe_load(seed_path.read_text(encoding="utf-8"))
+    yaml_pairs = {
+        item["code"]: (item.get("start_month"), item.get("end_month"))
+        for item in seed_data["workpackages"]
+        if item.get("start_month") is not None and item.get("end_month") is not None
+    }
+    assert mig_pairs == yaml_pairs, (
+        "Migration 0014 (WP_SCHEDULE) und antrag_initial.yaml sind aus dem Tritt — "
+        "wenn die YAML bewusst geändert wird, muss eine NEUE Migration die Differenz "
+        "auf Bestands-DBs nachziehen."
+    )
