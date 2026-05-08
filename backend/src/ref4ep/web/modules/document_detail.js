@@ -582,6 +582,8 @@ function renderCommentsSection(doc, me, versions, commentsByVersion, onChanged) 
     });
   return h("section", {}, h("h2", {}, "Kommentare"), ...blocks);
 }
+
+function renderTestCampaignsSection(doc, canEdit, openLinkDialog, onUnlinked) {
   const links = doc.test_campaigns || [];
   const headerActions = canEdit
     ? h(
