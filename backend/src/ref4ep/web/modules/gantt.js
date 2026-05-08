@@ -18,12 +18,19 @@ import {
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 // Layout-Konstanten — Pixel.
-const LABEL_WIDTH = 200; // linke Spalte mit WP-Label
+const LABEL_WIDTH_MIN = 180;
+const LABEL_WIDTH_MAX = 280;
+const LABEL_PADDING = 16; // links/rechts im Label-Bereich
+const RIGHT_MARGIN = 20;
 const ROW_HEIGHT = 36;
 const HEADER_HEIGHT = 48; // Achsen-Skala oben
 const MARKER_RADIUS = 7; // Meilenstein-Punkt
 const MEETING_RADIUS = 4; // Meeting-Punkt
 const BAR_HEIGHT = 14; // Kampagnen-Balken
+const FALLBACK_CONTAINER_WIDTH = 1100;
+const PX_PER_DAY_MIN = 1;
+const PX_PER_DAY_MAX = 28;
+const RESIZE_DEBOUNCE_MS = 80;
 
 // Ampel-Farben — bewusst inline, weil das SVG sie als
 // presentation-Attribute braucht (CSS-Vererbung im SVG ist tückisch).
@@ -100,6 +107,47 @@ function computeVisibleWindow(mode, today, projectStart, projectEnd) {
   return [start, end];
 }
 
+// Pixel-Schätzung: bei einer typischen Sans-Serif liegt die mittlere
+// Glyphbreite bei ~0.55 × Schriftgröße. Reicht für Layout-Entscheidungen
+// (Label-Breite, Ellipsis-Kürzung) — exakte Messung über DOM würde
+// jedem Render-Pass kostbare ms aufdrücken.
+function estimateTextWidth(text, fontSize) {
+  return Math.ceil((text || "").length * fontSize * 0.55);
+}
+
+// Schriftgrößen passen sich an die verfügbare Achsenbreite an.
+// Heuristik: kleiner Bildschirm (Laptop) → 11/12 px,
+// mittlerer (Full-HD)             → 12/13 px,
+// großer Monitor                  → 13/14 px.
+function chooseFontSizes(axisWidth) {
+  if (axisWidth >= 1400) return { axis: 13, track: 14, today: 13 };
+  if (axisWidth >= 900) return { axis: 12, track: 13, today: 12 };
+  return { axis: 11, track: 12, today: 11 };
+}
+
+// Berechnet die linke Label-Spalte aus dem längsten Track-Label.
+function chooseLabelWidth(tracks, fontSize) {
+  if (!tracks.length) return LABEL_WIDTH_MIN;
+  let widest = 0;
+  for (const t of tracks) {
+    const text = `${t.code} — ${t.title}`;
+    const w = estimateTextWidth(text, fontSize) + LABEL_PADDING * 2;
+    if (w > widest) widest = w;
+  }
+  return Math.max(LABEL_WIDTH_MIN, Math.min(LABEL_WIDTH_MAX, widest));
+}
+
+// Kürzt einen Text auf eine Pixelbreite und hängt „…" an, falls nötig.
+function fitLabelText(text, maxPx, fontSize) {
+  if (estimateTextWidth(text, fontSize) <= maxPx) return text;
+  let s = text;
+  // Greedy: Zeichen rückwärts kürzen, bis es plus „…" reinpasst.
+  while (s.length > 1 && estimateTextWidth(`${s}…`, fontSize) > maxPx) {
+    s = s.slice(0, -1);
+  }
+  return `${s}…`;
+}
+
 function renderFilterBar(currentMode, onChange) {
   const bar = h(
     "div",
@@ -133,7 +181,7 @@ function renderLegend() {
   );
 }
 
-function renderBoard(board, mode) {
+function renderBoard(board, mode, containerWidth) {
   const tracks = board.tracks || [];
   if (!tracks.length) {
     return renderEmpty(
@@ -154,16 +202,36 @@ function renderBoard(board, mode) {
     return renderEmpty("Ungültiges Zeitfenster.");
   }
 
-  // Pixel pro Tag — Achsenbreite skaliert mit Dauer, aber min/max
-  // halten das Layout brauchbar.
-  const pxPerDay = Math.max(1, Math.min(24, 1100 / totalDays));
+  // Schritt 1: Schriftgrößen aus der voraussichtlichen Achsenbreite
+  // ableiten (vorläufig: Containerbreite minus Default-Label).
+  const provisionalAxis = Math.max(
+    300,
+    containerWidth - LABEL_WIDTH_MIN - RIGHT_MARGIN,
+  );
+  const fontSizes = chooseFontSizes(provisionalAxis);
+
+  // Schritt 2: tatsächliche Label-Breite aus dem längsten Track ableiten.
+  const labelWidth = chooseLabelWidth(tracks, fontSizes.track);
+  const maxLabelTextWidth = labelWidth - LABEL_PADDING * 2;
+
+  // Schritt 3: Pixel pro Tag — Achsenbreite füllt jetzt die echte
+  // verfügbare Breite. Min/Max verhindern unbrauchbar dichte/leere
+  // Skalen.
+  const availableAxis = Math.max(
+    300,
+    containerWidth - labelWidth - RIGHT_MARGIN,
+  );
+  const pxPerDay = Math.max(
+    PX_PER_DAY_MIN,
+    Math.min(PX_PER_DAY_MAX, availableAxis / totalDays),
+  );
   const axisWidth = Math.round(totalDays * pxPerDay);
-  const totalWidth = LABEL_WIDTH + axisWidth + 20; // 20 = rechter Rand
+  const totalWidth = labelWidth + axisWidth + RIGHT_MARGIN;
   const totalHeight = HEADER_HEIGHT + tracks.length * ROW_HEIGHT + 20;
 
   function xOfDate(d) {
     const days = daysBetween(windowStart, d);
-    return LABEL_WIDTH + Math.max(0, Math.min(axisWidth, days * pxPerDay));
+    return labelWidth + Math.max(0, Math.min(axisWidth, days * pxPerDay));
   }
 
   const root = svg("svg", {
@@ -194,7 +262,7 @@ function renderBoard(board, mode) {
           x: x + 2,
           y: HEADER_HEIGHT - 14,
           class: "gantt-axis-label",
-          "font-size": 10,
+          "font-size": fontSizes.axis,
           fill: "#555",
         },
         isoMonthLabel(cursor),
@@ -222,7 +290,7 @@ function renderBoard(board, mode) {
           x: xToday + 4,
           y: HEADER_HEIGHT - 2,
           class: "gantt-today-label",
-          "font-size": 11,
+          "font-size": fontSizes.today,
           fill: "#c62828",
         },
         "heute",
@@ -248,21 +316,28 @@ function renderBoard(board, mode) {
       );
     }
 
-    // Label links (Code + Titel).
+    // Label links (Code + Titel) mit Ellipsis bei Überlauf, voller Text
+    // im Tooltip.
+    const fullLabel = `${track.code} — ${track.title}`;
+    const fitted = fitLabelText(fullLabel, maxLabelTextWidth, fontSizes.track);
+    const labelText = svg(
+      "text",
+      {
+        x: LABEL_PADDING / 2,
+        y: yMid + 4,
+        class: "gantt-track-label",
+        "font-size": fontSizes.track,
+        fill: "#222",
+      },
+      fitted,
+    );
+    if (fitted !== fullLabel) {
+      labelText.append(svg("title", {}, fullLabel));
+    }
     root.append(
-      svg(
-        "text",
-        {
-          x: 8,
-          y: yMid + 4,
-          class: "gantt-track-label",
-          "font-size": 12,
-          fill: "#222",
-        },
-        `${track.code} — ${track.title}`,
-      ),
+      labelText,
       svg("line", {
-        x1: LABEL_WIDTH,
+        x1: labelWidth,
         x2: totalWidth - 10,
         y1: yTop + ROW_HEIGHT - 0.5,
         y2: yTop + ROW_HEIGHT - 0.5,
@@ -372,6 +447,13 @@ export async function render(container, _ctx) {
   const boardSlot = h("div", {});
   const legendSlot = renderLegend();
 
+  function measureWidth() {
+    // boardSlot.clientWidth wird vom Browser nach dem Layout-Pass
+    // aktualisiert. Im SPA-Fall ist das beim ersten rerender unmittelbar
+    // nach replaceChildren bereits korrekt; falls 0 → Fallback.
+    return boardSlot.clientWidth || window.innerWidth - 40 || FALLBACK_CONTAINER_WIDTH;
+  }
+
   function rerender() {
     filterSlot.replaceChildren(
       renderFilterBar(mode, (next) => {
@@ -379,7 +461,7 @@ export async function render(container, _ctx) {
         rerender();
       }),
     );
-    boardSlot.replaceChildren(renderBoard(board, mode));
+    boardSlot.replaceChildren(renderBoard(board, mode, measureWidth()));
   }
 
   container.replaceChildren(
@@ -390,4 +472,23 @@ export async function render(container, _ctx) {
     crossNav(),
   );
   rerender();
+
+  // ResizeObserver re-rendert beim Browserfenster-Resize. Debounce
+  // verhindert 60-fps-Flackern beim Drag-Resize. Wenn ``boardSlot`` aus
+  // dem DOM entfernt wird (SPA-Wechsel), bekommt der Observer keine
+  // weiteren Events — kein expliziter Disconnect nötig.
+  if (typeof ResizeObserver !== "undefined") {
+    let resizeTimer = null;
+    let lastWidth = measureWidth();
+    const observer = new ResizeObserver(() => {
+      const w = measureWidth();
+      if (Math.abs(w - lastWidth) < 8) return; // Mikro-Jitter ignorieren
+      lastWidth = w;
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (boardSlot.isConnected) rerender();
+      }, RESIZE_DEBOUNCE_MS);
+    });
+    observer.observe(boardSlot);
+  }
 }
