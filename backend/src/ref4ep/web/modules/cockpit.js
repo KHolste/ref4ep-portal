@@ -634,6 +634,205 @@ function renderStatusOverviewCard(counts, overview) {
   );
 }
 
+// ---- Block 0025 — Ampel-Dashboard --------------------------------------
+
+const TRAFFIC_LIGHT_LABELS = {
+  green: "grün",
+  yellow: "gelb",
+  red: "rot",
+  gray: "neutral",
+};
+
+const DOC_STATUS_LABELS = {
+  draft: "Entwurf",
+  in_review: "Review",
+  released: "Freigegeben",
+};
+
+const CAMPAIGN_STATUS_DASH_LABELS = {
+  planned: "geplant",
+  preparing: "Vorbereitung",
+  running: "läuft",
+  completed: "abgeschlossen",
+  evaluated: "ausgewertet",
+  cancelled: "abgebrochen",
+  postponed: "verschoben",
+};
+
+const TIMELINE_KIND_LABELS = {
+  milestone: "Meilenstein",
+  meeting: "Meeting",
+  campaign: "Kampagne",
+};
+
+function trafficDot(light) {
+  return h(
+    "span",
+    {
+      class: `traffic-dot traffic-dot-${light}`,
+      title: TRAFFIC_LIGHT_LABELS[light] || light,
+    },
+    "●",
+  );
+}
+
+function renderWorkpackageHealthCard(entries) {
+  if (!entries.length) {
+    return h(
+      "section",
+      { class: "cockpit-card cockpit-card-wide" },
+      h("h2", {}, "Arbeitspaket-Ampel"),
+      renderEmpty("Noch keine Arbeitspakete vorhanden."),
+    );
+  }
+  const rows = entries.map((entry) => {
+    const next = entry.next_milestone;
+    const docs = entry.document_counts || {};
+    return h(
+      "tr",
+      {},
+      h(
+        "td",
+        {},
+        trafficDot(entry.traffic_light),
+        " ",
+        h("a", { href: `/portal/workpackages/${entry.code}` }, entry.code),
+      ),
+      h("td", {}, entry.title),
+      h(
+        "td",
+        { class: "cockpit-doc-counts" },
+        `${DOC_STATUS_LABELS.draft}: ${docs.draft ?? 0} · `,
+        `${DOC_STATUS_LABELS.in_review}: ${docs.in_review ?? 0} · `,
+        `${DOC_STATUS_LABELS.released}: ${docs.released ?? 0}`,
+      ),
+      h(
+        "td",
+        {},
+        next
+          ? `${next.code} (${next.planned_date})`
+          : h("span", { class: "muted" }, "—"),
+      ),
+    );
+  });
+  return h(
+    "section",
+    { class: "cockpit-card cockpit-card-wide" },
+    h("h2", {}, "Arbeitspaket-Ampel"),
+    h(
+      "table",
+      { class: "cockpit-wp-health" },
+      h(
+        "thead",
+        {},
+        h(
+          "tr",
+          {},
+          h("th", {}, "WP"),
+          h("th", {}, "Titel"),
+          h("th", {}, "Dokumente"),
+          h("th", {}, "Nächster Meilenstein"),
+        ),
+      ),
+      h("tbody", {}, ...rows),
+    ),
+  );
+}
+
+function renderProjectKpisCard(progress, openActions, campaignCounts) {
+  const total = progress?.total || 0;
+  const achieved = progress?.achieved || 0;
+  const pct = total > 0 ? Math.round((achieved / total) * 100) : 0;
+  const counts = campaignCounts || {};
+  const campaignItems = Object.keys(CAMPAIGN_STATUS_DASH_LABELS).map((key) =>
+    h(
+      "li",
+      {},
+      h("strong", {}, String(counts[key] ?? 0)),
+      ` ${CAMPAIGN_STATUS_DASH_LABELS[key]}`,
+    ),
+  );
+  return h(
+    "section",
+    { class: "cockpit-card" },
+    h("h2", {}, "Projekt-Kennzahlen"),
+    h(
+      "div",
+      { class: "cockpit-progressbar" },
+      h(
+        "div",
+        { class: "cockpit-progressbar-fill", style: `width:${pct}%` },
+        "",
+      ),
+    ),
+    h(
+      "p",
+      {},
+      `Meilensteine erreicht: ${achieved} von ${total} (${pct}%)`,
+    ),
+    h(
+      "p",
+      {},
+      `Offene Aufgaben aus Meetings: ${openActions ?? 0}`,
+    ),
+    h("h3", { class: "cockpit-subhead" }, "Testkampagnen"),
+    h("ul", { class: "cockpit-campaign-counts" }, ...campaignItems),
+  );
+}
+
+function renderTimeline60Card(events) {
+  if (!events.length) {
+    return h(
+      "section",
+      { class: "cockpit-card cockpit-card-wide" },
+      h("h2", {}, "Zeitstrahl — nächste 60 Tage"),
+      renderEmpty("Keine Termine in den nächsten 60 Tagen."),
+    );
+  }
+  const rows = events.map((ev) =>
+    h(
+      "tr",
+      {},
+      h("td", {}, ev.date),
+      h("td", {}, TIMELINE_KIND_LABELS[ev.kind] || ev.kind),
+      h(
+        "td",
+        {},
+        ev.workpackage_code
+          ? h(
+              "a",
+              { href: `/portal/workpackages/${ev.workpackage_code}` },
+              ev.workpackage_code,
+            )
+          : h("span", { class: "muted" }, "—"),
+      ),
+      h("td", {}, ev.title),
+    ),
+  );
+  return h(
+    "section",
+    { class: "cockpit-card cockpit-card-wide" },
+    h("h2", {}, "Zeitstrahl — nächste 60 Tage"),
+    h(
+      "table",
+      { class: "cockpit-timeline" },
+      h(
+        "thead",
+        {},
+        h(
+          "tr",
+          {},
+          h("th", {}, "Datum"),
+          h("th", {}, "Typ"),
+          h("th", {}, "WP"),
+          h("th", {}, "Titel"),
+        ),
+      ),
+      h("tbody", {}, ...rows),
+    ),
+  );
+}
+
 function renderProjectCockpit(cockpit) {
   return h(
     "div",
@@ -645,6 +844,13 @@ function renderProjectCockpit(cockpit) {
       cockpit.status_counts || {},
       cockpit.workpackage_status_overview || [],
     ),
+    renderWorkpackageHealthCard(cockpit.workpackage_health || []),
+    renderProjectKpisCard(
+      cockpit.milestone_progress || { achieved: 0, total: 0 },
+      cockpit.open_meeting_actions ?? 0,
+      cockpit.campaign_status_counts || {},
+    ),
+    renderTimeline60Card(cockpit.timeline_next_60_days || []),
   );
 }
 

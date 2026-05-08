@@ -2717,6 +2717,29 @@ def test_workpackages_filter_bar_sub_list_sections_remain() -> None:
     assert "buildHierarchy" in body or "groupedSubs" in body
 
 
+def test_cockpit_has_traffic_light_dashboard() -> None:
+    """Block 0025: Ampel-Dashboard ist im Cockpit-Modul."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    # Karten-Überschriften
+    assert "Arbeitspaket-Ampel" in body
+    assert "Projekt-Kennzahlen" in body
+    assert "Zeitstrahl — nächste 60 Tage" in body
+    # Ampel-Marker (CSS-Klasse via Template-Literal generiert).
+    assert "traffic-dot-" in body, "CSS-Klassen-Präfix traffic-dot- fehlt"
+    # Deutsche Ampel-Labels für den Tooltip.
+    for label in ("grün", "gelb", "rot", "neutral"):
+        assert label in body, f"Ampel-Label {label!r} fehlt"
+    # Felder aus dem erweiterten Cockpit-Schema
+    for field_name in (
+        "workpackage_health",
+        "milestone_progress",
+        "open_meeting_actions",
+        "campaign_status_counts",
+        "timeline_next_60_days",
+    ):
+        assert field_name in body, f"Feld {field_name!r} wird im Frontend nicht ausgewertet"
+
+
 def test_document_detail_has_comments_section() -> None:
     """Block 0024: Comments-Section im Dokumentdetail.
 
