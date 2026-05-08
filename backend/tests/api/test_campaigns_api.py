@@ -309,7 +309,6 @@ def test_admin_can_cancel(admin_client: TestClient, seeded_session: Session) -> 
 def test_no_hard_delete_endpoint() -> None:
     """Block 0022 erlaubt explizit kein Hard-Delete für Kampagnen."""
     from ref4ep.api.app import create_app
-
     from tests.conftest import make_test_settings
 
     app = create_app(settings=make_test_settings(storage_dir="/tmp/x"))
