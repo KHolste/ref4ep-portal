@@ -89,3 +89,74 @@ def test_alembic_roundtrip(tmp_path: Path) -> None:
         pytest.xfail(
             "Downgrade nicht implementiert für Revisionen: " + ", ".join(incomplete_downgrades)
         )
+
+
+# ---- Block 0033 — PostgreSQL-VARCHAR(32)-Hürde ------------------------
+
+
+def test_no_revision_id_exceeds_safe_postgres_default_unless_widened() -> None:
+    """Alembic legt ``alembic_version.version_num`` standardmäßig als
+    ``VARCHAR(32)`` an. PostgreSQL erzwingt VARCHAR-Längen hart, SQLite
+    nicht — der CI-PostgreSQL-Job stolperte daher beim ``UPDATE
+    alembic_version`` auf der 35 Zeichen langen Revision-ID
+    ``0017_test_campaign_photo_thumbnails``.
+
+    Dieser Test stellt sicher:
+    * Jede Revision-ID > 32 Zeichen erfordert in genau ihrer
+      Migrations-Datei einen passenden ``ALTER TABLE
+      alembic_version`` ALTER COLUMN-Schritt für PostgreSQL.
+    * Keine Revision-ID überschreitet 128 Zeichen — das ist die im
+      Fix gewählte Zielbreite.
+    """
+    import re
+    from pathlib import Path
+
+    versions_dir = Path(__file__).resolve().parent.parent / "alembic" / "versions"
+    failures: list[str] = []
+    for path in sorted(versions_dir.glob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        match = re.search(r'^revision:\s*str\s*=\s*"([^"]+)"', text, re.MULTILINE)
+        if not match:
+            continue
+        revision_id = match.group(1)
+        if len(revision_id) > 128:
+            failures.append(
+                f"{path.name}: Revision-ID {revision_id!r} überschreitet 128 Zeichen — "
+                f"Spalte ``alembic_version.version_num`` müsste weiter aufgeweitet werden."
+            )
+            continue
+        if len(revision_id) > 32:
+            # Migrationen mit langer Revision-ID müssen die Spalte aufweiten,
+            # damit der abschließende UPDATE auf PostgreSQL nicht scheitert.
+            if "alembic_version" not in text or "ALTER COLUMN version_num" not in text:
+                failures.append(
+                    f"{path.name}: Revision-ID {revision_id!r} ist {len(revision_id)} Zeichen "
+                    f"lang. Diese Migration muss zu Beginn von ``upgrade()`` die Spalte "
+                    f"``alembic_version.version_num`` für PostgreSQL aufweiten."
+                )
+    assert not failures, "\n".join(failures)
+
+
+def test_migration_0017_widens_alembic_version_column_for_postgres() -> None:
+    from pathlib import Path
+
+    target = (
+        Path(__file__).resolve().parent.parent
+        / "alembic"
+        / "versions"
+        / "0017_test_campaign_photo_thumbnails.py"
+    )
+    text = target.read_text(encoding="utf-8")
+    # Dialekt-Weiche: nur PostgreSQL erweitern.
+    assert 'dialect.name == "postgresql"' in text
+    # Konkreter ALTER-Statement.
+    assert "ALTER TABLE alembic_version" in text
+    assert "ALTER COLUMN version_num TYPE VARCHAR(128)" in text
+    # Aufweitung passiert vor der Tabellen-Migration, also vor dem
+    # ``batch_alter_table("test_campaign_photo")``-Block.
+    alter_idx = text.index("ALTER COLUMN version_num TYPE VARCHAR(128)")
+    batch_idx = text.index('batch_alter_table("test_campaign_photo")')
+    assert alter_idx < batch_idx, (
+        "Spaltenaufweitung muss vor der Tabellenänderung stehen, "
+        "damit Alembics finaler UPDATE auf VARCHAR(128) trifft."
+    )
