@@ -261,15 +261,10 @@ def test_delete_meeting_route_is_admin_only_route_exists() -> None:
     (Admin-only, CSRF-geschützt). Vorher gab es keinen Hard-Delete.
     """
     from ref4ep.api.app import create_app
-    from ref4ep.api.config import Settings
 
-    app = create_app(
-        settings=Settings(
-            database_url="sqlite:///:memory:",
-            session_secret="x" * 48,
-            storage_dir="/tmp/x",
-        )
-    )
+    from tests.conftest import make_test_settings
+
+    app = create_app(settings=make_test_settings(storage_dir="/tmp/x"))
     delete_meeting = [
         r
         for r in app.routes

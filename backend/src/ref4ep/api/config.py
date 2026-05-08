@@ -9,6 +9,7 @@ Instanzen bauen und via ``create_app(settings)`` injizieren.
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import field_validator
@@ -17,6 +18,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Spiegelt ``ref4ep.services.auth.MIN_SESSION_SECRET_LEN``. Bewusst
 # dupliziert, damit ``config`` keine Abhängigkeit auf ``services`` hat.
 MIN_SESSION_SECRET_LEN = 32
+
+# Absoluter Pfad zur ``.env``. ``pydantic-settings`` interpretierte den
+# relativen Default ``.env`` zum Working-Directory des Prozesses — eine
+# systemd-Unit mit ``WorkingDirectory=/opt/ref4ep-portal`` (statt
+# ``/opt/ref4ep-portal/backend``) hätte die Datei verfehlt und damit
+# einen ``REF4EP_SESSION_SECRET fehlt``-Crash produziert.
+# ``parents[3]`` löst von ``backend/src/ref4ep/api/config.py`` auf
+# ``backend/`` auf — dort liegt ``.env`` neben ``pyproject.toml``.
+_ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
 
 
 class Settings(BaseSettings):
@@ -44,7 +54,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="REF4EP_",
-        env_file=".env",
+        env_file=_ENV_FILE,
         env_file_encoding="utf-8",
         extra="ignore",
     )

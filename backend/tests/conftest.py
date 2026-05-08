@@ -31,6 +31,30 @@ ALEMBIC_DIR = BACKEND_DIR / "alembic"
 TEST_SESSION_SECRET = "x" * 48  # >= 32 Zeichen, reicht für HMAC-Tests
 
 
+def make_test_settings(**overrides) -> Settings:
+    """Settings für Tests mit konsistenten, sicheren Defaults.
+
+    Defaults:
+    - ``session_secret`` ≥ 32 Zeichen (passt den Validator).
+    - ``cookie_secure=False`` — TestClient läuft über ``http://testserver``
+      und würde ein Secure-Cookie nicht zurückspielen (führt sonst zu
+      spurious 401 in allen authentifizierten Tests). Production bleibt
+      bei dem sicheren Default ``True`` aus ``config.py``.
+    - ``database_url=sqlite:///:memory:`` — ausreichend für Tests, die nur
+      die App bauen (z. B. Routen-Inspection). Tests mit echtem DB-Setup
+      überschreiben den Wert über ``**overrides``.
+
+    Alle Defaults sind via ``**overrides`` überschreibbar.
+    """
+    defaults: dict[str, object] = {
+        "session_secret": TEST_SESSION_SECRET,
+        "cookie_secure": False,
+        "database_url": "sqlite:///:memory:",
+    }
+    defaults.update(overrides)
+    return Settings(**defaults)
+
+
 def _apply_migrations(database_url: str) -> None:
     cfg = Config(str(ALEMBIC_INI))
     cfg.set_main_option("script_location", str(ALEMBIC_DIR))
@@ -52,15 +76,9 @@ def tmp_storage_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def settings(tmp_db_path: Path, tmp_storage_dir: Path) -> Settings:
-    return Settings(
+    return make_test_settings(
         database_url=f"sqlite:///{tmp_db_path}",
-        session_secret=TEST_SESSION_SECRET,
         storage_dir=str(tmp_storage_dir),
-        # TestClient läuft über http://testserver — ein Cookie mit
-        # Secure-Flag würde vom Client nicht zurückgesendet, was zu
-        # spurious 401 in allen authentifizierten Tests führt. Production
-        # bleibt bei dem sicheren Default ``True`` (siehe config.py).
-        cookie_secure=False,
     )
 
 
