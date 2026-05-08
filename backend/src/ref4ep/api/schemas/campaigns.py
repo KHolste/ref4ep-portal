@@ -76,6 +76,7 @@ class CampaignDetailOut(BaseModel):
     documents: list[CampaignDocumentOut] = Field(default_factory=list)
     can_edit: bool = False
     can_upload_photo: bool = False
+    can_create_note: bool = False
 
 
 # ---- Requests ---------------------------------------------------------
@@ -156,12 +157,36 @@ class CampaignPhotoCaptionRequest(BaseModel):
     caption: str | None = None
 
 
+# ---- Block 0029 — Kampagnennotizen ------------------------------------
+
+
+class CampaignNoteOut(BaseModel):
+    id: str
+    campaign_id: str
+    body_md: str
+    author: CampaignPersonOut
+    created_at: datetime
+    updated_at: datetime
+    can_edit: bool = False
+
+
+class CampaignNoteCreateRequest(BaseModel):
+    body_md: str = Field(min_length=1)
+
+
+class CampaignNoteUpdateRequest(BaseModel):
+    body_md: str = Field(min_length=1)
+
+
 __all__ = [
     "CampaignCreateRequest",
     "CampaignDetailOut",
     "CampaignDocumentLinkAddRequest",
     "CampaignDocumentOut",
     "CampaignListItemOut",
+    "CampaignNoteCreateRequest",
+    "CampaignNoteOut",
+    "CampaignNoteUpdateRequest",
     "CampaignParticipantAddRequest",
     "CampaignParticipantOut",
     "CampaignParticipantPatchRequest",

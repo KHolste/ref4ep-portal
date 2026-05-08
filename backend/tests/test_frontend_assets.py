@@ -2964,3 +2964,263 @@ def test_campaign_detail_photo_upload_uses_dedicated_endpoint() -> None:
     assert "/api/campaigns/" in body and "/photos" in body
     # Kein Document-Upload-Endpunkt:
     assert "/api/documents/" not in body or "/api/documents?" in body
+
+
+# ---- Block 0029 — Kampagnennotizen ------------------------------------
+
+
+def test_campaign_detail_has_notes_section_strings() -> None:
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    # UI-Strings (deutsch).
+    for needle in (
+        '"Kampagnennotizen"',
+        '"Notiz hinzufügen"',
+        "Idee, Beobachtung oder offene Frage notieren",
+        "Kein formales Laborbuch",
+    ):
+        assert needle in body, f"campaign_detail.js sollte {needle!r} enthalten"
+    # Renderer + Block-Funktionen.
+    for fn in (
+        "renderNotesBlock",
+        "renderNoteCard",
+        "renderNoteComposer",
+        "renderNoteEditDialog",
+        "renderMarkdown",
+    ):
+        assert fn in body, f"campaign_detail.js sollte Funktion {fn!r} enthalten"
+    # Handler.
+    for fn in ("onCreateNote", "onEditNote", "onDeleteNote"):
+        assert fn in body, f"campaign_detail.js sollte Handler {fn!r} enthalten"
+
+
+def test_campaign_detail_markdown_renderer_escapes_html_centrally() -> None:
+    """Renderer enthält eine zentrale Escape-Funktion und nutzt sie."""
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    assert "function escapeHtml" in body
+    # Escapes mindestens & < > " '.
+    for entity in ("&amp;", "&lt;", "&gt;", "&quot;", "&#39;"):
+        assert entity in body, f"escapeHtml sollte {entity} ausgeben"
+    # Markdown-Renderer ruft escapeHtml auf, bevor er Block-Strukturen
+    # erkennt — Suche nach Verwendung in renderMarkdown-Nähe.
+    assert "escapeHtml(source)" in body or "escapeHtml(" in body
+
+
+def test_campaign_detail_markdown_supports_tables() -> None:
+    """Mini-Markdown-Renderer kann Tabellen erzeugen."""
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    assert "renderTableBlock" in body
+    assert "campaign-note-table" in body
+
+
+def test_campaign_detail_uses_no_external_markdown_library() -> None:
+    """Kein npm, kein Build-Step, keine externe Markdown-Library."""
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    for forbidden in (
+        "marked",
+        "markdown-it",
+        "showdown",
+        "import-from-cdn",
+        "unpkg.com",
+        "cdn.jsdelivr.net",
+    ):
+        assert forbidden not in body.lower() or forbidden == "marked" and "marked" not in body, (
+            f"campaign_detail.js sollte {forbidden!r} nicht referenzieren"
+        )
+    # Kein WYSIWYG-Editor.
+    for editor in ("tinymce", "ckeditor", "quill", "tiptap", "prosemirror"):
+        assert editor not in body.lower(), f"campaign_detail.js sollte {editor!r} nicht enthalten"
+
+
+def test_campaign_note_styles_present() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (
+        ".campaign-note-card",
+        ".campaign-note-list",
+        ".campaign-note-body",
+        ".campaign-note-meta",
+        ".campaign-note-table",
+    ):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+
+
+def test_campaign_detail_section_structure_includes_notes() -> None:
+    """Die zentrale Sektionsstruktur-Probe muss „Kampagnennotizen" kennen."""
+    body = (MODULES_DIR / "campaign_detail.js").read_text(encoding="utf-8")
+    assert "Kampagnennotizen" in body
+    assert "renderNotesBlock" in body
+
+
+# ---- Block 0029-pre — JS-Syntaxsanität --------------------------------
+# Hintergrund: Patch 0024 hatte den Funktionsheader
+# ``function renderTestCampaignsSection(...)`` versehentlich mit-
+# entfernt, sodass der nachfolgende Funktions-Body als Modul-Code
+# geparst wurde („Illegal return statement"). Node ist in der
+# Entwicklungsumgebung nicht verfügbar; deshalb hier ein Python-eigener
+# JS-Tokenizer, der Strings, Template-Literale, Kommentare und
+# Regex-Literale berücksichtigt und ``return``-Tokens auf Modul-Ebene
+# (Brace-Tiefe 0) flaggt. Brace-Tiefe selbst wird wegen Heuristik-
+# Grenzen nicht hart geprüft — nur das Auftreten von Top-Level-
+# ``return`` würde im Browser zu einem Parse-Fehler führen.
+
+_REGEX_KEYWORDS = frozenset(
+    {
+        "return",
+        "typeof",
+        "delete",
+        "void",
+        "instanceof",
+        "in",
+        "new",
+        "throw",
+        "yield",
+        "await",
+        "of",
+    }
+)
+
+
+def _module_level_return_lines(src: str) -> list[int]:
+    depth = 0
+    in_str: str | None = None
+    in_line_comment = False
+    in_block_comment = False
+    in_regex = False
+    in_class = False
+    last_token = ""
+    last_punct = ""
+    issues: list[int] = []
+    i = 0
+    line = 1
+    while i < len(src):
+        c = src[i]
+        nxt = src[i + 1] if i + 1 < len(src) else ""
+        if c == "\n":
+            line += 1
+            in_line_comment = False
+            i += 1
+            continue
+        if in_line_comment:
+            i += 1
+            continue
+        if in_block_comment:
+            if c == "*" and nxt == "/":
+                in_block_comment = False
+                i += 2
+                continue
+            i += 1
+            continue
+        if in_regex:
+            if c == "\\":
+                i += 2
+                continue
+            if c == "[" and not in_class:
+                in_class = True
+            elif c == "]" and in_class:
+                in_class = False
+            elif c == "/" and not in_class:
+                in_regex = False
+                while i + 1 < len(src) and src[i + 1] in "gimsuy":
+                    i += 1
+            i += 1
+            continue
+        if in_str:
+            if c == "\\":
+                i += 2
+                continue
+            if c == in_str:
+                in_str = None
+            i += 1
+            continue
+        if c == "/" and nxt == "/":
+            in_line_comment = True
+            i += 2
+            continue
+        if c == "/" and nxt == "*":
+            in_block_comment = True
+            i += 2
+            continue
+        if c == "/":
+            trigger_punct = last_punct == "" or last_punct in "(,=;:!&|?{}[+*-~%<>/^"
+            trigger_kw = last_token in _REGEX_KEYWORDS
+            if trigger_punct or trigger_kw:
+                in_regex = True
+                in_class = False
+                last_token = ""
+                last_punct = ""
+                i += 1
+                continue
+        if c in ('"', "'", "`"):
+            in_str = c
+            last_token = ""
+            last_punct = c
+            i += 1
+            continue
+        if c == "{":
+            depth += 1
+            last_token = ""
+            last_punct = c
+            i += 1
+            continue
+        if c == "}":
+            depth -= 1
+            last_token = ""
+            last_punct = c
+            i += 1
+            continue
+        if c.isalpha() or c == "_" or c == "$":
+            j = i
+            while j < len(src) and (src[j].isalnum() or src[j] in "_$"):
+                j += 1
+            tok = src[i:j]
+            if tok == "return" and depth == 0:
+                issues.append(line)
+            last_token = tok
+            last_punct = ""
+            i = j
+            continue
+        if c.isdigit():
+            while i < len(src) and (src[i].isalnum() or src[i] == "."):
+                i += 1
+            last_token = "0"
+            last_punct = ""
+            continue
+        if not c.isspace():
+            last_punct = c
+            last_token = ""
+        i += 1
+    return issues
+
+
+def test_no_module_level_return_in_web_js() -> None:
+    """Regressionsschutz für den ‚Illegal return statement'-Bug aus
+    Patch 0024 (Document Comments): in
+    ``backend/src/ref4ep/web/modules/document_detail.js`` war versehentlich
+    der Funktionsheader ``function renderTestCampaignsSection(...)`` mit-
+    entfernt worden, sodass der nachfolgende Funktions-Body als Modul-
+    Code geparst wurde. Im Browser scheiterte das Modul-Loading mit
+    „Illegal return statement". Der Test prüft alle Web-JS-Dateien."""
+    targets = [WEB_DIR / "app.js", WEB_DIR / "common.js"]
+    targets.extend(sorted(MODULES_DIR.glob("*.js")))
+    failures: list[str] = []
+    for path in targets:
+        src = path.read_text(encoding="utf-8")
+        for ln in _module_level_return_lines(src):
+            failures.append(f"{path.name}:{ln} module-level `return` (Browser-Parsefehler)")
+    assert not failures, "\n".join(failures)
+
+
+def test_document_detail_has_render_test_campaigns_section_function() -> None:
+    """Sehr spezifischer Regressionsschutz für den konkreten Bug aus
+    Patch 0024. Wenn der Funktionsheader irgendwann wieder verschwindet,
+    fällt dieser Test sofort auf."""
+    body = (MODULES_DIR / "document_detail.js").read_text(encoding="utf-8")
+    assert "function renderTestCampaignsSection(" in body
+    # Aufruf-Stelle existiert weiterhin.
+    assert "renderTestCampaignsSection(" in body
+    # Body-Indikator (``doc.test_campaigns``) befindet sich NACH dem
+    # Funktionsheader, nicht davor.
+    header_idx = body.index("function renderTestCampaignsSection(")
+    body_idx = body.index("doc.test_campaigns")
+    assert body_idx > header_idx, (
+        "Body von renderTestCampaignsSection darf nicht vor dem Header stehen"
+    )

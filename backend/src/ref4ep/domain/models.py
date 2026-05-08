@@ -887,6 +887,11 @@ class TestCampaign(Base):
         cascade="all, delete-orphan",
         order_by="TestCampaignPhoto.created_at",
     )
+    notes: Mapped[list[TestCampaignNote]] = relationship(
+        back_populates="campaign",
+        cascade="all, delete-orphan",
+        order_by="TestCampaignNote.created_at",
+    )
 
 
 class TestCampaignWorkpackage(Base):
@@ -1045,3 +1050,44 @@ class TestCampaignPhoto(Base):
 
     campaign: Mapped[TestCampaign] = relationship(back_populates="photos")
     uploaded_by: Mapped[Person] = relationship()
+
+
+# --------------------------------------------------------------------------- #
+# Block 0029 — Kampagnennotizen                                               #
+# --------------------------------------------------------------------------- #
+
+
+class TestCampaignNote(Base):
+    """Niedrigschwellige Arbeitsnotiz / Brainstorming-Notiz zu einer
+    Testkampagne.
+
+    Bewusst kein Laborbuch: keine Versionierung, kein Review-/Release-
+    Lifecycle, kein Titel — nur ein Markdown-Body, Autor und
+    Soft-Delete. Bearbeiten und Löschen ist auf Autor + Admin
+    beschränkt.
+    """
+
+    __tablename__ = "test_campaign_note"
+    # pytest sammelt sonst diese Klasse als Test-Klasse ein.
+    __test__ = False
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    campaign_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("test_campaign.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    author_person_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("person.id"), nullable=False
+    )
+    body_md: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc, onupdate=_now_utc
+    )
+    is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    campaign: Mapped[TestCampaign] = relationship(back_populates="notes")
+    author: Mapped[Person] = relationship()

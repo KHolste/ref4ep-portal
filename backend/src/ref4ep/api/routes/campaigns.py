@@ -43,6 +43,9 @@ from ref4ep.api.schemas.campaigns import (
     CampaignDocumentLinkAddRequest,
     CampaignDocumentOut,
     CampaignListItemOut,
+    CampaignNoteCreateRequest,
+    CampaignNoteOut,
+    CampaignNoteUpdateRequest,
     CampaignParticipantAddRequest,
     CampaignParticipantOut,
     CampaignParticipantPatchRequest,
@@ -52,9 +55,22 @@ from ref4ep.api.schemas.campaigns import (
     CampaignPhotoOut,
     CampaignWorkpackageOut,
 )
-from ref4ep.domain.models import Person, TestCampaign, TestCampaignParticipant, TestCampaignPhoto
+from ref4ep.domain.models import (
+    Person,
+    TestCampaign,
+    TestCampaignNote,
+    TestCampaignParticipant,
+    TestCampaignPhoto,
+)
 from ref4ep.services.audit_logger import AuditLogger
 from ref4ep.services.permissions import AuthContext
+from ref4ep.services.test_campaign_note_service import (
+    CampaignNoteNotFoundError,
+    TestCampaignNoteService,
+)
+from ref4ep.services.test_campaign_note_service import (
+    CampaignNotFoundError as CampaignNotFoundForNoteError,
+)
 from ref4ep.services.test_campaign_photo_service import (
     CampaignNotFoundError,
     CampaignPhotoNotFoundError,
@@ -172,11 +188,19 @@ def _can_upload_photo(campaign: TestCampaign, actor: Person) -> bool:
     return any(link.person_id == actor.id for link in campaign.participant_links)
 
 
+def _can_create_note(campaign: TestCampaign, actor: Person) -> bool:
+    """Block 0029 — Notiz anlegen darf wer Foto hochladen darf
+    (Teilnehmer + Admin). Eigene Funktion für semantische Klarheit;
+    aktuell deckungsgleich mit ``_can_upload_photo``."""
+    return _can_upload_photo(campaign, actor)
+
+
 def _detail(
     campaign: TestCampaign,
     *,
     can_edit: bool,
     can_upload_photo: bool = False,
+    can_create_note: bool = False,
 ) -> CampaignDetailOut:
     return CampaignDetailOut(
         id=campaign.id,
@@ -201,6 +225,7 @@ def _detail(
         documents=[_document_out(d) for d in campaign.document_links],
         can_edit=can_edit,
         can_upload_photo=can_upload_photo,
+        can_create_note=can_create_note,
     )
 
 
@@ -282,7 +307,12 @@ def create_campaign(
         )
     except Exception as exc:  # noqa: BLE001
         raise _http_error(exc) from exc
-    return _detail(campaign, can_edit=True, can_upload_photo=_can_upload_photo(campaign, actor))
+    return _detail(
+        campaign,
+        can_edit=True,
+        can_upload_photo=_can_upload_photo(campaign, actor),
+        can_create_note=_can_create_note(campaign, actor),
+    )
 
 
 @router.get("/campaigns/{campaign_id}", response_model=CampaignDetailOut)
@@ -298,6 +328,7 @@ def get_campaign(campaign_id: str, actor: ActorDep, session: SessionDep) -> Camp
         campaign,
         can_edit=service.can_edit_campaign(campaign),
         can_upload_photo=_can_upload_photo(campaign, actor),
+        can_create_note=_can_create_note(campaign, actor),
     )
 
 
@@ -324,7 +355,12 @@ def patch_campaign(
         )
     except Exception as exc:  # noqa: BLE001
         raise _http_error(exc) from exc
-    return _detail(campaign, can_edit=True, can_upload_photo=_can_upload_photo(campaign, actor))
+    return _detail(
+        campaign,
+        can_edit=True,
+        can_upload_photo=_can_upload_photo(campaign, actor),
+        can_create_note=_can_create_note(campaign, actor),
+    )
 
 
 @router.post(
@@ -343,7 +379,12 @@ def cancel_campaign(
         campaign = service.cancel_campaign(campaign_id)
     except Exception as exc:  # noqa: BLE001
         raise _http_error(exc) from exc
-    return _detail(campaign, can_edit=True, can_upload_photo=_can_upload_photo(campaign, actor))
+    return _detail(
+        campaign,
+        can_edit=True,
+        can_upload_photo=_can_upload_photo(campaign, actor),
+        can_create_note=_can_create_note(campaign, actor),
+    )
 
 
 # ---- Teilnehmende -----------------------------------------------------
@@ -373,7 +414,12 @@ def add_campaign_participant(
     except Exception as exc:  # noqa: BLE001
         raise _http_error(exc) from exc
     campaign = service.get(campaign_id)
-    return _detail(campaign, can_edit=True, can_upload_photo=_can_upload_photo(campaign, actor))
+    return _detail(
+        campaign,
+        can_edit=True,
+        can_upload_photo=_can_upload_photo(campaign, actor),
+        can_create_note=_can_create_note(campaign, actor),
+    )
 
 
 @router.patch(
@@ -438,7 +484,12 @@ def link_campaign_document(
     except Exception as exc:  # noqa: BLE001
         raise _http_error(exc) from exc
     campaign = service.get(campaign_id)
-    return _detail(campaign, can_edit=True, can_upload_photo=_can_upload_photo(campaign, actor))
+    return _detail(
+        campaign,
+        can_edit=True,
+        can_upload_photo=_can_upload_photo(campaign, actor),
+        can_create_note=_can_create_note(campaign, actor),
+    )
 
 
 @router.delete(
@@ -675,3 +726,143 @@ def download_campaign_photo(
         "Cache-Control": "private",
     }
     return StreamingResponse(iterator(), media_type=photo.mime_type, headers=headers)
+
+
+# --------------------------------------------------------------------------- #
+# Block 0029 — Kampagnennotizen                                               #
+# --------------------------------------------------------------------------- #
+
+
+def _note_service(
+    session: Session,
+    auth: AuthContext,
+    *,
+    audit: AuditLogger | None = None,
+) -> TestCampaignNoteService:
+    return TestCampaignNoteService(session, auth=auth, audit=audit)
+
+
+def _note_out(note: TestCampaignNote, auth: AuthContext) -> CampaignNoteOut:
+    can_edit = auth.platform_role == "admin" or auth.person_id == note.author_person_id
+    return CampaignNoteOut(
+        id=note.id,
+        campaign_id=note.campaign_id,
+        body_md=note.body_md,
+        author=_person_out(note.author),
+        created_at=note.created_at,
+        updated_at=note.updated_at,
+        can_edit=can_edit,
+    )
+
+
+@router.get(
+    "/campaigns/{campaign_id}/notes",
+    response_model=list[CampaignNoteOut],
+)
+def list_campaign_notes(
+    campaign_id: str,
+    _: ActorDep,
+    auth: AuthDep,
+    session: SessionDep,
+) -> list[CampaignNoteOut]:
+    try:
+        notes = _note_service(session, auth).list_for_campaign(campaign_id)
+    except CampaignNotFoundForNoteError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    return [_note_out(n, auth) for n in notes]
+
+
+@router.post(
+    "/campaigns/{campaign_id}/notes",
+    response_model=CampaignNoteOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_csrf)],
+)
+def create_campaign_note(
+    campaign_id: str,
+    payload: CampaignNoteCreateRequest,
+    auth: AuthDep,
+    session: SessionDep,
+    audit: AuditDep,
+) -> CampaignNoteOut:
+    try:
+        note = _note_service(session, auth, audit=audit).create(
+            campaign_id, body_md=payload.body_md
+        )
+    except CampaignNotFoundForNoteError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "forbidden", "message": str(exc)}},
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"error": {"code": "invalid", "message": str(exc)}},
+        ) from exc
+    return _note_out(note, auth)
+
+
+@router.patch(
+    "/campaign-notes/{note_id}",
+    response_model=CampaignNoteOut,
+    dependencies=[Depends(require_csrf)],
+)
+def patch_campaign_note(
+    note_id: str,
+    payload: CampaignNoteUpdateRequest,
+    auth: AuthDep,
+    session: SessionDep,
+    audit: AuditDep,
+) -> CampaignNoteOut:
+    try:
+        note = _note_service(session, auth, audit=audit).update(note_id, body_md=payload.body_md)
+    except CampaignNoteNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "forbidden", "message": str(exc)}},
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"error": {"code": "invalid", "message": str(exc)}},
+        ) from exc
+    return _note_out(note, auth)
+
+
+@router.delete(
+    "/campaign-notes/{note_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_csrf)],
+)
+def delete_campaign_note(
+    note_id: str,
+    auth: AuthDep,
+    session: SessionDep,
+    audit: AuditDep,
+) -> Response:
+    try:
+        _note_service(session, auth, audit=audit).soft_delete(note_id)
+    except CampaignNoteNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "forbidden", "message": str(exc)}},
+        ) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

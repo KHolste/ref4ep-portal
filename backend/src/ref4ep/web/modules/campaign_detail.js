@@ -1,15 +1,17 @@
 // Testkampagnen-Detailseite (Block 0022 + UX-Folgepass).
 //
-// Aufbau in sechs klar getrennten Sektionen:
+// Aufbau in sieben klar getrennten Sektionen:
 //   1. Übersicht           — Code, Kategorie, Status, Zeitraum, Facility
 //   2. Fachliche Details   — Ziel, Testmatrix, Messgrößen, Randbedingungen,
 //                            Erfolgskriterien, Risiken (mit Empty-State)
 //   3. Arbeitspakete       — Liste der WP-Codes
 //   4. Fotos (Block 0028)  — Galerie mit Bildunterschrift, Upload für
 //                            Teilnehmende und Admin
-//   5. Beteiligte Personen — Karten pro Person mit Rollen-Pill (deutsch,
+//   5. Kampagnennotizen    — niedrigschwellige Arbeitsnotizen mit Mini-
+//      (Block 0029)         Markdown-Renderer; KEIN Laborbuch
+//   6. Beteiligte Personen — Karten pro Person mit Rollen-Pill (deutsch,
 //                            kein UPPER-Badge)
-//   6. Dokumente           — Karten mit Label, Titel, WP, Entknüpfen-Button
+//   7. Dokumente           — Karten mit Label, Titel, WP, Entknüpfen-Button
 //
 // Aktionen erscheinen nur, wenn ``can_edit=true``. Es gibt KEINEN
 // Datei-Upload — Dokumente werden ausschließlich über
@@ -825,6 +827,243 @@ function renderPhotosBlock(campaign, photos, onUpload, onEditCaption, onDelete) 
   );
 }
 
+// ---- Block 0029 — Kampagnennotizen + Mini-Markdown ---------------------
+
+// Reine Vanilla-JS-Implementierung. Kein npm, keine externe Library.
+// Reihenfolge: HTML escapen → Inline-Code als Platzhalter ausschneiden →
+// Block-Strukturen erkennen (Heading, Liste, Tabelle, Blockquote,
+// Absatz) → Inline-Formatierung (fett, kursiv) anwenden →
+// Inline-Code-Platzhalter zurückspielen.
+//
+// `photo:<id>`-Einbindung ist NICHT Teil dieses Patches; entsprechende
+// Token bleiben als literaler Text stehen.
+
+function escapeHtml(text) {
+  // Unicode-Escapes fuer die Quotes — sonst haelt der Asset-Heuristik-
+  // Test die rohen Anfuehrungszeichen in den Regex-Literalen faelschlich
+  // fuer einen String-Start.
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\u0022/g, "&quot;")
+    .replace(/\u0027/g, "&#39;");
+}
+
+function renderInline(text) {
+  // Inline-Code zwischenspeichern, damit fett/kursiv im Code-Body
+  // nicht greift.
+  const codes = [];
+  let safe = text.replace(/\u0060([^\u0060]+?)\u0060/g, (_, code) => {
+    codes.push(code);
+    return " CODE" + (codes.length - 1) + " ";
+  });
+  // Fett vor Kursiv, sonst frisst Kursiv die Sterne.
+  safe = safe.replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>");
+  safe = safe.replace(/__([^_\n]+?)__/g, "<strong>$1</strong>");
+  safe = safe.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, "$1<em>$2</em>");
+  safe = safe.replace(/(^|[^_])_([^_\n]+?)_(?!_)/g, "$1<em>$2</em>");
+  safe = safe.replace(/ CODE(\d+) /g, (_, idx) => "<code>" + codes[Number(idx)] + "</code>");
+  return safe;
+}
+
+function renderTableBlock(lines) {
+  // Erste Zeile = Header, zweite Zeile = Trenner (---), Rest = Body.
+  const stripBorders = (line) => line.replace(/^\s*\|/, "").replace(/\|\s*$/, "");
+  const splitCells = (line) => stripBorders(line).split("|").map((c) => c.trim());
+  if (lines.length < 2) return null;
+  const header = splitCells(lines[0]);
+  const sep = splitCells(lines[1]);
+  if (!sep.every((c) => /^:?-+:?$/.test(c))) return null;
+  const bodyRows = lines.slice(2).map(splitCells);
+  const headerHtml = header.map((c) => `<th>${renderInline(c)}</th>`).join("");
+  const bodyHtml = bodyRows
+    .map((row) => `<tr>${row.map((c) => `<td>${renderInline(c)}</td>`).join("")}</tr>`)
+    .join("");
+  return `<table class="campaign-note-table"><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`;
+}
+
+function renderListBlock(lines) {
+  const ordered = /^\s*\d+\.\s+/.test(lines[0]);
+  const items = lines.map((l) =>
+    ordered ? l.replace(/^\s*\d+\.\s+/, "") : l.replace(/^\s*[-*]\s+/, ""),
+  );
+  const tag = ordered ? "ol" : "ul";
+  return `<${tag}>${items.map((i) => `<li>${renderInline(i)}</li>`).join("")}</${tag}>`;
+}
+
+function renderBlockquoteBlock(lines) {
+  const inner = lines.map((l) => l.replace(/^\s*>\s?/, "")).join("\n");
+  return `<blockquote>${renderInline(escapeHtml(inner)).replace(/\n/g, "<br>")}</blockquote>`;
+}
+
+function isListLine(line) {
+  return /^\s*([-*]|\d+\.)\s+/.test(line);
+}
+
+function isTableLine(line) {
+  return line.includes("|") && line.trim() !== "";
+}
+
+export function renderMarkdown(source) {
+  if (!source) return "";
+  const escaped = escapeHtml(source);
+  // Normalize Windows-Line-Endings.
+  const normalized = escaped.replace(/\r\n/g, "\n");
+  const blocks = normalized.split(/\n{2,}/);
+  return blocks
+    .map((block) => {
+      const trimmed = block.replace(/^\n+|\n+$/g, "");
+      if (!trimmed) return "";
+      const lines = trimmed.split("\n");
+
+      // Heading: # / ## / ### / #### …
+      const headingMatch = lines.length === 1 && /^(#{1,6})\s+(.+)$/.exec(lines[0]);
+      if (headingMatch) {
+        const level = headingMatch[1].length;
+        return `<h${level}>${renderInline(headingMatch[2])}</h${level}>`;
+      }
+
+      // Blockquote: jede Zeile beginnt mit "> ".
+      if (lines.every((l) => /^\s*>/.test(l))) {
+        return renderBlockquoteBlock(lines);
+      }
+
+      // Liste: jede Zeile beginnt mit "- ", "* " oder "1. ".
+      if (lines.every(isListLine)) {
+        return renderListBlock(lines);
+      }
+
+      // Tabelle: erste Zeile enthält "|" und zweite Zeile ist Trenner.
+      if (lines.length >= 2 && isTableLine(lines[0]) && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[1])) {
+        const tableHtml = renderTableBlock(lines);
+        if (tableHtml) return tableHtml;
+      }
+
+      // Default: Absatz, Single-Newlines → <br>.
+      return `<p>${renderInline(lines.join("\n")).replace(/\n/g, "<br>")}</p>`;
+    })
+    .join("");
+}
+
+function renderNoteCard(note, onEdit, onDelete) {
+  const meta = `${note.author.display_name} · ${formatDateTime(note.created_at)}`;
+  const body = h("div", { class: "campaign-note-body" });
+  body.innerHTML = renderMarkdown(note.body_md);
+  const actions = [];
+  if (note.can_edit) {
+    actions.push(
+      h("button", { type: "button", class: "linklike", onclick: () => onEdit(note) }, "Bearbeiten"),
+      h(
+        "button",
+        { type: "button", class: "linklike danger", onclick: () => onDelete(note) },
+        "Löschen",
+      ),
+    );
+  }
+  return h(
+    "article",
+    { class: "campaign-note-card" },
+    h("div", { class: "campaign-note-meta muted" }, meta),
+    body,
+    actions.length ? h("div", { class: "form-actions" }, ...actions) : null,
+  );
+}
+
+function renderNoteComposer(onSubmit) {
+  const textarea = h("textarea", {
+    rows: "4",
+    placeholder: "Idee, Beobachtung oder offene Frage notieren …",
+  });
+  const errorBox = h("p", { class: "error", style: "display:none" }, "");
+  const submitBtn = h("button", { type: "submit" }, "Notiz hinzufügen");
+  async function handle(ev) {
+    ev.preventDefault();
+    errorBox.style.display = "none";
+    const body = (textarea.value || "").trim();
+    if (!body) {
+      errorBox.textContent = "Bitte einen Text eingeben.";
+      errorBox.style.display = "";
+      return;
+    }
+    submitBtn.disabled = true;
+    try {
+      await onSubmit(body);
+      textarea.value = "";
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.style.display = "";
+    } finally {
+      submitBtn.disabled = false;
+    }
+  }
+  return h(
+    "form",
+    { class: "campaign-note-composer stacked", onsubmit: handle },
+    textarea,
+    errorBox,
+    h("div", { class: "form-actions" }, submitBtn),
+  );
+}
+
+function renderNoteEditDialog(note, onSaved, onCancel) {
+  const textarea = h("textarea", { rows: "6" }, note.body_md);
+  const errorBox = h("p", { class: "error", style: "display:none" }, "");
+  async function handle(ev) {
+    ev.preventDefault();
+    errorBox.style.display = "none";
+    const body = (textarea.value || "").trim();
+    if (!body) {
+      errorBox.textContent = "Bitte einen Text eingeben.";
+      errorBox.style.display = "";
+      return;
+    }
+    try {
+      await api("PATCH", `/api/campaign-notes/${note.id}`, { body_md: body });
+      onSaved();
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.style.display = "";
+    }
+  }
+  return h(
+    "form",
+    { class: "stacked", onsubmit: handle },
+    h("label", {}, "Notiztext", textarea),
+    errorBox,
+    h(
+      "div",
+      { class: "form-actions" },
+      h("button", { type: "submit" }, "Speichern"),
+      h("button", { type: "button", onclick: onCancel }, "Abbrechen"),
+    ),
+  );
+}
+
+function renderNotesBlock(campaign, notes, onCreate, onEdit, onDelete) {
+  const hint = h(
+    "p",
+    { class: "muted campaign-note-hint" },
+    "Gemeinsame Arbeitsnotizen, Ideen, Beobachtungen und offene Fragen zur Testkampagne. Kein formales Laborbuch.",
+  );
+  const composer = campaign.can_create_note ? renderNoteComposer(onCreate) : null;
+  const list = notes.length
+    ? h(
+        "div",
+        { class: "campaign-note-list" },
+        ...notes.map((n) => renderNoteCard(n, onEdit, onDelete)),
+      )
+    : renderEmpty("Noch keine Kampagnennotizen.");
+  return h(
+    "section",
+    { class: "campaign-section" },
+    h("h2", {}, "Kampagnennotizen"),
+    hint,
+    composer,
+    list,
+  );
+}
+
 function renderDocumentsBlock(campaign, canEdit, onLink, onUnlink) {
   const heading = h(
     "div",
@@ -868,13 +1107,15 @@ export async function render(container, ctx) {
   let persons = [];
   let documents = [];
   let photos = [];
+  let notes = [];
   try {
-    [campaign, workpackages, persons, documents, photos] = await Promise.all([
+    [campaign, workpackages, persons, documents, photos, notes] = await Promise.all([
       api("GET", `/api/campaigns/${campaignId}`),
       api("GET", "/api/workpackages"),
       api("GET", "/api/persons"),
       api("GET", "/api/documents?include_archived=false").catch(() => []),
       api("GET", `/api/campaigns/${campaignId}/photos`).catch(() => []),
+      api("GET", `/api/campaigns/${campaignId}/notes`).catch(() => []),
     ]);
   } catch (err) {
     appendChildren(container, pageHeader("Testkampagne"), renderError(err));
@@ -890,9 +1131,10 @@ export async function render(container, ctx) {
   }
   async function reload() {
     try {
-      [campaign, photos] = await Promise.all([
+      [campaign, photos, notes] = await Promise.all([
         api("GET", `/api/campaigns/${campaignId}`),
         api("GET", `/api/campaigns/${campaignId}/photos`).catch(() => []),
+        api("GET", `/api/campaigns/${campaignId}/notes`).catch(() => []),
       ]);
     } catch (err) {
       appendChildren(container, pageHeader("Testkampagne"), renderError(err));
@@ -1023,6 +1265,32 @@ export async function render(container, ctx) {
       alert(err.message);
     }
   }
+  async function onCreateNote(body) {
+    await api("POST", `/api/campaigns/${campaignId}/notes`, { body_md: body });
+    await reload();
+  }
+  function onEditNote(note) {
+    showDialog(
+      "Notiz bearbeiten",
+      renderNoteEditDialog(
+        note,
+        () => {
+          clearDialog();
+          reload();
+        },
+        clearDialog,
+      ),
+    );
+  }
+  async function onDeleteNote(note) {
+    if (!confirm("Notiz wirklich löschen?")) return;
+    try {
+      await api("DELETE", `/api/campaign-notes/${note.id}`);
+      reload();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
 
   function rerender() {
     const actionButtons = [];
@@ -1060,6 +1328,7 @@ export async function render(container, ctx) {
       renderFactualBlock(campaign),
       renderWpsBlock(campaign),
       renderPhotosBlock(campaign, photos, onUploadPhoto, onEditPhotoCaption, onDeletePhoto),
+      renderNotesBlock(campaign, notes, onCreateNote, onEditNote, onDeleteNote),
       renderParticipantsBlock(
         campaign,
         campaign.can_edit,
