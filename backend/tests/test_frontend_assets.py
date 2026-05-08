@@ -2717,6 +2717,31 @@ def test_workpackages_filter_bar_sub_list_sections_remain() -> None:
     assert "buildHierarchy" in body or "groupedSubs" in body
 
 
+def test_gantt_module_exists_and_uses_svg() -> None:
+    """Block 0026: Gantt-Modul rendert SVG aus /api/gantt-Daten."""
+    path = MODULES_DIR / "gantt.js"
+    assert path.exists(), "gantt.js fehlt"
+    body = path.read_text(encoding="utf-8")
+    # SVG-Renderer
+    assert "createElementNS" in body
+    assert "http://www.w3.org/2000/svg" in body
+    # Datenquelle
+    assert "/api/gantt" in body
+    # Filter-Modi
+    for label in ("Quartal", "Jahr", "Gesamt"):
+        assert label in body, f"Filter-Label {label!r} fehlt"
+    # Heute-Linie
+    assert "heute" in body
+    # Ampel-Farben für alle vier Werte verfügbar (nur die Keys werden im
+    # Quelltext referenziert; die Hex-Farben sind als Werte im
+    # TRAFFIC_FILL-Mapping eingetragen).
+    for key in ("green", "yellow", "red", "gray"):
+        assert key in body, f"Ampelwert {key!r} fehlt"
+    # Route registriert?
+    app_js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    assert '"gantt"' in app_js or 'module: "gantt"' in app_js
+
+
 def test_cockpit_has_traffic_light_dashboard() -> None:
     """Block 0025: Ampel-Dashboard ist im Cockpit-Modul."""
     body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
