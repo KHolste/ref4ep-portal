@@ -1392,6 +1392,18 @@ tr.row-released {
   font-size: 0.85rem;
 }
 
+/* Block 0031.1 — Composer und Edit-Dialog dürfen nicht von der globalen
+ * ``form.stacked``-Regel auf 360 px gekappt werden. Override über die
+ * gleich spezifischen, aber später definierten Klassen-Selektoren. */
+.campaign-note-composer,
+form.campaign-note-composer.stacked,
+.campaign-note-edit-dialog,
+form.campaign-note-edit-dialog.stacked {
+  max-width: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .campaign-note-composer {
   margin: 0 0 0.8rem 0;
 }
@@ -1400,25 +1412,63 @@ tr.row-released {
 .campaign-note-editor {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.5rem;
   width: 100%;
+  box-sizing: border-box;
+}
+
+/* Desktop-Layout: Textarea und Vorschau nebeneinander, Toolbar und
+ * Hilfetext darüber/darunter. Bei leerer Vorschau (``is-empty``) fällt
+ * das Preview-Element via ``display:none`` aus dem Grid; die Textarea
+ * wird mit ``grid-column: 1 / -1`` über beide Spalten gestreckt. */
+@media (min-width: 960px) {
+  .campaign-note-editor {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "toolbar toolbar"
+      "textarea preview"
+      "help    help";
+    column-gap: 0.75rem;
+    row-gap: 0.5rem;
+  }
+  .campaign-note-toolbar {
+    grid-area: toolbar;
+  }
+  .campaign-note-textarea {
+    grid-area: textarea;
+  }
+  .campaign-note-preview {
+    grid-area: preview;
+  }
+  .campaign-note-editor-help {
+    grid-area: help;
+  }
+  .campaign-note-editor:has(.campaign-note-preview.is-empty) .campaign-note-textarea {
+    grid-column: 1 / -1;
+  }
 }
 
 .campaign-note-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
-  padding: 0.25rem;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.4rem;
   border: 1px solid #d6dfe9;
   border-radius: 4px;
   background: #f3f5f8;
 }
 
 .campaign-note-toolbar-button {
-  font-size: 0.82rem;
-  padding: 0.15rem 0.55rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.2rem 0.65rem;
+  min-height: 1.7rem;
   background: #fff;
-  border: 1px solid #d6dfe9;
+  color: #1c2c4c;
+  border: 1px solid #c0c8d4;
   border-radius: 3px;
   cursor: pointer;
   line-height: 1.2;
@@ -1426,6 +1476,12 @@ tr.row-released {
 
 .campaign-note-toolbar-button:hover {
   background: #eef1f5;
+  border-color: #a8b3c4;
+}
+
+.campaign-note-toolbar-button:focus-visible {
+  outline: 2px solid #1c2c4c;
+  outline-offset: 1px;
 }
 
 .campaign-note-textarea {

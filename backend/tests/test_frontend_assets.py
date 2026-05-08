@@ -3295,13 +3295,32 @@ def test_campaign_note_editor_help_text_present() -> None:
 
 def test_campaign_note_textarea_uses_full_width_styles() -> None:
     css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
-    # Volle Breite + box-sizing border-box mit sinnvoller Mindesthöhe.
-    assert ".campaign-note-textarea" in css
-    block = css.split(".campaign-note-textarea")[1].split("}")[0]
-    assert "width: 100%" in block
-    assert "box-sizing: border-box" in block
-    assert "min-height" in block
-    assert "line-height" in block
+    # Es gibt mehrere ``.campaign-note-textarea``-Vorkommen (Basis-
+    # Block + Grid-Override im Media-Query). Mindestens EIN Block muss
+    # alle erforderlichen Eigenschaften enthalten.
+    selector = ".campaign-note-textarea {"
+    blocks: list[str] = []
+    pos = 0
+    while True:
+        idx = css.find(selector, pos)
+        if idx == -1:
+            break
+        end = css.find("}", idx)
+        blocks.append(css[idx:end])
+        pos = end + 1
+    assert blocks, "Selektor .campaign-note-textarea { ... } fehlt"
+    full_blocks = [
+        b
+        for b in blocks
+        if "width: 100%" in b
+        and "box-sizing: border-box" in b
+        and "min-height" in b
+        and "line-height" in b
+    ]
+    assert full_blocks, (
+        "Mindestens ein .campaign-note-textarea-Block muss "
+        "width:100%, box-sizing:border-box, min-height und line-height setzen."
+    )
 
 
 def test_campaign_note_toolbar_and_preview_styles_present() -> None:
@@ -3332,3 +3351,79 @@ def test_campaign_note_editor_no_external_editor_or_npm() -> None:
         )
     for forbidden in ("unpkg.com", "cdn.jsdelivr.net", "esm.sh"):
         assert forbidden not in body, f"{forbidden!r} sollte nicht eingebunden sein"
+
+
+# ---- Block 0031.1 — Editor-Wrapper auf volle Breite -----------------
+
+
+def _css_block(css: str, selector: str) -> str:
+    """Liefert den Inhalt der ersten Regel mit ``selector`` (zwischen
+    ``{`` und ``}``). Funktioniert nur für einfache, nicht verschachtelte
+    Regeln — reicht für die plain CSS-Datei."""
+    if selector not in css:
+        return ""
+    after = css.split(selector, 1)[1]
+    # Den nächsten ``{`` und das passende erste ``}`` finden.
+    open_idx = after.find("{")
+    close_idx = after.find("}")
+    if open_idx == -1 or close_idx == -1 or close_idx < open_idx:
+        return ""
+    return after[open_idx + 1 : close_idx]
+
+
+def test_campaign_note_composer_overrides_form_stacked_max_width() -> None:
+    """Globale Regel ``form.stacked { max-width: 360px }`` darf den
+    Notiz-Composer / Edit-Dialog nicht kappen — sonst rendert der
+    Editor mit ~360 px (Bug aus Patch 0031)."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Es gibt eine kombinierte Override-Regel, die ``max-width: none``
+    # für Composer und Edit-Dialog setzt.
+    assert "max-width: none" in css
+    # Composer-Selektor ist enthalten und überschreibt die globale
+    # ``form.stacked``-Begrenzung.
+    assert ".campaign-note-composer" in css
+    assert "form.campaign-note-composer.stacked" in css
+    assert "form.campaign-note-edit-dialog.stacked" in css
+
+
+def test_campaign_note_composer_and_editor_have_full_width() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Die Override-Regel kombiniert mehrere Selektoren — sie gilt also
+    # für ``.campaign-note-composer`` UND den Editor-Wrapper.
+    override_idx = css.find("max-width: none")
+    assert override_idx != -1
+    # Das Override-Block-Setting umfasst width:100% und box-sizing.
+    head = css[max(0, override_idx - 400) : override_idx + 200]
+    assert "width: 100%" in head
+    assert "box-sizing: border-box" in head
+    # Editor-Selbst hat width: 100%.
+    editor_block = _css_block(css, ".campaign-note-editor")
+    assert "width: 100%" in editor_block
+
+
+def test_campaign_note_editor_uses_grid_layout_on_desktop() -> None:
+    """Auf Desktop-Breite werden Textarea und Vorschau nebeneinander
+    angeordnet (Grid 1fr 1fr)."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Media-Query mit min-width irgendwo zwischen 720 und 1100 px.
+    import re
+
+    m = re.search(r"@media\s*\(min-width:\s*(\d+)px\)\s*\{[^@]*?\.campaign-note-editor", css)
+    assert m, "Erwarte Media-Query mit Grid-Layout für .campaign-note-editor"
+    assert "grid-template-columns: 1fr 1fr" in css
+    # Bei leerer Vorschau spannt sich die Textarea über beide Spalten.
+    assert "grid-column: 1 / -1" in css
+    # Und die Areas/Selektoren-Keys sind benannt.
+    assert "grid-template-areas" in css
+
+
+def test_campaign_note_toolbar_buttons_styled_consistently() -> None:
+    """Toolbar-Buttons sollen nicht wie rohe Browser-Buttons aussehen."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    block = _css_block(css, ".campaign-note-toolbar-button")
+    assert "border-radius" in block
+    assert "padding" in block
+    assert "min-height" in block
+    # Hover- und Focus-Stile vorhanden.
+    assert ".campaign-note-toolbar-button:hover" in css
+    assert ".campaign-note-toolbar-button:focus-visible" in css
