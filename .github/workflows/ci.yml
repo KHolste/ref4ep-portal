@@ -25,7 +25,7 @@ jobs:
       REF4EP_SESSION_SECRET: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
       REF4EP_DATABASE_URL: sqlite:///../data/test.db
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -71,7 +71,7 @@ jobs:
       REF4EP_DATABASE_URL: postgresql+psycopg://ref4ep:ref4ep@localhost:5432/ref4ep
       REF4EP_SESSION_SECRET: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
