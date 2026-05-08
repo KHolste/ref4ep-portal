@@ -11,7 +11,7 @@ Audit-Log in einer einzigen internen Anwendung.
 Funktionsfähiges internes Web-MVP mit erweitertem Projekt-, Dokumenten-,
 Kampagnen- und Zeitplanmanagement. Die Plattform wird kontinuierlich in
 Feature-Patches weiterentwickelt; die Datenbank hat aktuell den
-Migrationsstand `0015_test_campaign_photos` (Block 0028).
+Migrationsstand `0016_test_campaign_notes` (Block 0029).
 
 Hinweis: Es handelt sich um ein internes Projektportal des
 Konsortiums, kein fertiges kommerzielles Produkt.
@@ -54,9 +54,14 @@ Fachliche Module
 - **Öffentliche Dokumentbibliothek** — schreibgeschützte Liste der als
   `public` freigegebenen Dokumente
 - **Testkampagnen** — Kategorien, Status-Lifecycle, Teilnehmende mit
-  Rollen, Verknüpfung zu Workpackages und Dokumenten,
-  **Foto-Upload** (PNG/JPEG, eigene Tabelle `test_campaign_photo`,
-  inline-Streaming-Download, Soft-Delete) — neu in Patch 0028
+  Rollen, Verknüpfung zu Workpackages und Dokumenten.
+  - **Foto-Upload** (PNG/JPEG, eigene Tabelle `test_campaign_photo`,
+    inline-Streaming-Download, Soft-Delete) — Patch 0028.
+  - **Kampagnennotizen** als gemeinsame Arbeitsnotizen für Ideen,
+    Beobachtungen und offene Fragen. Bewusst kein formales Laborbuch:
+    keine Versionierung, kein Review-/Release-Lifecycle, kein Titel —
+    nur ein Markdown-Body mit Autor und Soft-Delete (eigene Tabelle
+    `test_campaign_note`) — Patch 0029.
 - **Cockpit / Dashboard** — Projekt-Cockpit mit Ampel-Dashboard,
   WP-Cockpit, „Mein Cockpit", Lead-Übersichten
 - **Gantt-Timeline** — Workpackages, Aggregate, Meilensteine und
@@ -70,6 +75,11 @@ Frontend
 - Vanilla-JS-SPA ohne npm/Build-Step, ausgeliefert vom Backend
 - Sicherer DOM-Helfer (`appendChildren`), gemeinsamer API-Client mit
   CSRF-Header und 401-Redirect
+- Eigener Mini-Markdown-Renderer mit zentralem HTML-Escape (für die
+  Kampagnennotizen)
+- Notiz-Editor mit einfacher Formatierungsleiste (Fett, Kursiv, Code,
+  Überschrift, Liste, Zitat, Tabelle, Link) und Live-Vorschau —
+  Markdown-Kenntnisse sind nicht erforderlich (Patch 0031 / 0031.1)
 
 ## Repository-Aufbau
 
@@ -126,7 +136,7 @@ uvicorn ref4ep.api.asgi:app --reload --port 8000
 - `ruff check src tests` und `ruff format --check src tests`
 - `pytest` mit Coverage-Gate (≥ 85 %)
 - Alembic-Migrationen werden in der Test-Suite up- und downgegradet
-- Stand Patch 0028: ca. 967 Tests, Coverage ~ 91 %
+- Stand Patch 0031.1: ca. 1010 Tests, Coverage ~ 91 %
 
 Details und Befehle in `backend/README.md`.
 
