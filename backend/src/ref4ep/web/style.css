@@ -3853,3 +3853,16 @@ main#app .detail-section > h3 {
   margin-top: 0.5rem;
   font-size: 0.9em;
 }
+
+/* ---- Block 0027 — WP-Balken im Gantt --------------------------------- */
+
+.gantt-wp-bar {
+  cursor: help;
+}
+.gantt-wp-bar-top {
+  /* Aggregat-Balken über Sub-WPs — bewusst sehr zurückhaltend. */
+  fill-opacity: 0.85;
+}
+.gantt-wp-bar-sub {
+  fill-opacity: 0.85;
+}

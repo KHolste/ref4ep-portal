@@ -80,9 +80,27 @@ function renderCockpitView(wp) {
         : h("p", { class: "muted" }, "—"),
     );
   }
+  // Block 0027: Zeitplan kompakt anzeigen.
+  const start = wp.start_date || "—";
+  const end = wp.end_date || "—";
+  const isTopLevel = !wp.parent;
+  const scheduleBlock = h(
+    "section",
+    {},
+    h("h3", {}, "Zeitplan"),
+    h("p", {}, `Start: ${start} · Ende: ${end}`),
+    isTopLevel
+      ? h(
+          "p",
+          { class: "muted" },
+          "Hauptpaket-Datumsfelder werden im Gantt aus den Sub-WPs aggregiert; manuelle Werte hier sind optional.",
+        )
+      : null,
+  );
   return h(
     "div",
     {},
+    scheduleBlock,
     block("Kurzbeschreibung / aktueller Stand", wp.summary),
     block("Nächste Schritte", wp.next_steps),
     block("Offene Punkte", wp.open_issues),
@@ -104,6 +122,23 @@ function renderCockpitEditForm(wp, onSaved, onCancel) {
   const summaryInput = h("textarea", { rows: "4" }, wp.summary || "");
   const nextStepsInput = h("textarea", { rows: "4" }, wp.next_steps || "");
   const openIssuesInput = h("textarea", { rows: "4" }, wp.open_issues || "");
+  // Block 0027 — optionale Datumsfelder.
+  const startDateInput = h("input", {
+    type: "date",
+    value: wp.start_date || "",
+  });
+  const endDateInput = h("input", {
+    type: "date",
+    value: wp.end_date || "",
+  });
+  const isTopLevel = !wp.parent;
+  const scheduleHint = isTopLevel
+    ? h(
+        "small",
+        { class: "field-hint" },
+        "Bei Hauptpaketen optional — der Gantt-Aggregatbalken wird aus den Sub-WPs gerechnet.",
+      )
+    : null;
   const errorBox = h("p", { class: "error", style: "display:none" }, "");
 
   async function onSubmit(ev) {
@@ -115,6 +150,8 @@ function renderCockpitEditForm(wp, onSaved, onCancel) {
         summary: nullIfBlank(summaryInput.value),
         next_steps: nullIfBlank(nextStepsInput.value),
         open_issues: nullIfBlank(openIssuesInput.value),
+        start_date: startDateInput.value || null,
+        end_date: endDateInput.value || null,
       });
       onSaved();
     } catch (err) {
@@ -127,6 +164,9 @@ function renderCockpitEditForm(wp, onSaved, onCancel) {
     "form",
     { class: "stacked", onsubmit: onSubmit },
     h("label", {}, "Status", statusSelect),
+    h("label", {}, "Startdatum", startDateInput),
+    h("label", {}, "Enddatum", endDateInput),
+    scheduleHint,
     h("label", {}, "Kurzbeschreibung / aktueller Stand", summaryInput),
     h("label", {}, "Nächste Schritte", nextStepsInput),
     h("label", {}, "Offene Punkte", openIssuesInput),

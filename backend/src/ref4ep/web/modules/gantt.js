@@ -31,6 +31,13 @@ const HEADER_HEIGHT = 48; // Achsen-Skala oben
 const MARKER_RADIUS = 7; // Meilenstein-Punkt
 const MEETING_RADIUS = 4; // Meeting-Punkt
 const BAR_HEIGHT = 14; // Kampagnen-Balken
+// Block 0027 — WP-Balken (dünner und blasser als Kampagnen, damit
+// visuelle Hierarchie zwischen Plan-Zeitraum und Kampagnen-Zeitraum
+// klar bleibt).
+const WP_BAR_HEIGHT_SUB = 8;
+const WP_BAR_HEIGHT_TOP = 6;
+const WP_BAR_FILL_SUB = "#cdd5e0";
+const WP_BAR_FILL_TOP = "#9ca7b8";
 const FALLBACK_CONTAINER_WIDTH = 1100;
 const PX_PER_DAY_MIN = 1;
 const PX_PER_DAY_MAX = 28;
@@ -152,6 +159,47 @@ function chooseFontSizes(axisWidth) {
 // Top-Level-Eintrag dargestellt, was fachlich passt.
 function isTopLevelTrack(track) {
   return !track.code.includes(".");
+}
+
+// Block 0027 — WP-Balken pro Track. Sub-WPs nehmen ihre eigenen
+// Datumsfelder; Hauptpakete bekommen ein Aggregat aus den Kindern
+// (min(start), max(end)), wenn sie selbst keine eigenen Werte haben.
+// Datumsstrings sind ISO-formatiert; lexikografische Sortierung ist
+// deshalb äquivalent zur chronologischen.
+function computeWpBars(tracks) {
+  const childrenByParent = {};
+  for (const t of tracks) {
+    if (t.parent_code) {
+      if (!childrenByParent[t.parent_code]) childrenByParent[t.parent_code] = [];
+      childrenByParent[t.parent_code].push(t);
+    }
+  }
+  const bars = {};
+  for (const t of tracks) {
+    const isTop = isTopLevelTrack(t);
+    if (!isTop) {
+      bars[t.code] = {
+        start: t.start_date || null,
+        end: t.end_date || null,
+        aggregate: false,
+      };
+      continue;
+    }
+    // Top-Level: eigene Werte bevorzugt, sonst aus Kindern aggregieren.
+    if (t.start_date && t.end_date) {
+      bars[t.code] = { start: t.start_date, end: t.end_date, aggregate: false };
+      continue;
+    }
+    const children = childrenByParent[t.code] || [];
+    const childStarts = children.map((c) => c.start_date).filter(Boolean).sort();
+    const childEnds = children.map((c) => c.end_date).filter(Boolean).sort();
+    bars[t.code] = {
+      start: childStarts.length ? childStarts[0] : t.start_date || null,
+      end: childEnds.length ? childEnds[childEnds.length - 1] : t.end_date || null,
+      aggregate: true,
+    };
+  }
+  return bars;
 }
 
 // Berechnet die linke Label-Spalte aus dem längsten Track-Label.
@@ -331,6 +379,10 @@ function renderBoard(board, mode, containerWidth) {
     );
   }
 
+  // Block 0027 — WP-Balken pro Track vorab berechnen (Aggregat für
+  // Hauptpakete aus den Kindern).
+  const wpBars = computeWpBars(tracks);
+
   // Spuren.
   tracks.forEach((track, idx) => {
     const yTop = HEADER_HEIGHT + idx * ROW_HEIGHT;
@@ -393,6 +445,40 @@ function renderBoard(board, mode, containerWidth) {
         "stroke-width": 1,
       }),
     );
+
+    // Block 0027 — WP-Balken (vor Kampagnen, damit Kampagnen-Balken
+    // optisch oben drauf liegen). Bei fehlenden Datumswerten wird
+    // nichts gezeichnet.
+    const wpBar = wpBars[track.code];
+    if (wpBar && wpBar.start && wpBar.end) {
+      const wpStart = parseISODate(wpBar.start);
+      const wpEnd = parseISODate(wpBar.end);
+      if (wpEnd >= windowStart && wpStart <= windowEnd) {
+        const wpX1 = xOfDate(wpStart < windowStart ? windowStart : wpStart);
+        const wpX2 = xOfDate(wpEnd > windowEnd ? windowEnd : wpEnd);
+        const wpWidth = Math.max(2, wpX2 - wpX1);
+        const wpHeight = isTop ? WP_BAR_HEIGHT_TOP : WP_BAR_HEIGHT_SUB;
+        const wpFill = isTop ? WP_BAR_FILL_TOP : WP_BAR_FILL_SUB;
+        const wpClass = isTop
+          ? "gantt-wp-bar gantt-wp-bar-top"
+          : "gantt-wp-bar gantt-wp-bar-sub";
+        const wpRect = svg("rect", {
+          x: wpX1,
+          y: yMid - wpHeight / 2,
+          width: wpWidth,
+          height: wpHeight,
+          rx: 2,
+          ry: 2,
+          fill: wpFill,
+          "fill-opacity": 0.85,
+          class: wpClass,
+        });
+        const aggregateNote = wpBar.aggregate ? " (aus Sub-WPs)" : "";
+        const tooltip = `${track.code} — ${track.title}\nStart: ${wpBar.start}\nEnde: ${wpBar.end}${aggregateNote}`;
+        wpRect.append(svg("title", {}, tooltip));
+        root.append(wpRect);
+      }
+    }
 
     // Kampagnen-Balken.
     for (const c of track.campaigns) {

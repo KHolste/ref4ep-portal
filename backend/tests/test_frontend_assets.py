@@ -2774,6 +2774,18 @@ def test_gantt_module_exists_and_uses_svg() -> None:
     assert '"gantt"' in app_js or 'module: "gantt"' in app_js
 
 
+def test_gantt_has_wp_bars_with_aggregate() -> None:
+    """Block 0027: WP-Balken werden gezeichnet, Hauptpakete als
+    Aggregat aus den Kindern."""
+    body = (MODULES_DIR / "gantt.js").read_text(encoding="utf-8")
+    assert "gantt-wp-bar" in body
+    assert "gantt-wp-bar-top" in body
+    assert "gantt-wp-bar-sub" in body
+    assert "computeWpBars" in body
+    assert "parent_code" in body
+    assert "Start:" in body and "Ende:" in body
+
+
 def test_cockpit_has_traffic_light_dashboard() -> None:
     """Block 0025: Ampel-Dashboard ist im Cockpit-Modul."""
     body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
