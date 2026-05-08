@@ -36,6 +36,7 @@ from ref4ep.api.routes.campaigns import router as campaigns_router
 from ref4ep.api.routes.cockpit import router as cockpit_router
 from ref4ep.api.routes.document_comments import router as document_comments_router
 from ref4ep.api.routes.documents import router as documents_router
+from ref4ep.api.routes.gantt import router as gantt_router
 from ref4ep.api.routes.health import router as health_router
 from ref4ep.api.routes.lead import router as lead_router
 from ref4ep.api.routes.meetings import router as meetings_router
@@ -112,6 +113,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(calendar_router)
     app.include_router(documents_router)
     app.include_router(document_comments_router)
+    app.include_router(gantt_router)
     app.include_router(audit_router)
     app.include_router(admin_persons_router)
     app.include_router(admin_partners_router)
