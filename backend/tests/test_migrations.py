@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0012_document_comments"
+CURRENT_HEAD = "0013_workpackage_schedule"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -762,3 +762,28 @@ def test_downgrade_to_0011_drops_document_comment(tmp_db_path: Path) -> None:
     command.downgrade(cfg, "0011_test_campaigns")
     inspector = inspect(create_engine(db_url))
     assert "document_comment" not in set(inspector.get_table_names())
+
+
+# ---- Block 0027 — Workpackage-Zeitplan -------------------------------
+
+
+def test_workpackage_has_schedule_columns(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    cols = {c["name"]: c for c in inspector.get_columns("workpackage")}
+    assert "start_date" in cols
+    assert "end_date" in cols
+    assert cols["start_date"]["nullable"] is True
+    assert cols["end_date"]["nullable"] is True
+
+
+def test_downgrade_to_0012_drops_schedule_columns(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0012_document_comments")
+    inspector = inspect(create_engine(db_url))
+    cols = {c["name"] for c in inspector.get_columns("workpackage")}
+    assert "start_date" not in cols
+    assert "end_date" not in cols

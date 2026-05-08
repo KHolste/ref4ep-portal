@@ -400,6 +400,11 @@ class Workpackage(Base):
     summary: Mapped[str | None] = mapped_column(String, nullable=True)
     next_steps: Mapped[str | None] = mapped_column(String, nullable=True)
     open_issues: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Block 0027 — Zeitplan: tagesgenau, beide nullable. Hauptpakete
+    # werden im Gantt aus den Sub-WPs aggregiert; ihre eigenen
+    # Datumsfelder bleiben in der Regel leer.
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_now_utc

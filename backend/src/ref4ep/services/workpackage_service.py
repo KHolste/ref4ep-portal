@@ -17,8 +17,16 @@ from ref4ep.services.audit_logger import AuditLogger
 from ref4ep.services.permissions import can_admin
 from ref4ep.services.validators import normalise_text
 
-# Cockpit-Felder, die über ``update_status`` (Block 0009) gesetzt werden.
-WP_STATUS_FIELDS: tuple[str, ...] = ("status", "summary", "next_steps", "open_issues")
+# Felder, die über ``update_status`` gesetzt werden können.
+# Block 0009: Cockpit-Felder. Block 0027: Zeitplan-Felder ergänzt.
+WP_STATUS_FIELDS: tuple[str, ...] = (
+    "status",
+    "summary",
+    "next_steps",
+    "open_issues",
+    "start_date",
+    "end_date",
+)
 
 
 def _sort_key_from_code(code: str) -> int:
@@ -180,7 +188,9 @@ class WorkpackageService:
             if key not in WP_STATUS_FIELDS:
                 continue
             value: object = raw
-            if isinstance(value, str):
+            # Datumsfelder (date | None) bewusst nicht durch
+            # ``normalise_text`` schicken — sie sind keine Strings.
+            if isinstance(value, str) and key not in ("start_date", "end_date"):
                 value = normalise_text(value)
             if key == "status":
                 if value not in WORKPACKAGE_STATUSES:
@@ -189,6 +199,13 @@ class WorkpackageService:
                         f"erlaubt: {', '.join(WORKPACKAGE_STATUSES)}"
                     )
             setattr(wp, key, value)
+
+        # Zeitplan-Konsistenz (Block 0027): wenn beide Werte gesetzt
+        # sind, muss ``end_date`` ≥ ``start_date`` sein. Einzelne
+        # Nullwerte sind erlaubt (z. B. nur Start, Ende offen).
+        if wp.start_date is not None and wp.end_date is not None and wp.end_date < wp.start_date:
+            raise ValueError("end_date muss am oder nach start_date liegen.")
+
         self.session.flush()
         if self.audit is not None:
             after = {k: getattr(wp, k) for k in WP_STATUS_FIELDS}

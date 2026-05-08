@@ -165,3 +165,122 @@ def test_invalid_status_returns_422(admin_client: TestClient) -> None:
         headers=_csrf(admin_client),
     )
     assert r.status_code == 422
+
+
+# ---- Block 0027 — Workpackage-Zeitplan ---------------------------------
+
+
+def test_workpackage_detail_carries_schedule_fields(
+    member_client: TestClient, seeded_session: Session
+) -> None:
+    r = member_client.get("/api/workpackages/WP3.1")
+    assert r.status_code == 200
+    body = r.json()
+    assert "start_date" in body
+    assert "end_date" in body
+    # Initial-Seed (Block 0027): WP3.1 ist Antrags-Monat 1–24 ab März 2026,
+    # also 2026-03-01 bis 2028-02-29. Beide Werte sind Date-Strings.
+    assert body["start_date"] == "2026-03-01"
+    assert body["end_date"] == "2028-02-29"
+
+
+def test_workpackage_top_level_has_no_schedule_from_seed(
+    member_client: TestClient, seeded_session: Session
+) -> None:
+    """Hauptpakete (WP3) bekommen keine Datumsfelder aus dem Seed —
+    der Gantt aggregiert sie aus den Sub-WPs."""
+    r = member_client.get("/api/workpackages/WP3").json()
+    assert r["start_date"] is None
+    assert r["end_date"] is None
+
+
+def test_admin_can_set_schedule(admin_client: TestClient, seeded_session: Session) -> None:
+    r = admin_client.patch(
+        "/api/workpackages/WP3.1",
+        json={"start_date": "2026-06-01", "end_date": "2027-12-31"},
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 200, r.text
+    follow = admin_client.get("/api/workpackages/WP3.1").json()
+    assert follow["start_date"] == "2026-06-01"
+    assert follow["end_date"] == "2027-12-31"
+
+
+def test_only_one_endpoint_value_is_allowed(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """Einzelne Werte (nur Start oder nur Ende) sind erlaubt — der
+    jeweils andere Wert bleibt unangetastet."""
+    # Vorher: nur start_date setzen, end_date weglassen.
+    pre = admin_client.get("/api/workpackages/WP3.1").json()
+    end_before = pre["end_date"]
+    r = admin_client.patch(
+        "/api/workpackages/WP3.1",
+        json={"start_date": "2026-06-01"},
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 200, r.text
+    body = admin_client.get("/api/workpackages/WP3.1").json()
+    assert body["start_date"] == "2026-06-01"
+    assert body["end_date"] == end_before
+
+
+def test_can_clear_dates_explicitly(admin_client: TestClient, seeded_session: Session) -> None:
+    """Explizit ``null`` im PATCH leert das Datumsfeld."""
+    r = admin_client.patch(
+        "/api/workpackages/WP3.1",
+        json={"start_date": None, "end_date": None},
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 200, r.text
+    body = admin_client.get("/api/workpackages/WP3.1").json()
+    assert body["start_date"] is None
+    assert body["end_date"] is None
+
+
+def test_end_before_start_returns_422(admin_client: TestClient, seeded_session: Session) -> None:
+    r = admin_client.patch(
+        "/api/workpackages/WP3.1",
+        json={"start_date": "2026-12-01", "end_date": "2026-06-01"},
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 422
+
+
+def test_member_cannot_set_schedule(member_client: TestClient, seeded_session: Session) -> None:
+    r = member_client.patch(
+        "/api/workpackages/WP3.1",
+        json={"start_date": "2026-06-01"},
+        headers=_csrf(member_client),
+    )
+    # Memberschaft genügt nicht — nur Admin oder WP-Lead.
+    assert r.status_code == 403
+
+
+def test_schedule_audit_records_before_after(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """Audit für Datums-Updates nutzt dieselbe Action wie für andere
+    Cockpit-Felder (workpackage.update_status) und enthält before/after."""
+    import json
+
+    from ref4ep.domain.models import AuditLog
+
+    admin_client.patch(
+        "/api/workpackages/WP3.1",
+        json={"start_date": "2026-06-01", "end_date": "2027-06-01"},
+        headers=_csrf(admin_client),
+    )
+    entries = (
+        seeded_session.query(AuditLog)
+        .filter_by(action="workpackage.update_status", entity_type="workpackage")
+        .order_by(AuditLog.created_at.desc())
+        .limit(1)
+        .all()
+    )
+    assert entries, "Kein Audit-Eintrag für update_status"
+    payload = json.loads(entries[0].details)
+    assert "start_date" in payload["after"]
+    assert "end_date" in payload["after"]
+    assert payload["after"]["start_date"] == "2026-06-01"
+    assert payload["after"]["end_date"] == "2027-06-01"

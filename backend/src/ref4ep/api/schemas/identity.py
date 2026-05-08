@@ -145,6 +145,8 @@ class WorkpackageOut(BaseModel):
     parent_code: str | None = None
     lead_partner: PartnerRefOut
     sort_order: int
+    start_date: date | None = None
+    end_date: date | None = None
 
 
 class WorkpackageMilestoneOut(BaseModel):
@@ -186,17 +188,26 @@ class WorkpackageDetailOut(BaseModel):
     next_steps: str | None = None
     open_issues: str | None = None
     can_edit_status: bool = False
+    # Block 0027 — Zeitplan.
+    start_date: date | None = None
+    end_date: date | None = None
     lead_partner_contacts: list[WorkpackageContactOut] = Field(default_factory=list)
     milestones: list[WorkpackageMilestoneOut] = Field(default_factory=list)
 
 
 class WorkpackageStatusPatchRequest(BaseModel):
-    """PATCH des WP-Cockpits — alle Felder optional, Whitelist im Service."""
+    """PATCH des WP-Cockpits — alle Felder optional, Whitelist im Service.
+
+    Block 0027 ergänzt ``start_date``/``end_date``; der Service prüft
+    fachliche Konsistenz (``end_date >= start_date``).
+    """
 
     status: str | None = None
     summary: str | None = None
     next_steps: str | None = None
     open_issues: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
 
 
 class MilestoneOut(BaseModel):

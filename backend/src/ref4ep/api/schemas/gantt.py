@@ -38,6 +38,9 @@ class GanttTrackOut(BaseModel):
     code: str
     title: str
     sort_order: int
+    parent_code: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
     milestones: list[GanttMilestoneOut] = Field(default_factory=list)
     campaigns: list[GanttCampaignOut] = Field(default_factory=list)
     meetings: list[GanttMeetingOut] = Field(default_factory=list)

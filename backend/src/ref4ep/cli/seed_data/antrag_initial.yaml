@@ -1,6 +1,30 @@
 # Initial-Seed für das Ref4EP-Portal — Quelle: Antrag/Gantt.
 # Inhalte verbindlich gemäß docs/mvp_specification.md §13.
 # Lead-Vererbung: Sub-WPs ohne 'lead' erben den Lead des Parent-WP.
+#
+# Block 0027 — Workpackage-Zeitplan
+# ----------------------------------
+# Der offizielle Antrag definiert WP-Zeiträume **monatsgenau** auf einer
+# 1–36-Skala. Wir kodieren sie als ``start_month``/``end_month`` (1–36)
+# pro Sub-WP. Hauptpakete tragen bewusst keine Monatswerte — der Gantt
+# aggregiert sie aus den Kindern.
+#
+# ``project_start_date`` ist der Anker für die Konvertierung in echte
+# Datumswerte. Wert ist aus den Meilenstein-Daten weiter unten
+# rückrechenbar: MS3 (Monat 25) auf 2028-02-15, MS2 (Monat 13) auf
+# 2027-02-15, MS4 (Monat 36) auf 2029-02-28 — alle drei stützen
+# Projektmonat 1 = März 2026.
+#
+# Konvertierungs-Konvention im SeedService:
+#   start_date = project_start_date + (start_month - 1) Monate (1. Tag)
+#   end_date   = project_start_date + end_month   Monate − 1 Tag
+#                (= letzter Tag des Endmonats)
+#
+# Setze ``project_start_date: null`` (oder lasse den Schlüssel weg),
+# wenn der Seed die Datumsfelder bewusst leer lassen soll. Dann setzt
+# der Admin später per UI/Patch.
+
+project_start_date: 2026-03-01
 
 partners:
   - short_name: JLU
@@ -21,15 +45,20 @@ partners:
 
 workpackages:
   # ---------- WP1 — JLU ----------
+  # Hauptpakete erhalten keine Monatswerte (Aggregation im Gantt).
   - code: WP1
     title: "Projektmanagement, Daten und Dissemination"
     lead: JLU
   - code: WP1.1
     title: "Projektmanagement"
     parent: WP1
+    start_month: 1
+    end_month: 36
   - code: WP1.2
     title: "Standardisierung & Formate"
     parent: WP1
+    start_month: 1
+    end_month: 36
 
   # ---------- WP2 — IOM ----------
   - code: WP2
@@ -38,9 +67,13 @@ workpackages:
   - code: WP2.1
     title: "RefGIQ Langzeitcharakterisierung"
     parent: WP2
+    start_month: 1
+    end_month: 24
   - code: WP2.2
     title: "Quellenbau"
     parent: WP2
+    start_month: 6
+    end_month: 13
 
   # ---------- WP3 — TUD ----------
   - code: WP3
@@ -49,12 +82,18 @@ workpackages:
   - code: WP3.1
     title: "Konstruktion Ref-HT"
     parent: WP3
+    start_month: 1
+    end_month: 24
   - code: WP3.2
     title: "Basischarakterisierung Referenz-HT"
     parent: WP3
+    start_month: 24
+    end_month: 34
   - code: WP3.3
     title: "Erweiterte Diagnostik Referenz-HT"
     parent: WP3
+    start_month: 24
+    end_month: 36
 
   # ---------- WP4 — CAU ----------
   - code: WP4
@@ -63,21 +102,33 @@ workpackages:
   - code: WP4.1
     title: "FS-Langzeittest"
     parent: WP4
+    start_month: 1
+    end_month: 13
   - code: WP4.2
     title: "FS-Systembau"
     parent: WP4
+    start_month: 7
+    end_month: 18
   - code: WP4.3
     title: "E×B-Sonde"
     parent: WP4
+    start_month: 1
+    end_month: 24
   - code: WP4.4
     title: "Energieanalysatoren"
     parent: WP4
+    start_month: 1
+    end_month: 24
   - code: WP4.5
     title: "Teilchenfluss-Sonde"
     parent: WP4
+    start_month: 1
+    end_month: 24
   - code: WP4.6
     title: "Plasmasonden"
     parent: WP4
+    start_month: 1
+    end_month: 24
 
   # ---------- WP5 — THM ----------
   - code: WP5
@@ -86,15 +137,23 @@ workpackages:
   - code: WP5.1
     title: "Plasmasondenelektronik für Treibstrahl"
     parent: WP5
+    start_month: 21
+    end_month: 24
   - code: WP5.2
     title: "Plasmasondenelektronik für Strompfadanalyse"
     parent: WP5
+    start_month: 21
+    end_month: 24
   - code: WP5.3
     title: "E×B-Sondenelektronik"
     parent: WP5
+    start_month: 13
+    end_month: 24
   - code: WP5.4
     title: "Validierung Diagnostik/Elektronik"
     parent: WP5
+    start_month: 22
+    end_month: 36
 
   # ---------- WP6 — IOM ----------
   - code: WP6
@@ -103,15 +162,23 @@ workpackages:
   - code: WP6.1
     title: "TALIF-Systemaufbau und Anwendung"
     parent: WP6
+    start_month: 1
+    end_month: 24
   - code: WP6.2
     title: "TALIF-gestützte Validierung"
     parent: WP6
+    start_month: 24
+    end_month: 36
   - code: WP6.3
     title: "LIF-Diagnostik und Anwendung am HT"
     parent: WP6
+    start_month: 13
+    end_month: 36
   - code: WP6.4
     title: "ESMS-Messungen und Validierung der E×B-Sonde"
     parent: WP6
+    start_month: 22
+    end_month: 36
 
   # ---------- WP7 — JLU ----------
   - code: WP7
@@ -120,12 +187,18 @@ workpackages:
   - code: WP7.1
     title: "Sensorik-Konzeption"
     parent: WP7
+    start_month: 1
+    end_month: 24
   - code: WP7.2
     title: "SPIS-Modellierung"
     parent: WP7
+    start_month: 1
+    end_month: 24
   - code: WP7.3
     title: "Wechselwirkung Facility/Triebwerk"
     parent: WP7
+    start_month: 24
+    end_month: 36
 
   # ---------- WP8 — JLU ----------
   - code: WP8
@@ -134,12 +207,18 @@ workpackages:
   - code: WP8.1
     title: "Ringvergleiche Planung"
     parent: WP8
+    start_month: 1
+    end_month: 18
   - code: WP8.2
     title: "Ringvergleiche Durchführung"
     parent: WP8
+    start_month: 17
+    end_month: 36
   - code: WP8.3
     title: "Energiekalibrierung"
     parent: WP8
+    start_month: 1
+    end_month: 36
 
 # Block 0009 — Projekt-Meilensteine. Seed ist idempotent über ``code``.
 # MS4 hat bewusst kein workpackage (Gesamtprojekt-Meilenstein).

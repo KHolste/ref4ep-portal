@@ -91,6 +91,12 @@ class GanttTrack:
     milestones: list[GanttMilestone]
     campaigns: list[GanttCampaign]
     meetings: list[GanttMeeting]
+    # Block 0027 — WP-Zeitplan. Bei Sub-WPs sind dies die eigenen
+    # Datumsfelder; bei Hauptpaketen sind sie typischerweise ``None``
+    # (Frontend aggregiert aus den Kindern). Konsortium-Spur: ``None``.
+    parent_code: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
 
 
 @dataclass(frozen=True)
@@ -186,12 +192,22 @@ class GanttService:
         project_start, project_end = self._determine_project_window(milestones, campaigns, meetings)
 
         # Spur pro WP (sort_order, code) plus eine Konsortial-Sammelspur.
+        # Block 0027: parent_code, start_date und end_date werden
+        # mitgegeben, damit das Frontend WP-Balken zeichnen und
+        # Hauptpakete aus Kindern aggregieren kann.
+        wp_code_by_id = {wp.id: wp.code for wp in wps}
         track_buckets: dict[str | None, dict] = {}
         for wp in wps:
+            parent_code = (
+                wp_code_by_id.get(wp.parent_workpackage_id) if wp.parent_workpackage_id else None
+            )
             track_buckets[wp.id] = {
                 "code": wp.code,
                 "title": wp.title,
                 "sort_order": wp.sort_order,
+                "parent_code": parent_code,
+                "start_date": wp.start_date,
+                "end_date": wp.end_date,
                 "milestones": [],
                 "campaigns": [],
                 "meetings": [],
@@ -202,6 +218,9 @@ class GanttService:
             "code": CONSORTIUM_TRACK_CODE,
             "title": CONSORTIUM_TRACK_TITLE,
             "sort_order": 10_000,
+            "parent_code": None,
+            "start_date": None,
+            "end_date": None,
             "milestones": [],
             "campaigns": [],
             "meetings": [],
@@ -276,6 +295,9 @@ class GanttService:
                     code=b["code"],
                     title=b["title"],
                     sort_order=b["sort_order"],
+                    parent_code=b.get("parent_code"),
+                    start_date=b.get("start_date"),
+                    end_date=b.get("end_date"),
                     milestones=sorted(b["milestones"], key=lambda x: x.planned_date),
                     campaigns=sorted(b["campaigns"], key=lambda x: x.starts_on),
                     meetings=sorted(b["meetings"], key=lambda x: x.on_date),

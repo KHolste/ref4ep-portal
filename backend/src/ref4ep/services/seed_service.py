@@ -11,7 +11,7 @@ Block 0009: zusätzlich werden die vier Projekt-Meilensteine angelegt
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from importlib import resources
 from typing import Any
 
@@ -35,6 +35,39 @@ def _coerce_date(value: object) -> date:
     raise TypeError(f"Erwartetes Datum, bekam {type(value).__name__}: {value!r}")
 
 
+def _add_months(d: date, months: int) -> date:
+    """Datums-Addition in Monaten ohne externe Bibliothek (Tag bleibt 1)."""
+    total = d.month - 1 + months
+    year = d.year + total // 12
+    month = total % 12 + 1
+    return date(year, month, 1)
+
+
+def _last_day_of_month(d: date) -> date:
+    """Letzter Kalendertag im Monat von ``d``."""
+    next_month = _add_months(date(d.year, d.month, 1), 1)
+    return next_month - timedelta(days=1)
+
+
+def _month_to_start_date(month: object, project_start: date | None) -> date | None:
+    """``Projektmonat → erster Tag des Monats``. ``None`` wenn Monat
+    fehlt oder kein Projektstart-Anker vorhanden ist."""
+    if month is None or project_start is None:
+        return None
+    if not isinstance(month, int) or month < 1:
+        raise ValueError(f"start_month muss positive Ganzzahl sein, bekam {month!r}")
+    return _add_months(project_start, month - 1)
+
+
+def _month_to_end_date(month: object, project_start: date | None) -> date | None:
+    """``Projektmonat → letzter Tag des Monats``."""
+    if month is None or project_start is None:
+        return None
+    if not isinstance(month, int) or month < 1:
+        raise ValueError(f"end_month muss positive Ganzzahl sein, bekam {month!r}")
+    return _last_day_of_month(_add_months(project_start, month - 1))
+
+
 def _load_seed_data(source: str) -> dict[str, Any]:
     if source not in KNOWN_SOURCES:
         raise ValueError(f"Unbekannte Seed-Quelle: {source}")
@@ -54,8 +87,14 @@ class SeedService:
     def apply_initial_seed(self, *, source: str = "antrag") -> dict[str, int]:
         data = _load_seed_data(source)
 
+        # Block 0027: Anker für Monat→Datum-Konvertierung der WP-Zeiten.
+        project_start_raw = data.get("project_start_date")
+        project_start = _coerce_date(project_start_raw) if project_start_raw is not None else None
+
         partners_added, partners_skipped = self._seed_partners(data.get("partners", []))
-        wps_added, wps_skipped = self._seed_workpackages(data.get("workpackages", []))
+        wps_added, wps_skipped = self._seed_workpackages(
+            data.get("workpackages", []), project_start=project_start
+        )
         ms_added, ms_skipped = self._seed_milestones(data.get("milestones", []))
 
         self.session.flush()
@@ -92,7 +131,12 @@ class SeedService:
         self.session.flush()
         return added, skipped
 
-    def _seed_workpackages(self, items: list[dict[str, Any]]) -> tuple[int, int]:
+    def _seed_workpackages(
+        self,
+        items: list[dict[str, Any]],
+        *,
+        project_start: date | None = None,
+    ) -> tuple[int, int]:
         # Partner-Lookup einmal aufbauen.
         partners_by_short = {p.short_name: p for p in self.session.query(Partner).all()}
 
@@ -104,14 +148,18 @@ class SeedService:
         added = 0
         skipped = 0
 
-        added_p, skipped_p = self._seed_wp_batch(parents, partners_by_short, parent_lookup={})
+        added_p, skipped_p = self._seed_wp_batch(
+            parents, partners_by_short, parent_lookup={}, project_start=project_start
+        )
         added += added_p
         skipped += skipped_p
         self.session.flush()
 
         # Parent-Lookup nach erstem Durchgang aufbauen (inkl. bereits vorhandener)
         parent_lookup = {wp.code: wp for wp in self.session.query(Workpackage).all()}
-        added_c, skipped_c = self._seed_wp_batch(children, partners_by_short, parent_lookup)
+        added_c, skipped_c = self._seed_wp_batch(
+            children, partners_by_short, parent_lookup, project_start=project_start
+        )
         added += added_c
         skipped += skipped_c
         self.session.flush()
@@ -123,6 +171,8 @@ class SeedService:
         items: list[dict[str, Any]],
         partners_by_short: dict[str, Partner],
         parent_lookup: dict[str, Workpackage],
+        *,
+        project_start: date | None = None,
     ) -> tuple[int, int]:
         added = 0
         skipped = 0
@@ -154,6 +204,10 @@ class SeedService:
                     f"(weder eigenes 'lead' noch Parent-Vererbung)."
                 )
 
+            # Block 0027 — Zeitplan-Felder aus monatsbasierten Antragsdaten.
+            start_date = _month_to_start_date(item.get("start_month"), project_start)
+            end_date = _month_to_end_date(item.get("end_month"), project_start)
+
             wp = Workpackage(
                 code=code,
                 title=item["title"],
@@ -161,6 +215,8 @@ class SeedService:
                 parent_workpackage_id=parent_wp.id if parent_wp else None,
                 lead_partner_id=lead_partner.id,
                 sort_order=_sort_key_from_code(code),
+                start_date=start_date,
+                end_date=end_date,
             )
             self.session.add(wp)
             # In-Memory-Lookup aktualisieren, falls Geschwister auf diesen

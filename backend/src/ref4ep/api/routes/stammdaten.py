@@ -98,6 +98,8 @@ def list_workpackages(
                     name=wp.lead_partner.name,
                 ),
                 sort_order=wp.sort_order,
+                start_date=wp.start_date,
+                end_date=wp.end_date,
             )
         )
     return out
@@ -187,6 +189,8 @@ def _wp_detail_out(
         next_steps=wp.next_steps,
         open_issues=wp.open_issues,
         can_edit_status=can_edit_status,
+        start_date=wp.start_date,
+        end_date=wp.end_date,
         lead_partner_contacts=lead_contacts_out,
         milestones=milestones_out,
     )
