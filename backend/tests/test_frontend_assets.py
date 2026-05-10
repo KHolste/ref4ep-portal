@@ -3571,7 +3571,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0037"
+_NAV_PATCH_VERSION = "0038"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -3821,3 +3821,77 @@ def test_app_js_module_loader_appends_cache_buster() -> None:
     assert "/portal/modules/${name}.js?v=${ASSET_VERSION}" in body
     # Negative: kein „nackter" Import ohne Cache-Buster mehr.
     assert "/portal/modules/${name}.js`)" not in body
+
+
+# ---- Block 0035-Folgepatch 2 — vollständige Dokumenttypen ------------
+
+
+_EXPECTED_TYPE_LABELS = {
+    "deliverable": "Deliverable",
+    "report": ("Bericht", "Report"),  # library nutzt „Bericht", detail „Report"
+    "note": "Notiz",
+    "paper": "Paper",
+    "thesis": "Abschlussarbeit",
+    "presentation": "Präsentation",
+    "protocol": "Protokoll",
+    "specification": "Spezifikation",
+    "template": "Vorlage",
+    "dataset": "Datensatz",
+    "other": ("Sonstiges", "sonstig"),
+}
+
+
+def test_document_detail_type_labels_complete() -> None:
+    body = (MODULES_DIR / "document_detail.js").read_text(encoding="utf-8")
+    for key, expected in _EXPECTED_TYPE_LABELS.items():
+        if isinstance(expected, tuple):
+            assert any(f'{key}: "{label}"' in body for label in expected), (
+                f"Detail-TYPE_LABELS fehlt {key!r}"
+            )
+        else:
+            assert f'{key}: "{expected}"' in body, f"Detail-TYPE_LABELS fehlt {key!r}"
+    # Zentrale Reihenfolge-Liste vorhanden.
+    assert "TYPE_OPTIONS" in body
+    # Metadaten-Dialog nutzt die zentrale Liste, nicht mehr eine
+    # hartcodierte 4-Werte-Liste.
+    assert '["deliverable", "report", "note", "other"]' not in body
+    assert "...TYPE_OPTIONS.map" in body
+
+
+def test_project_library_type_labels_complete() -> None:
+    body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
+    for key, expected in _EXPECTED_TYPE_LABELS.items():
+        if isinstance(expected, tuple):
+            assert any(f'{key}: "{label}"' in body for label in expected), (
+                f"Library-DOC_TYPE_LABELS fehlt {key!r}"
+            )
+        else:
+            assert f'{key}: "{expected}"' in body, f"Library-DOC_TYPE_LABELS fehlt {key!r}"
+    assert "DOC_TYPE_OPTIONS" in body
+    # Hartcodierte Kurzliste aus dem Vorgängerpatch ist weg.
+    assert '["other", "paper", "report", "note"]' not in body
+    assert "...DOC_TYPE_OPTIONS.map" in body
+
+
+def test_metadata_edit_dialog_offers_paper_and_thesis() -> None:
+    """Der konkrete Bug: Metadaten-Dialog enthielt vorher nur vier Werte
+    und zeigte ``Paper`` nicht an. Jetzt müssen alle neuen Typen
+    auswählbar sein."""
+    body = (MODULES_DIR / "document_detail.js").read_text(encoding="utf-8")
+    # Reihenfolge-Liste und Label sind beide drin.
+    options_line_idx = body.index("const TYPE_OPTIONS")
+    options_block = body[options_line_idx : options_line_idx + 600]
+    for key in (
+        "paper",
+        "thesis",
+        "presentation",
+        "protocol",
+        "specification",
+        "template",
+        "dataset",
+    ):
+        assert f'"{key}"' in options_block, f"TYPE_OPTIONS sollte {key!r} enthalten"
+    # Spezifisch die UI-Bug-Bedingung: Paper und Abschlussarbeit als
+    # Labels.
+    assert '"Paper"' in body
+    assert '"Abschlussarbeit"' in body

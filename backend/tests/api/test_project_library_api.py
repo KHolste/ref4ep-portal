@@ -202,3 +202,23 @@ def test_admin_can_create_library_document_with_paper_type(
     body = r.json()
     assert body["document_type"] == "paper"
     assert body["library_section"] == "literature"
+
+
+def test_admin_can_create_library_document_with_new_science_types(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """Block 0035-Folgepatch 2: alle neuen wissenschaftlichen Typen
+    werden über die Admin-Library-Route akzeptiert."""
+    new_types = ["thesis", "presentation", "protocol", "specification", "template", "dataset"]
+    for idx, doc_type in enumerate(new_types):
+        r = admin_client.post(
+            "/api/library/documents",
+            json={
+                "title": f"{doc_type.title()}-Test {idx}",
+                "document_type": doc_type,
+                "visibility": "internal",
+            },
+            headers=_csrf(admin_client),
+        )
+        assert r.status_code == 201, (doc_type, r.text)
+        assert r.json()["document_type"] == doc_type

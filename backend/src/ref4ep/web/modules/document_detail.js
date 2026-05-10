@@ -14,8 +14,32 @@ const TYPE_LABELS = {
   report: "Report",
   note: "Notiz",
   paper: "Paper",
+  thesis: "Abschlussarbeit",
+  presentation: "Präsentation",
+  protocol: "Protokoll",
+  specification: "Spezifikation",
+  template: "Vorlage",
+  dataset: "Datensatz",
   other: "Sonstiges",
 };
+
+// Reihenfolge in Dokumenttyp-Dropdowns. Bewusst zentral, damit
+// Detail-Metadaten-Dialog und Library-Upload identisch sortieren.
+// ``other`` zuerst, weil es der häufigste „passt-noch-irgendwo"-Wert
+// ist; ``note`` zuletzt, da Notizen als Auffangposition dienen.
+const TYPE_OPTIONS = [
+  "other",
+  "paper",
+  "report",
+  "deliverable",
+  "presentation",
+  "protocol",
+  "thesis",
+  "specification",
+  "template",
+  "dataset",
+  "note",
+];
 
 const STATUS_BADGES = {
   draft: { label: "Entwurf", cls: "badge badge-draft" },
@@ -232,7 +256,7 @@ function renderMetadataDialog(document_, onSaved) {
   const typeSelect = h(
     "select",
     {},
-    ...["deliverable", "report", "note", "other"].map((t) =>
+    ...TYPE_OPTIONS.map((t) =>
       h(
         "option",
         { value: t, selected: t === document_.document_type ? true : null },

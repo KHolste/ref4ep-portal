@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0019_document_type_paper"
+CURRENT_HEAD = "0020_document_types_science"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -1217,3 +1217,78 @@ def test_downgrade_to_0018_rejects_paper(tmp_db_path: Path) -> None:
             assert "constraint" in str(exc).lower() or "CHECK" in str(exc).upper()
         else:
             raise AssertionError("CHECK-Constraint hätte ``paper`` ablehnen müssen.")
+
+
+# ---- Block 0035-Folgepatch 2 — wissenschaftliche Dokumenttypen ------
+
+
+def _seed_minimal_partner_and_admin(conn) -> None:
+    conn.exec_driver_sql(
+        "INSERT INTO partner (id, name, short_name, country, is_deleted, "
+        "created_at, updated_at) VALUES "
+        "('11111111-2222-3333-4444-555555555555', 'P', 'P', 'DE', 0, "
+        "datetime('now'), datetime('now'))"
+    )
+    conn.exec_driver_sql(
+        "INSERT INTO person (id, email, display_name, partner_id, password_hash, "
+        "platform_role, is_active, must_change_password, is_deleted, "
+        "created_at, updated_at) VALUES "
+        "('22222222-3333-4444-5555-666666666666', 'p@x', 'P', "
+        "'11111111-2222-3333-4444-555555555555', 'h', 'admin', 1, 0, 0, "
+        "datetime('now'), datetime('now'))"
+    )
+
+
+def test_new_document_types_are_accepted_after_0020(tmp_db_path: Path) -> None:
+    """Neue Typen (thesis, presentation, protocol, specification,
+    template, dataset) werden vom CHECK-Constraint akzeptiert."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    engine = create_engine(db_url)
+    new_types = ["thesis", "presentation", "protocol", "specification", "template", "dataset"]
+    with engine.begin() as conn:
+        conn.exec_driver_sql("PRAGMA foreign_keys = ON")
+        _seed_minimal_partner_and_admin(conn)
+        for idx, doc_type in enumerate(new_types, start=1):
+            doc_id = f"33333333-4444-5555-6666-{idx:012d}"
+            conn.exec_driver_sql(
+                "INSERT INTO document (id, workpackage_id, title, slug, document_type, "
+                "status, visibility, library_section, created_by_person_id, is_deleted, "
+                "created_at, updated_at) VALUES "
+                f"('{doc_id}', NULL, '{doc_type}-Test', '{doc_type}-test', "
+                f"'{doc_type}', 'draft', 'internal', NULL, "
+                "'22222222-3333-4444-5555-666666666666', 0, "
+                "datetime('now'), datetime('now'))"
+            )
+    with engine.connect() as conn:
+        rows = conn.exec_driver_sql(
+            "SELECT document_type FROM document WHERE document_type IN "
+            "('thesis','presentation','protocol','specification','template','dataset') "
+            "ORDER BY document_type"
+        ).fetchall()
+    assert {r[0] for r in rows} == set(new_types)
+
+
+def test_downgrade_to_0019_rejects_new_types(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0019_document_type_paper")
+    engine = create_engine(db_url)
+    with engine.begin() as conn:
+        conn.exec_driver_sql("PRAGMA foreign_keys = ON")
+        _seed_minimal_partner_and_admin(conn)
+        try:
+            conn.exec_driver_sql(
+                "INSERT INTO document (id, workpackage_id, title, slug, document_type, "
+                "status, visibility, library_section, created_by_person_id, is_deleted, "
+                "created_at, updated_at) VALUES "
+                "('44444444-5555-6666-7777-888888888888', NULL, 'Th', 'th', "
+                "'thesis', 'draft', 'internal', NULL, "
+                "'22222222-3333-4444-5555-666666666666', 0, "
+                "datetime('now'), datetime('now'))"
+            )
+        except Exception as exc:
+            assert "constraint" in str(exc).lower() or "CHECK" in str(exc).upper()
+        else:
+            raise AssertionError("CHECK-Constraint hätte ``thesis`` ablehnen müssen.")

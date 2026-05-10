@@ -246,7 +246,19 @@ TEST_CAMPAIGN_DOCUMENT_LABEL_LABELS_DE = {
 # Dokument-Enums (Sprint 2). status und visibility sind im Schema komplett
 # vorgesehen, in Sprint 2 aber konstant 'draft' / 'workpackage'. Release- und
 # Sichtbarkeits-Workflows folgen Sprint 3, öffentliche Bibliothek Sprint 4.
-DOCUMENT_TYPES = ("deliverable", "report", "note", "paper", "other")
+DOCUMENT_TYPES = (
+    "deliverable",
+    "report",
+    "note",
+    "paper",
+    "thesis",
+    "presentation",
+    "protocol",
+    "specification",
+    "template",
+    "dataset",
+    "other",
+)
 DOCUMENT_STATUSES = ("draft", "in_review", "released")
 DOCUMENT_VISIBILITIES = ("workpackage", "internal", "public")
 
@@ -472,7 +484,10 @@ class Document(Base):
     __table_args__ = (
         UniqueConstraint("workpackage_id", "slug", name="uq_document_wp_slug"),
         CheckConstraint(
-            "document_type IN ('deliverable','report','note','paper','other')",
+            "document_type IN ("
+            "'deliverable','report','note','paper','thesis','presentation',"
+            "'protocol','specification','template','dataset','other'"
+            ")",
             name="ck_document_document_type",
         ),
         CheckConstraint("status IN ('draft','in_review','released')", name="ck_document_status"),

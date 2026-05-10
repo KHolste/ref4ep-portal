@@ -76,8 +76,30 @@ const DOC_TYPE_LABELS = {
   report: "Bericht",
   note: "Notiz",
   paper: "Paper",
+  thesis: "Abschlussarbeit",
+  presentation: "Präsentation",
+  protocol: "Protokoll",
+  specification: "Spezifikation",
+  template: "Vorlage",
+  dataset: "Datensatz",
   other: "sonstig",
 };
+
+// Reihenfolge in Dokumenttyp-Dropdowns; identisch zu
+// ``document_detail.js::TYPE_OPTIONS``.
+const DOC_TYPE_OPTIONS = [
+  "other",
+  "paper",
+  "report",
+  "deliverable",
+  "presentation",
+  "protocol",
+  "thesis",
+  "specification",
+  "template",
+  "dataset",
+  "note",
+];
 
 function formatDate(iso) {
   if (!iso) return "—";
@@ -202,9 +224,7 @@ function renderUploadDialog(onSaved, onCancel) {
   const typeSelect = h(
     "select",
     {},
-    ...["other", "paper", "report", "note"].map((t) =>
-      h("option", { value: t }, DOC_TYPE_LABELS[t]),
-    ),
+    ...DOC_TYPE_OPTIONS.map((t) => h("option", { value: t }, DOC_TYPE_LABELS[t])),
   );
   const noteInput = h("textarea", {
     rows: "2",

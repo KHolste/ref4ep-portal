@@ -12,7 +12,7 @@ import { api, getAdminViewMode, setAdminViewMode } from "/portal/common.js";
 // common.js oder einem Modul (web/modules/*.js) hochgezogen werden;
 // der Asset-Test ``test_index_html_uses_cache_buster_for_app_js_and_style_css``
 // erzwingt das Mitwachsen.
-export const ASSET_VERSION = "0037";
+export const ASSET_VERSION = "0038";
 
 const ROUTES = [
   { pattern: /^\/portal\/?$/, module: "cockpit" },
