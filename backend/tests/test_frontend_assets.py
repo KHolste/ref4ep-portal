@@ -3571,7 +3571,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0039"
+_NAV_PATCH_VERSION = "0040"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:

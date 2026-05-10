@@ -109,3 +109,134 @@ def patch_milestone(
             detail={"error": {"code": "invalid", "message": str(exc)}},
         ) from exc
     return _milestone_out(milestone, can_edit=True)
+
+
+# --------------------------------------------------------------------------- #
+# Block 0039 — Meilenstein-Dokumentverknüpfungen                              #
+# --------------------------------------------------------------------------- #
+
+from ref4ep.api.schemas import (  # noqa: E402  — späte Imports nach Router-Definition
+    MilestoneDocumentLinkAddRequest,
+    MilestoneDocumentLinkOut,
+)
+from ref4ep.services.milestone_document_service import (  # noqa: E402
+    MilestoneDocumentLinkConflictError,
+    MilestoneDocumentLinkNotFoundError,
+    MilestoneDocumentService,
+    MilestoneNotFoundError,
+)
+
+
+def _link_service(
+    session: Session, auth: AuthContext, *, audit: AuditLogger | None = None
+) -> MilestoneDocumentService:
+    return MilestoneDocumentService(
+        session,
+        role=auth.platform_role,
+        person_id=auth.person_id,
+        auth=auth,
+        audit=audit,
+    )
+
+
+def _link_out(link) -> MilestoneDocumentLinkOut:
+    doc = link.document
+    wp = doc.workpackage
+    return MilestoneDocumentLinkOut(
+        document_id=doc.id,
+        title=doc.title,
+        document_type=doc.document_type,
+        library_section=doc.library_section,
+        workpackage_code=wp.code if wp is not None else None,
+        status=doc.status,
+        visibility=doc.visibility,
+        created_at=link.created_at,
+    )
+
+
+@router.get(
+    "/milestones/{milestone_id}/documents",
+    response_model=list[MilestoneDocumentLinkOut],
+)
+def list_milestone_documents(
+    milestone_id: str,
+    session: SessionDep,
+    auth: AuthDep,
+) -> list[MilestoneDocumentLinkOut]:
+    try:
+        links = _link_service(session, auth).list_documents(milestone_id)
+    except MilestoneNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    return [_link_out(link) for link in links]
+
+
+@router.post(
+    "/milestones/{milestone_id}/documents",
+    response_model=MilestoneDocumentLinkOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_csrf)],
+)
+def add_milestone_document_link(
+    milestone_id: str,
+    payload: MilestoneDocumentLinkAddRequest,
+    session: SessionDep,
+    auth: AuthDep,
+    audit: AuditDep,
+) -> MilestoneDocumentLinkOut:
+    try:
+        link = _link_service(session, auth, audit=audit).add_link(
+            milestone_id, document_id=payload.document_id
+        )
+    except MilestoneNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "forbidden", "message": str(exc)}},
+        ) from exc
+    except MilestoneDocumentLinkConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": {"code": "already_linked", "message": str(exc)}},
+        ) from exc
+    return _link_out(link)
+
+
+@router.delete(
+    "/milestones/{milestone_id}/documents/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_csrf)],
+)
+def remove_milestone_document_link(
+    milestone_id: str,
+    document_id: str,
+    session: SessionDep,
+    auth: AuthDep,
+    audit: AuditDep,
+):
+    from fastapi import Response
+
+    try:
+        _link_service(session, auth, audit=audit).remove_link(milestone_id, document_id=document_id)
+    except MilestoneNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "forbidden", "message": str(exc)}},
+        ) from exc
+    except MilestoneDocumentLinkNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

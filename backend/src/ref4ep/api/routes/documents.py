@@ -23,6 +23,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ref4ep.api.config import Settings
@@ -341,9 +342,46 @@ def _campaign_links_out(session: Session, document_id: str) -> list[DocumentCamp
     ]
 
 
+def _milestone_links_out(session: Session, document_id: str) -> list:
+    """Block 0039 — Meilensteine, mit denen das Dokument verknüpft ist.
+
+    Bewusst lokal in der Document-Route gehalten, damit der
+    MilestoneDocumentService unabhängig bleibt; Sichtbarkeit ist
+    durch ``get_by_id`` davor bereits abgedeckt."""
+    from ref4ep.api.schemas.documents import DocumentMilestoneLinkOut
+    from ref4ep.domain.models import Milestone, MilestoneDocumentLink
+
+    rows = list(
+        session.scalars(
+            select(Milestone)
+            .join(
+                MilestoneDocumentLink,
+                MilestoneDocumentLink.milestone_id == Milestone.id,
+            )
+            .where(MilestoneDocumentLink.document_id == document_id)
+            .order_by(Milestone.planned_date, Milestone.code)
+        )
+    )
+    return [
+        DocumentMilestoneLinkOut(
+            id=ms.id,
+            code=ms.code,
+            title=ms.title,
+            planned_date=ms.planned_date,
+            status=ms.status,
+        )
+        for ms in rows
+    ]
+
+
 def _document_detail_out(document: Document, session: Session) -> DocumentDetailOut:
     base = _document_out(document, with_versions=True)
-    return base.model_copy(update={"test_campaigns": _campaign_links_out(session, document.id)})
+    return base.model_copy(
+        update={
+            "test_campaigns": _campaign_links_out(session, document.id),
+            "linked_milestones": _milestone_links_out(session, document.id),
+        }
+    )
 
 
 @router.get("/documents/{document_id}", response_model=DocumentDetailOut)

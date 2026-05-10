@@ -1129,3 +1129,44 @@ class TestCampaignNote(Base):
 
     campaign: Mapped[TestCampaign] = relationship(back_populates="notes")
     author: Mapped[Person] = relationship()
+
+
+# --------------------------------------------------------------------------- #
+# Block 0039 — Meilenstein-Dokumentverknüpfungen                              #
+# --------------------------------------------------------------------------- #
+
+
+class MilestoneDocumentLink(Base):
+    """Many-to-Many-Verknüpfung Meilenstein × Dokument.
+
+    Bewusst ohne Soft-Delete: Entfernen einer Verknüpfung wird hart
+    gelöscht, das Audit-Log (``milestone.document_link.add`` /
+    ``.remove``) hält die Aktion fest. Das verknüpfte Dokument bleibt
+    vom Unlink unberührt.
+
+    Relation-Type wurde in Patch 0039 absichtlich nicht eingeführt —
+    erst nachziehen, wenn fachlicher Bedarf belegt ist.
+    """
+
+    __tablename__ = "milestone_document_link"
+    __table_args__ = (
+        UniqueConstraint("milestone_id", "document_id", name="uq_milestone_document_link"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    milestone_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("milestone.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    document_id: Mapped[str] = mapped_column(String(36), ForeignKey("document.id"), nullable=False)
+    created_by_person_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("person.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc
+    )
+
+    milestone: Mapped[Milestone] = relationship()
+    document: Mapped[Document] = relationship()
+    created_by: Mapped[Person] = relationship()

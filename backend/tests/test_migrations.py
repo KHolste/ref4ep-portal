@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0020_document_types_science"
+CURRENT_HEAD = "0021_milestone_document_links"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -1292,3 +1292,38 @@ def test_downgrade_to_0019_rejects_new_types(tmp_db_path: Path) -> None:
             assert "constraint" in str(exc).lower() or "CHECK" in str(exc).upper()
         else:
             raise AssertionError("CHECK-Constraint hätte ``thesis`` ablehnen müssen.")
+
+
+# ---- Block 0039 — Meilenstein-Dokumentverknüpfungen -------------------
+
+
+def test_milestone_document_link_table_exists(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    assert "milestone_document_link" in set(inspector.get_table_names())
+    cols = {c["name"] for c in inspector.get_columns("milestone_document_link")}
+    assert {
+        "id",
+        "milestone_id",
+        "document_id",
+        "created_by_person_id",
+        "created_at",
+    } == cols
+
+
+def test_milestone_document_link_has_unique_constraint(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    uq = inspect(create_engine(db_url)).get_unique_constraints("milestone_document_link")
+    cols_per_uq = {tuple(sorted(u["column_names"])) for u in uq}
+    assert ("document_id", "milestone_id") in cols_per_uq
+
+
+def test_downgrade_to_0020_drops_milestone_document_link(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0020_document_types_science")
+    inspector = inspect(create_engine(db_url))
+    assert "milestone_document_link" not in set(inspector.get_table_names())

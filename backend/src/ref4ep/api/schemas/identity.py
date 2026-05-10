@@ -232,6 +232,37 @@ class MilestonePatchRequest(BaseModel):
     note: str | None = None
 
 
+# Block 0039 — Meilenstein-Dokumentverknüpfungen.
+
+
+class MilestoneDocumentLinkOut(BaseModel):
+    """Kompakte Sicht eines mit einem Meilenstein verknüpften Dokuments."""
+
+    document_id: str
+    title: str
+    document_type: str
+    library_section: str | None = None
+    workpackage_code: str | None = None
+    status: str
+    visibility: str
+    created_at: datetime
+
+
+class MilestoneDocumentLinkAddRequest(BaseModel):
+    document_id: str = Field(min_length=36, max_length=36)
+
+
+class DocumentMilestoneRefOut(BaseModel):
+    """Kompakte Sicht eines Meilensteins, mit dem ein Dokument
+    verknüpft ist (für die Anzeige im Dokumentdetail)."""
+
+    id: str
+    code: str
+    title: str
+    planned_date: date
+    status: str
+
+
 # --------------------------------------------------------------------------- #
 # Block 0010 — Projekt-Cockpit                                                #
 # --------------------------------------------------------------------------- #

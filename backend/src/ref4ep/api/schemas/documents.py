@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -62,10 +62,24 @@ class DocumentCampaignLinkOut(BaseModel):
     label: str
 
 
+class DocumentMilestoneLinkOut(BaseModel):
+    """Block 0039 — kompakte Sicht eines Meilensteins, mit dem das
+    Dokument verknüpft ist (für die Anzeige im Dokumentdetail)."""
+
+    id: str
+    code: str
+    title: str
+    planned_date: date
+    status: str
+
+
 class DocumentDetailOut(DocumentOut):
     versions: list[DocumentVersionOut]
     released_version: DocumentVersionOut | None = None
     test_campaigns: list[DocumentCampaignLinkOut] = Field(default_factory=list)
+    # Block 0039 — verknüpfte Meilensteine. Inhaltsfilter findet im
+    # Service statt; das Schema ist hier nur die Wire-Form.
+    linked_milestones: list[DocumentMilestoneLinkOut] = Field(default_factory=list)
 
 
 class DocumentTestCampaignLinkRequest(BaseModel):
