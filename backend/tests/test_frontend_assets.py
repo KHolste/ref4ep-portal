@@ -3534,6 +3534,15 @@ def test_project_library_module_has_required_tile_strings() -> None:
     assert "Projektunterlagen" in body
 
 
+def test_project_library_milestone_tile_does_not_claim_unimplemented() -> None:
+    """Patch-0040-Fix: Nach Patch 0039 darf der Hinweistext der
+    Meilenstein-Kachel nicht mehr behaupten, die Verknüpfung sei nicht
+    umgesetzt."""
+    body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
+    assert "noch nicht umgesetzt" not in body
+    assert "in der jeweiligen Meilensteinansicht" in body
+
+
 def test_project_library_module_uses_visibility_safe_endpoint() -> None:
     body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
     # Sichtbarkeitsschutz ist explizit aktiviert.
@@ -3571,7 +3580,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0040"
+_NAV_PATCH_VERSION = "0040-fix"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:

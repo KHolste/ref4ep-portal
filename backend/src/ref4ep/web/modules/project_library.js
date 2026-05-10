@@ -38,7 +38,7 @@ const SECTIONS = [
     description:
       "Nachweise, Präsentationen und Unterlagen zu Projektmeilensteinen.",
     hint:
-      "Eine eigene Verknüpfung von Dokumenten zu Meilensteinen ist noch nicht umgesetzt; diese Kachel zeigt vorerst Dokumente mit Bibliotheksbereich Meilenstein.",
+      "Dokumente mit Bibliotheksbereich Meilenstein. Direkte Verknüpfungen werden in der jeweiligen Meilensteinansicht gepflegt.",
   },
   {
     key: "literature",
