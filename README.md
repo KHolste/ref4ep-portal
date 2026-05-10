@@ -11,7 +11,7 @@ Audit-Log in einer einzigen internen Anwendung.
 Funktionsfähiges internes Web-MVP mit erweitertem Projekt-, Dokumenten-,
 Kampagnen- und Zeitplanmanagement. Die Plattform wird kontinuierlich in
 Feature-Patches weiterentwickelt; die Datenbank hat aktuell den
-Migrationsstand `0016_test_campaign_notes` (Block 0029).
+Migrationsstand `0021_milestone_document_links` (Block 0039).
 
 Hinweis: Es handelt sich um ein internes Projektportal des
 Konsortiums, kein fertiges kommerzielles Produkt.
@@ -41,7 +41,12 @@ Fachliche Module
 - **Workpackages** — zweistufige WP-Hierarchie, optionale Zeitplanfelder
   `start_date` / `end_date`, Cockpit-Status, WP-Detailseiten
 - **Meilensteine** — Status-Lebenszyklus mit Health-Berechnung,
-  übergreifende Meilensteine ohne WP-Zuordnung möglich
+  übergreifende Meilensteine ohne WP-Zuordnung möglich.
+  Dokumentverknüpfungen über eigene Link-Tabelle
+  `milestone_document_link`: Admin oder WP-Lead des Meilenstein-
+  Arbeitspakets kann Dokumente an Meilensteine knüpfen, Sichtbarkeit
+  bleibt durch die bestehenden Dokument-Permissions geschützt (Patch
+  0039).
 - **Meetings** — Kategorien (Konsortium, Jour fixe, WP-Treffen,
   Review …), Status-Lifecycle, Teilnehmende, Beschlüsse, Aktionen,
   Dokumentanhänge, Druckansicht
@@ -49,14 +54,26 @@ Fachliche Module
 - **Dokumentenregister** — versionierte Dokumente, Status-Lifecycle
   (`draft` → `in_review` → `released`), Sichtbarkeit
   (`workpackage` / `internal` / `public`), Datei-Upload mit
-  MIME-Whitelist und Versionsnotiz, Dokumentkommentare auf
-  Versionsebene
+  MIME-Whitelist, optionale Versionsnotiz (Patch 0036),
+  Dokumentkommentare auf Versionsebene, Soft-Delete und
+  Metadaten-Modal (Patch 0038). Dokumenttypen: `deliverable`,
+  `report`, `note`, `paper`, `thesis`, `presentation`, `protocol`,
+  `specification`, `template`, `dataset`, `other` (Patches
+  0035-Folgepatch / 0037).
+- **Projektbibliothek** — eigene Sicht für projektweite Dokumente
+  ohne WP-Bezug, mit `library_section` = `project` / `milestone` /
+  `literature` / `presentation` / `thesis`. WP-Dokumente erscheinen
+  über die Arbeitspaket-Kachel, weil sie über `workpackage_id`
+  zugeordnet sind und keine eigene `library_section` brauchen.
+  Upload-Modal und sichtbarkeitssichere Listing-Quelle (Patch 0035
+  und Folgepatches).
 - **Öffentliche Dokumentbibliothek** — schreibgeschützte Liste der als
   `public` freigegebenen Dokumente
 - **Testkampagnen** — Kategorien, Status-Lifecycle, Teilnehmende mit
   Rollen, Verknüpfung zu Workpackages und Dokumenten.
   - **Foto-Upload** (PNG/JPEG, eigene Tabelle `test_campaign_photo`,
     inline-Streaming-Download, Soft-Delete) — Patch 0028.
+  - **Foto-Thumbnails** für die Galerieansicht — Patch 0032.
   - **Kampagnennotizen** als gemeinsame Arbeitsnotizen für Ideen,
     Beobachtungen und offene Fragen. Bewusst kein formales Laborbuch:
     keine Versionierung, kein Review-/Release-Lifecycle, kein Titel —
@@ -68,7 +85,8 @@ Fachliche Module
   Testkampagnen in einer einzigen Zeitleistenansicht
 - **Aktivitäts- und Auditansichten** — Audit-Log und Aktivitätsstrom
 - **Admin-/Systemstatus** — Partner-, Personen- und
-  Mitgliedschaftsverwaltung sowie Storage-/Upload-Diagnose
+  Mitgliedschaftsverwaltung sowie Storage-/Upload-Diagnose; manueller
+  Admin-Backup-Trigger über die Systemstatus-Seite (Patch 0033)
 
 Frontend
 
@@ -136,7 +154,7 @@ uvicorn ref4ep.api.asgi:app --reload --port 8000
 - `ruff check src tests` und `ruff format --check src tests`
 - `pytest` mit Coverage-Gate (≥ 85 %)
 - Alembic-Migrationen werden in der Test-Suite up- und downgegradet
-- Stand Patch 0031.1: ca. 1010 Tests, Coverage ~ 91 %
+- Stand Patch 0040-fix: ca. 1154 Tests
 
 Details und Befehle in `backend/README.md`.
 
