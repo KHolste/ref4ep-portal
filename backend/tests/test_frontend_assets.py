@@ -3566,3 +3566,106 @@ def test_project_library_styles_present() -> None:
         ".library-filter-bar",
     ):
         assert cls in css, f"style.css sollte {cls} enthalten"
+
+
+# ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
+
+
+_NAV_PATCH_VERSION = "0035"
+
+
+def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
+    """Bei jedem Patch-Block, der die Hauptnavigation oder die SPA-
+    Routen ändert, muss der Cache-Buster mitwachsen — sonst behält
+    der Browser die alte ``app.js`` und die neue Route bleibt
+    unbekannt (Fehler ‚Unbekannter Pfad'). Aktueller Stand:
+    Patch 0035."""
+    html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    assert f"/portal/app.js?v={_NAV_PATCH_VERSION}" in html, (
+        "Cache-Buster für app.js fehlt oder ist veraltet — neue Routen werden "
+        "sonst nicht geladen, weil der Browser die alte app.js cached."
+    )
+    assert f"/portal/style.css?v={_NAV_PATCH_VERSION}" in html, (
+        "Cache-Buster für style.css fehlt oder ist veraltet."
+    )
+
+
+def _extract_nav_hrefs(html: str) -> list[str]:
+    import re
+
+    matches = re.findall(
+        r'<a\s+href="(/portal/[^"]*)"[^>]*data-route="([^"]+)"',
+        html,
+    )
+    return [(href, route) for href, route in matches]
+
+
+def _extract_router_patterns(app_js: str) -> list[tuple[str, str]]:
+    """Liefert ``[(regex_source, module_name), …]`` aus der ROUTES-Tabelle."""
+    import re
+
+    out: list[tuple[str, str]] = []
+    for match in re.finditer(
+        r"\{\s*pattern:\s*(/[^,]+/),\s*module:\s*\"([^\"]+)\"",
+        app_js,
+    ):
+        out.append((match.group(1), match.group(2)))
+    return out
+
+
+def _js_regex_to_python(source: str) -> str:
+    r"""Pragmatische Konvertierung der typischen JS-Regex-Literale aus
+    der ROUTES-Tabelle (``/^…$/``) zu Python-``re``-kompatiblen
+    Pattern-Strings. Die in Ref4EP genutzten Patterns nutzen nur
+    ``\/`` als Escape und ``[^/]+`` als Param-Klasse — beides ist in
+    Python identisch."""
+    inner = source.strip("/")
+    return inner
+
+
+def test_navigation_links_point_to_registered_router_patterns() -> None:
+    """Jeder ``<a href="/portal/…" data-route="X">`` aus der
+    Hauptnavigation muss von genau einem Routen-Pattern in app.js
+    aufgefangen werden, und die ``module``-Zuordnung muss zum
+    ``data-route`` passen. Sonst klickt der Nutzer den Link an, der
+    SPA-Router meldet ‚Unbekannter Pfad'."""
+    import re as _re
+
+    html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    app_js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    nav_pairs = _extract_nav_hrefs(html)
+    routes = _extract_router_patterns(app_js)
+    assert nav_pairs, "Navigation-Pairs konnten nicht extrahiert werden."
+    assert routes, "Routen-Tabelle konnte nicht extrahiert werden."
+
+    failures: list[str] = []
+    for href, data_route in nav_pairs:
+        href_no_query = href.split("?", 1)[0]
+        match_route = None
+        for source, module in routes:
+            if _re.match(_js_regex_to_python(source), href_no_query):
+                match_route = (source, module)
+                break
+        if match_route is None:
+            failures.append(
+                f"href {href!r} (data-route={data_route!r}) trifft auf kein Pattern in app.js"
+            )
+            continue
+        if match_route[1] != data_route:
+            failures.append(
+                f"href {href!r} matched Pattern {match_route[0]!r} "
+                f"mit module={match_route[1]!r}, aber data-route={data_route!r}"
+            )
+    assert not failures, "\n".join(failures)
+
+
+def test_project_library_module_is_actually_routed() -> None:
+    """Stellt sicher, dass ``project_library.js`` nicht nur existiert,
+    sondern auch über die ROUTES-Tabelle ladbar ist — der dynamische
+    Import in app.js leitet ``module: "project_library"`` auf
+    ``/portal/modules/project_library.js`` um."""
+    app_js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    routes = _extract_router_patterns(app_js)
+    modules = {module for _src, module in routes}
+    assert "project_library" in modules
+    assert (MODULES_DIR / "project_library.js").is_file()
