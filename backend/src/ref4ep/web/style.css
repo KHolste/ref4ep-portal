@@ -4440,3 +4440,45 @@ body.modal-open {
   display: flex;
   gap: 1rem;
 }
+
+/* Block 0044 — Partnerrollen (Projektleitung) */
+.partner-roles {
+  margin-top: 1rem;
+}
+
+.partner-roles .actions {
+  margin: 0.4rem 0 0.6rem;
+}
+
+.partner-roles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.partner-role-card {
+  padding: 0.5rem 0.7rem;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+
+.partner-role-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.partner-role-head h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.partner-role-meta {
+  margin-top: 0.2rem;
+}
+
+.partner-role-actions {
+  margin-top: 0.4rem;
+}

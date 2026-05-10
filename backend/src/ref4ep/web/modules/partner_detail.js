@@ -8,6 +8,7 @@
 import {
   api,
   crossNav,
+  effectivePlatformRole,
   h,
   pageHeader,
   renderEmpty,
@@ -369,7 +370,16 @@ function renderContactCard(contact, canManage, onEdit, onDeactivate, onReactivat
         ? h("span", { class: "badge badge-released" }, "Hauptkontakt")
         : null,
       contact.is_project_lead
-        ? h("span", { class: "badge badge-released" }, "Projektleitung")
+        ? h(
+            "span",
+            {
+              class: "badge badge-released",
+              title:
+                "Kontaktmarkierung — vergibt keine Login-/Portalrechte. " +
+                "Echte Login-Projektleitung wird im Abschnitt „Projektleitung“ gepflegt.",
+            },
+            "Projektleitung (Kontakt)",
+          )
         : null,
       contact.is_active
         ? null
@@ -532,6 +542,272 @@ async function renderContactsSection(partner, container) {
   await reload();
 }
 
+// ---- Block 0044 — Partnerrollen (Projektleitung) -----------------------
+
+function _formatDate(iso) {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleDateString("de-DE");
+  } catch {
+    return iso;
+  }
+}
+
+function _partnerRolesModal(modalContainer, title, bodyEl) {
+  let keyHandler = null;
+  function clear() {
+    if (keyHandler) {
+      document.removeEventListener("keydown", keyHandler);
+      keyHandler = null;
+    }
+    document.body.classList.remove("modal-open");
+    modalContainer.replaceChildren();
+  }
+  const closeBtn = h(
+    "button",
+    { type: "button", class: "portal-modal-close", "aria-label": "Schließen" },
+    "×",
+  );
+  closeBtn.addEventListener("click", clear);
+  const dialog = h(
+    "div",
+    { class: "portal-modal", role: "dialog", "aria-modal": "true", "aria-label": title },
+    h(
+      "div",
+      { class: "portal-modal-head" },
+      h("h3", { class: "portal-modal-title" }, title),
+      closeBtn,
+    ),
+    h("div", { class: "portal-modal-body" }, bodyEl),
+  );
+  const backdrop = h("div", { class: "portal-modal-backdrop" }, dialog);
+  backdrop.addEventListener("click", (ev) => {
+    if (ev.target === backdrop) clear();
+  });
+  keyHandler = (ev) => {
+    if (ev.key === "Escape") clear();
+  };
+  document.addEventListener("keydown", keyHandler);
+  document.body.classList.add("modal-open");
+  modalContainer.replaceChildren(backdrop);
+  return clear;
+}
+
+function _renderAddPartnerLeadForm(partner, candidates, existingIds, onSaved, onCancel) {
+  // Bevorzugt nur Personen, deren ``partner_id`` zum aktuellen Partner
+  // passt — fachlich ist eine Projektleitung typischerweise jemand aus
+  // dem eigenen Partner. Wenn das Backend keine partnerbezogene Filter-
+  // Option mitliefert, filtern wir client-seitig.
+  const filtered = candidates.filter(
+    (p) => p.partner?.id === partner.id && !existingIds.has(p.id),
+  );
+  if (!filtered.length) {
+    return h(
+      "div",
+      {},
+      renderEmpty(
+        "Keine wählbare Person verfügbar. Eine Person muss diesem Partner zugeordnet sein " +
+          "und darf noch nicht als Projektleitung markiert sein.",
+      ),
+      h(
+        "div",
+        { class: "form-actions" },
+        h("button", { type: "button", class: "secondary", onclick: onCancel }, "Schließen"),
+      ),
+    );
+  }
+  const personSelect = h(
+    "select",
+    {},
+    ...filtered.map((p) =>
+      h("option", { value: p.id }, `${p.display_name} <${p.email}>`),
+    ),
+  );
+  const errorBox = h("p", { class: "error", style: "display:none" }, "");
+
+  async function onSubmit(ev) {
+    ev.preventDefault();
+    errorBox.style.display = "none";
+    try {
+      await api("POST", `/api/admin/partners/${partner.id}/roles`, {
+        person_id: personSelect.value,
+        role: "partner_lead",
+      });
+      onSaved();
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.style.display = "";
+    }
+  }
+
+  return h(
+    "form",
+    { class: "stacked", onsubmit: onSubmit },
+    h(
+      "p",
+      { class: "muted small" },
+      "Eine Projektleitung ist ein Login-Account mit partnerbezogener Verantwortung. " +
+        "Die Rolle ist unabhängig von der Kontaktmarkierung „Projektleitung“ bei Partnerkontakten.",
+    ),
+    h("label", {}, "Person", personSelect),
+    errorBox,
+    h(
+      "div",
+      { class: "form-actions" },
+      h("button", { type: "submit" }, "Als Projektleitung benennen"),
+      h("button", { type: "button", class: "secondary", onclick: onCancel }, "Abbrechen"),
+    ),
+  );
+}
+
+function _renderPartnerLeadRow(partner, role, isAdmin, onChanged) {
+  const since = _formatDate(role.created_at);
+  const head = h(
+    "div",
+    { class: "partner-role-head" },
+    h("h4", {}, role.person.display_name),
+    h("span", { class: "badge badge-released" }, "Projektleitung"),
+  );
+  const meta = h(
+    "div",
+    { class: "partner-role-meta muted small" },
+    h("a", { href: `mailto:${role.person.email}` }, role.person.email),
+    since ? h("span", {}, ` · seit ${since}`) : null,
+  );
+  const actions = isAdmin
+    ? h(
+        "div",
+        { class: "partner-role-actions" },
+        h(
+          "button",
+          {
+            type: "button",
+            class: "button-secondary button-compact",
+            onclick: async () => {
+              if (
+                !window.confirm(
+                  `Projektleitung "${role.person.display_name}" wirklich entfernen?`,
+                )
+              )
+                return;
+              try {
+                await api(
+                  "DELETE",
+                  `/api/admin/partners/${partner.id}/roles/${role.person.id}?role=partner_lead`,
+                );
+                onChanged();
+              } catch (err) {
+                alert(err.message);
+              }
+            },
+          },
+          "Entfernen",
+        ),
+      )
+    : null;
+  return h("div", { class: "partner-role-card" }, head, meta, actions);
+}
+
+async function renderPartnerRolesSection(partner, container, me) {
+  const wrapper = h("section", { id: "partner-roles-section", class: "partner-roles" });
+  const modalContainer = h("div", {});
+  container.append(wrapper);
+  container.append(modalContainer);
+
+  const isAdmin = effectivePlatformRole(me?.person) === "admin";
+
+  async function reload() {
+    wrapper.replaceChildren(
+      h("h2", {}, "Projektleitung"),
+      renderLoading("Lade Projektleitungen …"),
+    );
+    let roles = [];
+    try {
+      // Nur Admins dürfen die Verwaltungs-API; für Nicht-Admins
+      // zeigen wir die Sektion mit dem reinen Info-Inhalt.
+      if (isAdmin) {
+        roles = await api("GET", `/api/admin/partners/${partner.id}/roles`);
+      }
+    } catch (err) {
+      wrapper.replaceChildren(h("h2", {}, "Projektleitung"), renderError(err));
+      return;
+    }
+
+    const description = h(
+      "p",
+      { class: "muted" },
+      "Projektleitungen sind Login-Accounts mit partnerbezogener Verantwortung. " +
+        "Die Rolle ist unabhängig von der Kontaktmarkierung „Projektleitung“ bei Partnerkontakten.",
+    );
+
+    if (!isAdmin) {
+      wrapper.replaceChildren(
+        h("h2", {}, "Projektleitung"),
+        description,
+        renderEmpty(
+          "Sichtbar nur für Admins (Pflege der Projektleitung erfolgt im Adminbereich).",
+        ),
+      );
+      return;
+    }
+
+    const addBtn = h(
+      "button",
+      {
+        type: "button",
+        onclick: async () => {
+          let candidates = [];
+          try {
+            candidates = await api("GET", "/api/admin/persons");
+          } catch (err) {
+            alert(err.message);
+            return;
+          }
+          const existingIds = new Set(roles.map((r) => r.person.id));
+          let clearModal;
+          clearModal = _partnerRolesModal(
+            modalContainer,
+            `Projektleitung für ${partner.short_name} hinzufügen`,
+            _renderAddPartnerLeadForm(
+              partner,
+              candidates,
+              existingIds,
+              () => {
+                clearModal();
+                reload();
+              },
+              () => clearModal(),
+            ),
+          );
+        },
+      },
+      "Projektleitung hinzufügen …",
+    );
+
+    const head = h("h2", {}, "Projektleitung");
+    const actions = h("div", { class: "actions" }, addBtn);
+
+    let body;
+    if (!roles.length) {
+      body = h(
+        "div",
+        { class: "warning" },
+        "Für diesen Partner ist noch keine Projektleitung benannt.",
+      );
+    } else {
+      body = h(
+        "div",
+        { class: "partner-roles-list" },
+        ...roles.map((r) => _renderPartnerLeadRow(partner, r, isAdmin, reload)),
+      );
+    }
+
+    wrapper.replaceChildren(head, description, actions, body);
+  }
+
+  await reload();
+}
+
 export async function render(container, ctx) {
   container.classList.add("page-wide");
   const partnerId = ctx.params.id;
@@ -540,8 +816,10 @@ export async function render(container, ctx) {
     renderLoading("Partnerdaten werden geladen …"),
   );
   let partner;
+  let me = null;
   try {
     partner = await api("GET", `/api/partners/${partnerId}`);
+    me = await api("GET", "/api/me");
   } catch (err) {
     container.replaceChildren(pageHeader("Partner"), renderError(err));
     return;
@@ -597,6 +875,7 @@ export async function render(container, ctx) {
 
     if (!editing) {
       await renderContactsSection(partner, container);
+      await renderPartnerRolesSection(partner, container, me);
     }
     container.append(crossNav());
   }

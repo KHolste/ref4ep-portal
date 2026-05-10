@@ -3534,6 +3534,25 @@ def test_project_library_module_has_required_tile_strings() -> None:
     assert "Projektunterlagen" in body
 
 
+def test_partner_detail_has_partner_lead_section() -> None:
+    """Block 0044 — Partnerdetail enthält die neue Section
+    „Projektleitung" mit den vorgesehenen Endpunkten und Texten."""
+    body = (MODULES_DIR / "partner_detail.js").read_text(encoding="utf-8")
+    # Section-Titel
+    assert "renderPartnerRolesSection" in body
+    assert "Projektleitung" in body
+    # Abgrenzung zu PartnerContact.is_project_lead
+    assert "Login-Account" in body
+    assert "Kontaktmarkierung" in body
+    # Admin-Endpunkte aus Patch 0043
+    assert "/api/admin/partners/" in body
+    assert "/roles" in body
+    assert "role=partner_lead" in body
+    # Button und Warnung
+    assert "Projektleitung hinzufügen" in body
+    assert "Für diesen Partner ist noch keine Projektleitung benannt" in body
+
+
 def test_document_detail_has_preview_section() -> None:
     """Block 0041 — Dokumentdetail enthält eine Vorschau-Section,
     bettet PDFs per iframe ein, zeigt Bilder per <img> und hat einen
@@ -3601,7 +3620,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0041"
+_NAV_PATCH_VERSION = "0044"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
