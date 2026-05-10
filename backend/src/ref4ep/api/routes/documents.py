@@ -46,6 +46,7 @@ from ref4ep.api.schemas.documents import (
     DocumentVersionUploadResponse,
     DocumentVisibilityRequest,
     InternalDocumentOut,
+    LibraryDocumentCreateRequest,
     PersonRef,
     WorkpackageRef,
 )
@@ -108,6 +109,9 @@ def _document_out(document: Document, *, with_versions: bool = False) -> Documen
     released_version = next(
         (v for v in versions_sorted if v.id == document.released_version_id), None
     )
+    wp_ref: WorkpackageRef | None = None
+    if document.workpackage is not None:
+        wp_ref = WorkpackageRef(code=document.workpackage.code, title=document.workpackage.title)
     base = DocumentOut(
         id=document.id,
         slug=document.slug,
@@ -117,9 +121,8 @@ def _document_out(document: Document, *, with_versions: bool = False) -> Documen
         description=document.description,
         status=document.status,
         visibility=document.visibility,
-        workpackage=WorkpackageRef(
-            code=document.workpackage.code, title=document.workpackage.title
-        ),
+        workpackage=wp_ref,
+        library_section=document.library_section,
         created_by=PersonRef(
             email=document.created_by.email, display_name=document.created_by.display_name
         ),
@@ -157,15 +160,21 @@ def list_documents(code: str, session: SessionDep, auth: AuthDep) -> list[Docume
 
 
 def _internal_document_out(document: Document) -> InternalDocumentOut:
-    """Kompaktes Mapping für die interne Auswahlliste (Block 0017)."""
+    """Kompaktes Mapping für die interne Auswahlliste (Block 0017).
+
+    Block 0035: ``workpackage`` ist optional — Bibliotheks-Dokumente
+    haben keinen WP-Bezug."""
     latest = document.versions[-1] if document.versions else None
     is_public = document.visibility == "public" and document.status == "released"
+    wp = document.workpackage
     return InternalDocumentOut(
         id=document.id,
         code=document.deliverable_code,
         title=document.title,
-        workpackage_code=document.workpackage.code,
-        workpackage_title=document.workpackage.title,
+        workpackage_code=wp.code if wp is not None else None,
+        workpackage_title=wp.title if wp is not None else None,
+        document_type=document.document_type,
+        library_section=document.library_section,
         status=document.status,
         visibility=document.visibility,
         is_public=is_public,
@@ -182,6 +191,10 @@ def list_internal_documents(
     include_archived: bool = False,
     workpackage: str | None = None,
     q: str | None = None,
+    library_section: str | None = None,
+    without_workpackage: bool = False,
+    enforce_visibility: bool = False,
+    status_filter: str | None = None,
 ) -> list[InternalDocumentOut]:
     """Interne Dokumentliste für Auswahlfelder (Block 0017).
 
@@ -191,17 +204,81 @@ def list_internal_documents(
     WP-``sort_order``, dann WP-Code, dann Dokument-Title.
 
     Anmerkung: Im Gegensatz zu ``/api/workpackages/{code}/documents``
-    filtert diese Liste **nicht** auf WP-Mitgliedschaft. Das ist
-    bewusst so — Auswahllisten interner Module brauchen einen
-    konsistenten Blick. Inhalt holt sich der Client weiterhin über
+    filtert diese Liste per Default **nicht** auf WP-Mitgliedschaft.
+    Auswahllisten interner Module brauchen einen konsistenten Blick.
+    Inhalt holt sich der Client weiterhin über
     ``GET /api/documents/{id}``, das die Sichtbarkeit prüft.
+
+    Block 0035 ergänzt für die Projektbibliothek:
+    - ``library_section`` filtert auf eine Kachel.
+    - ``without_workpackage`` filtert auf Dokumente ohne WP-Bezug.
+    - ``enforce_visibility`` (Default false) wendet
+      ``can_read_document`` pro Dokument an. Die Bibliotheks-UI ruft
+      mit ``true`` auf — andere Aufrufer (Auswahllisten) bleiben beim
+      bestehenden Verhalten, weil sie inhaltlich nur Titel/Code zeigen.
+    - ``status_filter`` schränkt auf einen Status ein.
     """
-    docs = DocumentService(session, auth=auth).list_internal(
-        include_archived=include_archived,
-        workpackage_code=workpackage,
-        q=q,
-    )
+    try:
+        docs = DocumentService(session, auth=auth).list_internal(
+            include_archived=include_archived,
+            workpackage_code=workpackage,
+            q=q,
+            library_section=library_section,
+            without_workpackage=without_workpackage,
+            enforce_visibility=enforce_visibility,
+            status=status_filter,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"error": {"code": "invalid", "message": str(exc)}},
+        ) from exc
     return [_internal_document_out(d) for d in docs]
+
+
+@router.post(
+    "/library/documents",
+    response_model=DocumentOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_csrf)],
+)
+def create_library_document(
+    payload: LibraryDocumentCreateRequest,
+    session: SessionDep,
+    auth: AuthDep,
+    audit: AuditDep,
+) -> DocumentOut:
+    """Block 0035 — Anlage eines Bibliotheks-Dokuments ohne WP-Bezug.
+
+    Nur Admin (im Service erzwungen). Die anschließende Versions-
+    Anlage läuft über die bestehenden Versions-Routen.
+    """
+    try:
+        document = DocumentService(session, auth=auth, audit=audit).create(
+            workpackage_code=None,
+            title=payload.title,
+            document_type=payload.document_type,
+            description=payload.description,
+            library_section=payload.library_section,
+            visibility=payload.visibility,
+        )
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "forbidden", "message": str(exc)}},
+        ) from exc
+    except ValueError as exc:
+        message = str(exc)
+        if "existiert" in message and "bereits" in message:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"error": {"code": "slug_conflict", "message": message}},
+            ) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"error": {"code": "invalid", "message": message}},
+        ) from exc
+    return _document_out(document)
 
 
 @router.post(

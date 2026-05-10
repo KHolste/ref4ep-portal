@@ -1219,7 +1219,7 @@ def test_system_status_styles_are_present() -> None:
 
 
 # Module, die echte Datei-Uploads anbieten (FormData + input[type=file]).
-REAL_UPLOAD_MODULES = ("document_detail.js",)
+REAL_UPLOAD_MODULES = ("document_detail.js", "project_library.js")
 # Block 0028 — campaign_detail.js darf nur Foto-Upload enthalten
 # (PNG/JPEG), aber keinen Dokument-Upload.
 PHOTO_UPLOAD_MODULES = ("campaign_detail.js",)
@@ -3497,3 +3497,72 @@ def test_sudoers_example_is_strict_and_documented() -> None:
     assert "visudo -c" in text
     # Platzhalter <USER> für den tatsächlichen Webprozess-User.
     assert "<USER>" in text
+
+
+# ---- Block 0035 — Projektbibliothek ----------------------------------
+
+
+def test_navigation_has_project_library_entry() -> None:
+    html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    assert "/portal/library" in html
+    assert "Projektbibliothek" in html
+    assert 'data-route="project_library"' in html
+
+
+def test_app_js_registers_project_library_route() -> None:
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    # Routen-Tabelle in app.js nutzt Regex-Literale mit escaped
+    # Slashes (``\\/``). Wir suchen nach diesem Pattern statt nach dem
+    # rohen ``/portal/library``.
+    assert "\\/portal\\/library" in body
+    assert 'module: "project_library"' in body
+
+
+def test_project_library_module_has_required_tile_strings() -> None:
+    body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
+    for label in (
+        "Projektunterlagen",
+        "Arbeitspaket-Dokumente",
+        "Meilenstein-Dokumente",
+        "Literatur & Veröffentlichungen",
+        "Vorträge",
+        "Abschlussarbeiten",
+    ):
+        assert label in body, f"Kachel {label!r} fehlt"
+    # Header-Untertitel vorhanden.
+    assert "Projektbibliothek" in body
+    assert "Projektunterlagen" in body
+
+
+def test_project_library_module_uses_visibility_safe_endpoint() -> None:
+    body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
+    # Sichtbarkeitsschutz ist explizit aktiviert.
+    assert "enforce_visibility" in body
+    # Listing kommt aus dem bestehenden Document-Endpunkt.
+    assert "/api/documents" in body
+    # KEIN „echtes" Dokument-Detail-Holen aus der Liste — Detailseite
+    # hat ihre eigene get_by_id-Sichtbarkeitsprüfung.
+    assert "/api/documents/${doc.id}" not in body
+
+
+def test_project_library_upload_uses_dedicated_admin_route() -> None:
+    body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
+    # Anlage über die Admin-Route (Service erzwingt Admin).
+    assert "/api/library/documents" in body
+    # Versions-Upload geht über den bestehenden Endpunkt — keine
+    # eigene neue Storage-Logik im Frontend.
+    assert "/versions" in body
+    # Drag-and-Drop nutzt den zentralen Helper.
+    assert "createFileDropzone" in body
+
+
+def test_project_library_styles_present() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (
+        ".library-tile",
+        ".library-tile-grid",
+        ".library-doc-card",
+        ".library-doc-title",
+        ".library-filter-bar",
+    ):
+        assert cls in css, f"style.css sollte {cls} enthalten"

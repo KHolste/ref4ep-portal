@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ref4ep.domain.models import DOCUMENT_TYPES, Document, Workpackage
+from ref4ep.domain.models import DOCUMENT_TYPES, LIBRARY_SECTIONS, Document, Workpackage
 from ref4ep.services.audit_logger import AuditLogger
 from ref4ep.services.permissions import (
     AuthContext,
@@ -78,6 +78,10 @@ class DocumentService:
         include_archived: bool = False,
         workpackage_code: str | None = None,
         q: str | None = None,
+        library_section: str | None = None,
+        without_workpackage: bool = False,
+        enforce_visibility: bool = False,
+        status: str | None = None,
     ) -> list[Document]:
         """Globale interne Dokumentliste (Block 0017).
 
@@ -103,7 +107,10 @@ class DocumentService:
         """
         from sqlalchemy import func, or_
 
-        stmt = select(Document).join(Workpackage, Workpackage.id == Document.workpackage_id)
+        # Block 0035: ``workpackage_id`` ist nullable. Statt INNER JOIN
+        # auf Workpackage ein Outer JOIN — sonst fielen Bibliotheks-
+        # Dokumente ohne WP-Bezug aus der Liste.
+        stmt = select(Document).outerjoin(Workpackage, Workpackage.id == Document.workpackage_id)
         if not include_archived:
             stmt = stmt.where(Document.is_deleted.is_(False))
         if workpackage_code is not None:
@@ -111,6 +118,14 @@ class DocumentService:
             if wp is None:
                 return []
             stmt = stmt.where(Document.workpackage_id == wp.id)
+        if without_workpackage:
+            stmt = stmt.where(Document.workpackage_id.is_(None))
+        if library_section is not None:
+            if library_section not in LIBRARY_SECTIONS:
+                raise ValueError(f"Unbekannter Bibliotheksbereich: {library_section!r}")
+            stmt = stmt.where(Document.library_section == library_section)
+        if status is not None:
+            stmt = stmt.where(Document.status == status)
         if q:
             needle = f"%{q.strip().lower()}%"
             stmt = stmt.where(
@@ -119,8 +134,14 @@ class DocumentService:
                     func.lower(Document.title).like(needle),
                 )
             )
+        # Sortierung: WP-Sortierung zuerst (NULL-WP-Dokumente am Anfang
+        # oder Ende — SQLite/Postgres behandeln NULL hier verschieden;
+        # wir akzeptieren das pragmatisch).
         stmt = stmt.order_by(Workpackage.sort_order, Workpackage.code, Document.title)
-        return list(self.session.scalars(stmt))
+        documents = list(self.session.scalars(stmt))
+        if enforce_visibility:
+            documents = [d for d in documents if can_read_document(self.auth, d)]
+        return documents
 
     def get_by_id(self, document_id: str) -> Document:
         document = self.session.get(Document, document_id)
@@ -144,35 +165,69 @@ class DocumentService:
     def create(
         self,
         *,
-        workpackage_code: str,
+        workpackage_code: str | None,
         title: str,
         document_type: str,
         deliverable_code: str | None = None,
         description: str | None = None,
+        library_section: str | None = None,
+        visibility: str | None = None,
     ) -> Document:
+        """Legt ein neues Dokument an.
+
+        Block 0035: ``workpackage_code`` darf ``None`` sein — Admins
+        können dann übergreifende Bibliotheksdokumente ohne WP-Bezug
+        anlegen. Ohne WP ist nur Admin schreibberechtigt.
+        ``library_section`` ist optional; wenn gesetzt, muss der Wert
+        in :data:`LIBRARY_SECTIONS` enthalten sein.
+        """
         if document_type not in DOCUMENT_TYPES:
             raise ValueError(f"Unbekannter Dokumenttyp: {document_type!r}")
         title = (title or "").strip()
         if not title:
             raise ValueError("Titel darf nicht leer sein.")
+        if library_section is not None and library_section not in LIBRARY_SECTIONS:
+            raise ValueError(f"Unbekannter Bibliotheksbereich: {library_section!r}")
 
-        wp = WorkpackageService(self.session).get_by_code(workpackage_code)
-        if wp is None:
-            raise LookupError(f"Workpackage {workpackage_code!r} nicht gefunden.")
+        wp: Workpackage | None = None
+        if workpackage_code is not None:
+            wp = WorkpackageService(self.session).get_by_code(workpackage_code)
+            if wp is None:
+                raise LookupError(f"Workpackage {workpackage_code!r} nicht gefunden.")
+            self._require_write(wp)
+        else:
+            if self.auth is None:
+                raise PermissionError("Nicht angemeldet.")
+            if not can_admin(self.auth.platform_role):
+                raise PermissionError(
+                    "Dokumente ohne Arbeitspaket-Bezug dürfen nur Admins anlegen."
+                )
 
-        self._require_write(wp)
         assert self.auth is not None
+
+        # Default-Visibility: WP-Bezug → ``workpackage`` (wie bisher);
+        # ohne WP-Bezug → ``internal`` (nicht ``workpackage``, weil das
+        # ohne WP keinen Sinn ergibt).
+        if visibility is None:
+            visibility = "workpackage" if wp is not None else "internal"
+        if visibility not in ("workpackage", "internal", "public"):
+            raise ValueError(f"Unbekannte Sichtbarkeit: {visibility!r}")
+        if wp is None and visibility == "workpackage":
+            raise ValueError(
+                "Sichtbarkeit ``workpackage`` ist ohne Arbeitspaket-Bezug nicht erlaubt."
+            )
 
         slug = slugify(title)
         document = Document(
-            workpackage_id=wp.id,
+            workpackage_id=wp.id if wp is not None else None,
             title=title,
             slug=slug,
             document_type=document_type,
             deliverable_code=(deliverable_code or None),
             description=((description or "").strip() or None),
             status="draft",
-            visibility="workpackage",
+            visibility=visibility,
+            library_section=library_section,
             created_by_person_id=self.auth.person_id,
         )
         self.session.add(document)
@@ -180,9 +235,8 @@ class DocumentService:
             self.session.flush()
         except IntegrityError as exc:
             self.session.rollback()
-            raise ValueError(
-                f"Slug {slug!r} existiert in WP {workpackage_code!r} bereits."
-            ) from exc
+            scope = workpackage_code if workpackage_code is not None else "Projektbibliothek"
+            raise ValueError(f"Slug {slug!r} existiert in {scope!r} bereits.") from exc
 
         if self.audit is not None:
             self.audit.log(
@@ -198,6 +252,7 @@ class DocumentService:
                     "description": document.description,
                     "status": document.status,
                     "visibility": document.visibility,
+                    "library_section": document.library_section,
                 },
             )
         return document

@@ -22,6 +22,7 @@ const ROUTES = [
   { pattern: /^\/portal\/calendar\/?$/, module: "calendar" },
   { pattern: /^\/portal\/gantt\/?$/, module: "gantt" },
   { pattern: /^\/portal\/document-comments\/?$/, module: "document_comments" },
+  { pattern: /^\/portal\/library\/?$/, module: "project_library" },
   { pattern: /^\/portal\/lead\/team\/?$/, module: "lead_team" },
   { pattern: /^\/portal\/account\/?$/, module: "account" },
   { pattern: /^\/portal\/admin\/audit\/?$/, module: "audit" },

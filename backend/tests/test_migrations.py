@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0017_test_campaign_photo_thumbnails"
+CURRENT_HEAD = "0018_project_library"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -1107,3 +1107,30 @@ def test_downgrade_to_0016_drops_thumbnail_columns(tmp_db_path: Path) -> None:
     assert "thumbnail_storage_key" not in cols
     assert "thumbnail_mime_type" not in cols
     assert "thumbnail_size_bytes" not in cols
+
+
+# ---- Block 0035 — Projektbibliothek ----------------------------------
+
+
+def test_document_workpackage_id_is_nullable_after_0018(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    cols = {c["name"]: c for c in inspect(create_engine(db_url)).get_columns("document")}
+    assert cols["workpackage_id"]["nullable"] is True
+
+
+def test_document_has_library_section_after_0018(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    cols = {c["name"]: c for c in inspect(create_engine(db_url)).get_columns("document")}
+    assert "library_section" in cols
+    assert cols["library_section"]["nullable"] is True
+
+
+def test_downgrade_to_0017_drops_library_section(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0017_test_campaign_photo_thumbnails")
+    cols = {c["name"] for c in inspect(create_engine(db_url)).get_columns("document")}
+    assert "library_section" not in cols

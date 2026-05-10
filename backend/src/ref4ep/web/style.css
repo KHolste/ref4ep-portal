@@ -4179,3 +4179,104 @@ main#app .detail-section > h3 {
 .gantt-wp-bar-sub {
   fill-opacity: 0.85;
 }
+
+/* ---- Projektbibliothek (Block 0035) -------------------------------- */
+
+.library-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.6rem;
+  margin: 0.5rem 0 1rem 0;
+}
+
+.library-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid #d6dfe9;
+  border-radius: 4px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.library-tile:hover {
+  border-color: #a8b3c4;
+  background: #fbfcfe;
+}
+
+.library-tile.active {
+  border-color: #1c2c4c;
+  background: #eef1f5;
+}
+
+.library-tile-title {
+  font-weight: 600;
+  color: #1c2c4c;
+}
+
+.library-tile-description {
+  font-size: 0.85rem;
+}
+
+.library-tile-hint {
+  font-size: 0.78rem;
+  font-style: italic;
+}
+
+.library-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  align-items: flex-end;
+  margin-bottom: 0.8rem;
+}
+
+.library-filter-bar label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+}
+
+.library-filter-bar input,
+.library-filter-bar select {
+  font: inherit;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid #ccd;
+  border-radius: 3px;
+}
+
+.library-doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.library-doc-card {
+  border: 1px solid #d6dfe9;
+  border-radius: 4px;
+  padding: 0.55rem 0.85rem;
+  background: #fff;
+}
+
+.library-doc-title {
+  display: inline-block;
+  font-weight: 600;
+  color: #1c2c4c;
+  margin-bottom: 0.25rem;
+}
+
+.library-doc-meta {
+  font-size: 0.82rem;
+}
+
+.library-upload-form {
+  max-width: none;
+  width: 100%;
+  box-sizing: border-box;
+}

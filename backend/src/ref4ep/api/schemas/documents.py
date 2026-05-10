@@ -42,7 +42,9 @@ class DocumentOut(BaseModel):
     description: str | None = None
     status: str
     visibility: str
-    workpackage: WorkpackageRef
+    # Block 0035: Bibliotheks-Dokumente haben keinen WP-Bezug.
+    workpackage: WorkpackageRef | None = None
+    library_section: str | None = None
     created_by: PersonRef
     latest_version: DocumentVersionOut | None
     released_version_id: str | None = None
@@ -188,16 +190,32 @@ __all__ = [
 class InternalDocumentOut(BaseModel):
     """Kompaktes Dokument-Item für interne Auswahllisten (z. B. Meeting-
     Doc-Verknüpfung). Bewusst flach — kein Audit, keine Versions-Liste,
-    nur die letzte Version als Label."""
+    nur die letzte Version als Label.
+
+    Block 0035: ``workpackage_code`` und ``workpackage_title`` sind
+    optional, weil Bibliotheks-Dokumente ohne WP-Bezug existieren
+    können. ``library_section`` markiert die Bibliotheks-Kachel."""
 
     id: str
     code: str | None = None  # = deliverable_code
     title: str
-    workpackage_code: str
-    workpackage_title: str
+    workpackage_code: str | None = None
+    workpackage_title: str | None = None
+    document_type: str | None = None
+    library_section: str | None = None
     status: str
     visibility: str
     is_public: bool = False
     is_archived: bool = False
     latest_version_label: str | None = None
     updated_at: datetime
+
+
+class LibraryDocumentCreateRequest(BaseModel):
+    """Block 0035 — Anlage eines Bibliotheks-Dokuments ohne WP-Bezug."""
+
+    title: str = Field(min_length=1)
+    document_type: str = "other"
+    description: str | None = None
+    library_section: str | None = None
+    visibility: Literal["internal", "public"] = "internal"

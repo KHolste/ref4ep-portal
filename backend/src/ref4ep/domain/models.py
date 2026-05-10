@@ -250,6 +250,20 @@ DOCUMENT_TYPES = ("deliverable", "report", "note", "other")
 DOCUMENT_STATUSES = ("draft", "in_review", "released")
 DOCUMENT_VISIBILITIES = ("workpackage", "internal", "public")
 
+# Block 0035 — Projektbibliothek. ``library_section`` ist ein
+# Zusatzlabel für die Bibliotheks-Kacheln (orthogonal zu
+# ``document_type``); NULL bedeutet „nicht in einer eigenen Kachel
+# kategorisiert" — solche Dokumente erscheinen weiter über die
+# Arbeitspaket-Kachel, sofern ein WP-Bezug existiert.
+LIBRARY_SECTIONS = ("project", "milestone", "literature", "presentation", "thesis")
+LIBRARY_SECTION_LABELS_DE = {
+    "project": "Projektunterlagen",
+    "milestone": "Meilenstein-Dokumente",
+    "literature": "Literatur & Veröffentlichungen",
+    "presentation": "Vorträge",
+    "thesis": "Abschlussarbeiten",
+}
+
 # Block 0024 — Lebenszyklus eines Review-Kommentars auf einer
 # Dokumentversion. ``open`` = Autor sieht/editiert allein;
 # ``submitted`` = für alle sichtbar, unveränderlich.
@@ -469,8 +483,10 @@ class Document(Base):
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
-    workpackage_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("workpackage.id"), nullable=False
+    # Block 0035 — ``workpackage_id`` ist nullable, damit Admins
+    # übergreifende Projektunterlagen ohne WP-Bezug ablegen können.
+    workpackage_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("workpackage.id"), nullable=True
     )
     title: Mapped[str] = mapped_column(String, nullable=False)
     slug: Mapped[str] = mapped_column(String, nullable=False)
@@ -479,6 +495,8 @@ class Document(Base):
     description: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False, default="draft")
     visibility: Mapped[str] = mapped_column(String, nullable=False, default="workpackage")
+    # Block 0035 — Bibliotheks-Kachel; orthogonal zu ``document_type``.
+    library_section: Mapped[str | None] = mapped_column(String, nullable=True)
     # Sprint-3: FK auf document_version.id mit use_alter=True wegen Zyklus
     # document ↔ document_version. Service-Layer prüft zusätzlich, dass die
     # referenzierte Version zum richtigen Dokument gehört.
@@ -502,7 +520,7 @@ class Document(Base):
         DateTime(timezone=True), nullable=False, default=_now_utc, onupdate=_now_utc
     )
 
-    workpackage: Mapped[Workpackage] = relationship()
+    workpackage: Mapped[Workpackage | None] = relationship()
     created_by: Mapped[Person] = relationship()
     versions: Mapped[list[DocumentVersion]] = relationship(
         back_populates="document",

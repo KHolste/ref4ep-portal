@@ -52,7 +52,12 @@ def is_wp_lead(auth: AuthContext, workpackage_id: str) -> bool:
 
 
 def can_read_document(auth: AuthContext | None, document: Document) -> bool:
-    """Volle MVP-§7-Lesbarkeit (Sprint 2 nutzt nur die ersten Zweige)."""
+    """Volle MVP-§7-Lesbarkeit (Sprint 2 nutzt nur die ersten Zweige).
+
+    Block 0035: ``document.workpackage_id`` darf NULL sein
+    (Projektbibliothek). Der WP-Membership-Pfad greift dann nicht;
+    Admins und ``visibility=internal``/``public``-Pfade bleiben aktiv.
+    """
     if document.is_deleted:
         return False
     # 1. Öffentlich freigegeben — auch anonym (Sprint 4 aktiviert das Frontend).
@@ -64,7 +69,7 @@ def can_read_document(auth: AuthContext | None, document: Document) -> bool:
     if can_admin(auth.platform_role):
         return True
     # 3. Mitglied des Workpackages → workpackage / internal sichtbar
-    if is_member_of(auth, document.workpackage_id):
+    if document.workpackage_id is not None and is_member_of(auth, document.workpackage_id):
         if document.visibility in ("workpackage", "internal"):
             return True
     # 4. Eingeloggt → internal sichtbar
@@ -74,11 +79,17 @@ def can_read_document(auth: AuthContext | None, document: Document) -> bool:
 
 
 def can_write_document(auth: AuthContext | None, document: Document) -> bool:
-    """Wer darf Metadaten ändern bzw. neue Versionen hochladen (Sprint 2)."""
+    """Wer darf Metadaten ändern bzw. neue Versionen hochladen (Sprint 2).
+
+    Block 0035: bei ``workpackage_id IS NULL`` (Projektbibliothek) ist
+    ausschließlich Admin schreibberechtigt.
+    """
     if auth is None or document.is_deleted:
         return False
     if can_admin(auth.platform_role):
         return True
+    if document.workpackage_id is None:
+        return False
     return is_member_of(auth, document.workpackage_id)
 
 
@@ -93,11 +104,16 @@ def can_set_status(auth: AuthContext | None, document: Document) -> bool:
 
 
 def can_release(auth: AuthContext | None, document: Document) -> bool:
-    """release / re-release: WP-Lead oder Admin."""
+    """release / re-release: WP-Lead oder Admin.
+
+    Block 0035: bei ``workpackage_id IS NULL`` ist die WP-Lead-Schiene
+    nicht definiert — nur Admin darf freigeben."""
     if auth is None or document.is_deleted:
         return False
     if can_admin(auth.platform_role):
         return True
+    if document.workpackage_id is None:
+        return False
     return is_wp_lead(auth, document.workpackage_id)
 
 
@@ -109,11 +125,16 @@ def can_unrelease(auth: AuthContext | None) -> bool:
 
 
 def can_set_visibility(auth: AuthContext | None, document: Document, *, to: str) -> bool:
-    """Sichtbarkeit ändern: WP-Mitglied oder Admin; public nur WP-Lead/Admin."""
+    """Sichtbarkeit ändern: WP-Mitglied oder Admin; public nur WP-Lead/Admin.
+
+    Block 0035: bei ``workpackage_id IS NULL`` ist nur Admin
+    schreibberechtigt."""
     if auth is None or document.is_deleted:
         return False
     if can_admin(auth.platform_role):
         return True
+    if document.workpackage_id is None:
+        return False
     if to == "public":
         return is_wp_lead(auth, document.workpackage_id)
     return is_member_of(auth, document.workpackage_id)
@@ -139,6 +160,8 @@ def can_comment_document(auth: AuthContext | None, document: Document) -> bool:
         return True
     if document.status == "released":
         return True
+    if document.workpackage_id is None:
+        return False
     return is_member_of(auth, document.workpackage_id)
 
 
