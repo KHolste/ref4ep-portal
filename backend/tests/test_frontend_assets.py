@@ -3571,7 +3571,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0038"
+_NAV_PATCH_VERSION = "0039"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -3895,3 +3895,68 @@ def test_metadata_edit_dialog_offers_paper_and_thesis() -> None:
     # Labels.
     assert '"Paper"' in body
     assert '"Abschlussarbeit"' in body
+
+
+# ---- Block 0035-Folgepatch 3 — Soft-Delete-Navigation + Modal -------
+
+
+def test_document_detail_soft_delete_navigates_to_library_when_no_workpackage() -> None:
+    """Bibliotheks-Dokumente (``doc.workpackage === null``) dürfen
+    nach Soft-Delete nicht auf ``/portal/workpackages/null``
+    navigieren — sie landen stattdessen in der Projektbibliothek."""
+    body = (MODULES_DIR / "document_detail.js").read_text(encoding="utf-8")
+    # Konkreter Code-Pfad: ternärer Fallback auf /portal/library, wenn
+    # ``wpCode`` falsy ist.
+    assert "wpCode" in body
+    assert '"/portal/library"' in body
+    # Im Soft-Delete-Block muss explizit der Ternär-Fallback stehen.
+    delete_idx = body.index('"Soft-Delete …"')
+    block = body[max(0, delete_idx - 800) : delete_idx + 50]
+    assert "wpCode\n" in block, "Erwartet ternäre Verzweigung auf wpCode im Soft-Delete-Block."
+    assert '"/portal/library"' in block, (
+        "Soft-Delete-Block muss bei fehlendem WP nach /portal/library navigieren."
+    )
+
+
+def test_document_detail_metadata_edit_uses_modal_overlay() -> None:
+    """„Metadaten bearbeiten" öffnet sich als Modal-Overlay statt als
+    Inline-Dialog am Seitenende."""
+    body = (MODULES_DIR / "document_detail.js").read_text(encoding="utf-8")
+    # Modal-Helper ist verankert.
+    assert "function showModal" in body
+    assert "portal-modal-backdrop" in body
+    assert "portal-modal-body" in body
+    # Metadaten-Bearbeiten-Button ruft showModal — nicht mehr
+    # showDialog für diesen Eintrag.
+    edit_idx = body.index('"Metadaten bearbeiten …"')
+    # Suche ein paar Zeilen vorher nach showModal-Aufruf.
+    block = body[max(0, edit_idx - 600) : edit_idx + 50]
+    assert 'showModal(\n              "Metadaten bearbeiten"' in block
+    # Versionsupload nutzt ebenfalls das Modal.
+    upload_idx = body.index('"Neue Version hochladen …"')
+    block_up = body[max(0, upload_idx - 600) : upload_idx + 50]
+    assert 'showModal(\n              "Neue Version hochladen"' in block_up
+    # Schließverhalten: ESC und Backdrop-Klick.
+    assert 'key === "Escape"' in body
+    assert "ev.target === backdrop" in body
+    # Body-Scroll-Lock während Modal offen.
+    assert "modal-open" in body
+
+
+def test_portal_modal_styles_share_rules_with_library_modal() -> None:
+    """``portal-modal-*`` Klassen sind als Aliase im selben Selektor
+    angelegt wie die Library-Variante; bestehende Library-Tests
+    bleiben dadurch grün."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (
+        ".portal-modal-backdrop",
+        ".portal-modal-head",
+        ".portal-modal-body",
+        ".portal-modal-close",
+    ):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+    # Multi-Selektor-Form (eine Variante pro Block), damit beide
+    # Klassen identische Regeln erben.
+    assert ".library-modal-backdrop,\n.portal-modal-backdrop" in css
+    assert ".library-modal,\n.portal-modal {" in css
+    assert ".library-modal-body,\n.portal-modal-body" in css

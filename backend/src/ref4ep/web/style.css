@@ -4281,9 +4281,15 @@ main#app .detail-section > h3 {
   box-sizing: border-box;
 }
 
-/* ---- Projektbibliothek-Modal (0035-Folgepatch) --------------------- */
-
-.library-modal-backdrop {
+/* ---- Modal-Overlay (0035-Folgepatch / 0035-Folgepatch 3) ----------
+ * ``library-modal-*`` ist die ursprüngliche Library-spezifische
+ * Variante; ``portal-modal-*`` ist der allgemeine Alias, der seit
+ * Patch 0035-Folgepatch 3 auch im Dokumentdetail genutzt wird. Beide
+ * Klassen teilen sich die Regeln, damit kein doppeltes CSS entsteht
+ * und bestehende Asset-Tests weiter greifen.
+ */
+.library-modal-backdrop,
+.portal-modal-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(28, 44, 76, 0.45);
@@ -4295,7 +4301,8 @@ main#app .detail-section > h3 {
   overflow-y: auto;
 }
 
-.library-modal {
+.library-modal,
+.portal-modal {
   background: #fff;
   border-radius: 6px;
   border: 1px solid #d6dfe9;
@@ -4306,7 +4313,8 @@ main#app .detail-section > h3 {
   flex-direction: column;
 }
 
-.library-modal-head {
+.library-modal-head,
+.portal-modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4315,13 +4323,15 @@ main#app .detail-section > h3 {
   border-bottom: 1px solid #e5eaf1;
 }
 
-.library-modal-title {
+.library-modal-title,
+.portal-modal-title {
   margin: 0;
   font-size: 1.1rem;
   color: #1c2c4c;
 }
 
-.library-modal-close {
+.library-modal-close,
+.portal-modal-close {
   font-size: 1.4rem;
   line-height: 1;
   background: transparent;
@@ -4332,12 +4342,14 @@ main#app .detail-section > h3 {
   color: #1c2c4c;
 }
 
-.library-modal-close:hover {
+.library-modal-close:hover,
+.portal-modal-close:hover {
   background: #eef1f5;
   border-color: #d6dfe9;
 }
 
-.library-modal-body {
+.library-modal-body,
+.portal-modal-body {
   padding: 0.75rem 1rem 1rem;
   overflow-y: auto;
 }

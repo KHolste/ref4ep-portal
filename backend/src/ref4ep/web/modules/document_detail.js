@@ -899,6 +899,8 @@ export async function render(container, ctx) {
       : null;
 
   const dialogContainer = h("div", {});
+  const modalContainer = h("div", {});
+  let modalKeyHandler = null;
 
   function reload() {
     window.location.reload();
@@ -906,6 +908,60 @@ export async function render(container, ctx) {
 
   function showDialog(title, body) {
     dialogContainer.replaceChildren(h("div", { class: "dialog" }, h("h3", {}, title), body));
+  }
+
+  // Block 0035-Folgepatch 3: Modal-Overlay für die längeren Form-
+  // Dialoge (Metadaten bearbeiten, Neue Version hochladen). Nutzt das
+  // gemeinsame ``portal-modal-*``-CSS aus der Projektbibliothek.
+  function clearModal() {
+    if (modalKeyHandler) {
+      document.removeEventListener("keydown", modalKeyHandler);
+      modalKeyHandler = null;
+    }
+    document.body.classList.remove("modal-open");
+    modalContainer.replaceChildren();
+  }
+  function showModal(title, bodyEl) {
+    const closeBtn = h(
+      "button",
+      {
+        type: "button",
+        class: "portal-modal-close",
+        "aria-label": "Schließen",
+      },
+      "×",
+    );
+    closeBtn.addEventListener("click", clearModal);
+    const dialog = h(
+      "div",
+      {
+        class: "portal-modal",
+        role: "dialog",
+        "aria-modal": "true",
+        "aria-label": title,
+      },
+      h(
+        "div",
+        { class: "portal-modal-head" },
+        h("h3", { class: "portal-modal-title" }, title),
+        closeBtn,
+      ),
+      h("div", { class: "portal-modal-body" }, bodyEl),
+    );
+    const backdrop = h("div", { class: "portal-modal-backdrop" }, dialog);
+    backdrop.addEventListener("click", (ev) => {
+      if (ev.target === backdrop) clearModal();
+    });
+    modalKeyHandler = (ev) => {
+      if (ev.key === "Escape") clearModal();
+    };
+    document.addEventListener("keydown", modalKeyHandler);
+    document.body.classList.add("modal-open");
+    modalContainer.replaceChildren(backdrop);
+  }
+  function reloadAfterModal() {
+    clearModal();
+    reload();
   }
 
   // Aktionsleiste rollenabhängig.
@@ -917,9 +973,9 @@ export async function render(container, ctx) {
         {
           type: "button",
           onclick: () =>
-            showDialog(
+            showModal(
               "Neue Version hochladen",
-              renderUploadDialog(documentId, reload),
+              renderUploadDialog(documentId, reloadAfterModal),
             ),
         },
         "Neue Version hochladen …",
@@ -929,9 +985,9 @@ export async function render(container, ctx) {
         {
           type: "button",
           onclick: () =>
-            showDialog(
+            showModal(
               "Metadaten bearbeiten",
-              renderMetadataDialog(doc, reload),
+              renderMetadataDialog(doc, reloadAfterModal),
             ),
         },
         "Metadaten bearbeiten …",
@@ -1042,7 +1098,13 @@ export async function render(container, ctx) {
             showDialog(
               "Dokument soft-löschen",
               renderDeleteConfirm(documentId, () => {
-                window.location.href = `/portal/workpackages/${wpCode}`;
+                // Block 0035-Folgepatch 3: Bibliotheks-Dokumente
+                // (``doc.workpackage === null``) haben keinen WP-Pfad
+                // — Navigation auf ``/portal/workpackages/null`` würde
+                // sonst „Workpackage nicht gefunden" zeigen.
+                window.location.href = wpCode
+                  ? `/portal/workpackages/${wpCode}`
+                  : "/portal/library";
               }),
             ),
         },
@@ -1123,6 +1185,7 @@ export async function render(container, ctx) {
     campaignsBlock,
     commentsBlock,
     dialogContainer,
+    modalContainer,
     crossNav(),
   );
 }
