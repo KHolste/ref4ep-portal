@@ -75,3 +75,54 @@ def test_download_for_foreign_user_returns_404(
     client.cookies.set("ref4ep_session", "invalid.token.here")
     r = client.get(f"/api/documents/{doc_id}/versions/{n}/download")
     assert r.status_code == 401
+
+
+# ---- Block 0041 — Inline-Vorschau ------------------------------------------
+
+
+def test_preview_returns_pdf_inline(member_client: TestClient, member_in_wp3) -> None:
+    payload = b"%PDF-1.4\nvorschau\n" * 20
+    doc_id, n = _create_doc_with_version(member_client, payload)
+    r = member_client.get(f"/api/documents/{doc_id}/versions/{n}/preview")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "application/pdf"
+    assert r.headers["x-content-type-options"] == "nosniff"
+    assert "inline" in r.headers["content-disposition"]
+    assert r.content == payload
+
+
+def test_preview_anonymous_returns_401(
+    client: TestClient, member_client: TestClient, member_in_wp3
+) -> None:
+    doc_id, n = _create_doc_with_version(member_client, b"%PDF-1.4 secret")
+    client.cookies.clear()
+    r = client.get(f"/api/documents/{doc_id}/versions/{n}/preview")
+    assert r.status_code == 401
+
+
+def test_preview_unknown_version_returns_404(member_client: TestClient, member_in_wp3) -> None:
+    doc_id, _ = _create_doc_with_version(member_client, b"%PDF-1.4 abc")
+    r = member_client.get(f"/api/documents/{doc_id}/versions/99/preview")
+    assert r.status_code == 404
+
+
+def test_preview_rejects_non_whitelisted_mime(member_client: TestClient, member_in_wp3) -> None:
+    """ZIPs sind zwar als Upload erlaubt, dürfen aber nicht inline
+    ausgeliefert werden."""
+    create = member_client.post(
+        "/api/workpackages/WP3/documents",
+        json={"title": "Zip-Test", "document_type": "report"},
+        headers=_csrf(member_client),
+    )
+    assert create.status_code == 201, create.text
+    doc_id = create.json()["id"]
+    upload = member_client.post(
+        f"/api/documents/{doc_id}/versions",
+        files={"file": ("x.zip", io.BytesIO(b"PK\x03\x04zip-content"), "application/zip")},
+        data={"change_note": "zip"},
+        headers=_csrf(member_client),
+    )
+    assert upload.status_code == 201, upload.text
+    n = upload.json()["version"]["version_number"]
+    r = member_client.get(f"/api/documents/{doc_id}/versions/{n}/preview")
+    assert r.status_code == 415

@@ -117,6 +117,88 @@ function badge(spec) {
   return h("span", { class: spec.cls }, spec.label);
 }
 
+// Block 0041 — Inline-Vorschau. MIME-Whitelist spiegelt das Backend
+// (``PREVIEW_MIME_WHITELIST`` in api/routes/documents.py). Andere
+// Typen liefern serverseitig 415 — daher zeigen wir clientseitig erst
+// gar keine Preview-Iframe-/Image-Einbettung.
+const PREVIEW_PDF_MIME = "application/pdf";
+const PREVIEW_IMAGE_MIMES = new Set(["image/png", "image/jpeg"]);
+
+function pickPreviewVersion(versions, releasedVersionId) {
+  if (!versions.length) return null;
+  if (releasedVersionId) {
+    const released = versions.find((v) => v.id === releasedVersionId);
+    if (released) return released;
+  }
+  // Fallback: höchste version_number.
+  return versions
+    .slice()
+    .sort((a, b) => b.version_number - a.version_number)[0];
+}
+
+function renderPreviewSection(documentId, versions, releasedVersionId) {
+  const version = pickPreviewVersion(versions, releasedVersionId);
+  if (!version) {
+    return h(
+      "section",
+      { class: "document-preview" },
+      h("h2", {}, "Vorschau"),
+      renderEmpty("Noch keine Version vorhanden — keine Vorschau möglich."),
+    );
+  }
+  const previewUrl = `/api/documents/${documentId}/versions/${version.version_number}/preview`;
+  const downloadUrl = `/api/documents/${documentId}/versions/${version.version_number}/download`;
+  const mime = version.mime_type || "";
+  const label =
+    version.id === releasedVersionId
+      ? `★ v${version.version_number} (Freigegeben)`
+      : `v${version.version_number}`;
+
+  let body;
+  if (mime === PREVIEW_PDF_MIME) {
+    body = h("iframe", {
+      class: "document-preview-frame",
+      src: previewUrl,
+      title: `Vorschau ${version.original_filename}`,
+    });
+  } else if (PREVIEW_IMAGE_MIMES.has(mime)) {
+    body = h("img", {
+      class: "document-preview-image",
+      src: previewUrl,
+      alt: version.original_filename,
+    });
+  } else {
+    body = h(
+      "p",
+      { class: "muted" },
+      `Für diesen Dateityp (${mime || "unbekannt"}) ist keine Vorschau verfügbar. ` +
+        "Die Datei kann heruntergeladen werden.",
+    );
+  }
+
+  const actions = h(
+    "div",
+    { class: "document-preview-actions" },
+    mime === PREVIEW_PDF_MIME || PREVIEW_IMAGE_MIMES.has(mime)
+      ? h(
+          "a",
+          { href: previewUrl, target: "_blank", rel: "noopener" },
+          "In neuem Tab öffnen",
+        )
+      : null,
+    h("a", { href: downloadUrl }, "Herunterladen"),
+  );
+
+  return h(
+    "section",
+    { class: "document-preview" },
+    h("h2", {}, "Vorschau"),
+    h("p", { class: "muted small" }, `Angezeigte Version: ${label} — ${version.original_filename}`),
+    body,
+    actions,
+  );
+}
+
 function renderVersionsTable(documentId, versions, releasedVersionId) {
   if (!versions.length) {
     return renderEmpty(
@@ -1115,6 +1197,8 @@ export async function render(container, ctx) {
 
   const actionsBar = actions.length ? h("div", { class: "actions" }, ...actions) : null;
 
+  const previewBlock = renderPreviewSection(documentId, versions, doc.released_version_id);
+
   const versionsBlock = h(
     "section",
     {},
@@ -1181,6 +1265,7 @@ export async function render(container, ctx) {
     header,
     visibilityNotice || h("div", {}),
     actionsBar || h("div", {}),
+    previewBlock,
     versionsBlock,
     campaignsBlock,
     commentsBlock,

@@ -73,6 +73,12 @@ AuthDep = Annotated[AuthContext, Depends(get_auth_context)]
 AuditDep = Annotated[AuditLogger, Depends(get_audit_logger)]
 CHUNK_SIZE = 1024 * 1024
 
+# Block 0041 — Inline-Vorschau ist absichtlich enger als die Upload-
+# Whitelist: Office-Dokumente und ZIPs werden nie inline ausgeliefert,
+# weil das XSS-/Makro-Vektoren wären. PDFs nutzen den nativen Viewer
+# des Browsers; Bilder werden direkt eingebettet.
+PREVIEW_MIME_WHITELIST: frozenset[str] = frozenset({"application/pdf", "image/png", "image/jpeg"})
+
 
 def _get_storage(request: Request) -> Storage:
     return request.app.state.storage
@@ -630,6 +636,62 @@ def download_version(
         "Content-Disposition": f'attachment; filename="{safe_name}"',
         "Content-Length": str(version.file_size_bytes),
         "X-Content-Type-Options": "nosniff",
+    }
+    return StreamingResponse(iterator(), media_type=version.mime_type, headers=headers)
+
+
+@router.get("/documents/{document_id}/versions/{version_number}/preview")
+def preview_version(
+    document_id: str,
+    version_number: int,
+    session: SessionDep,
+    auth: AuthDep,
+    storage: StorageDep,
+) -> StreamingResponse:
+    """Inline-Vorschau einer Version. Identische Sichtbarkeitsprüfung
+    wie der Download-Endpunkt (über ``get_for_download``); zusätzlich
+    enge MIME-Whitelist, damit weder Office-Dokumente noch ZIPs inline
+    ausgeliefert werden."""
+    try:
+        version = DocumentVersionService(session, auth=auth).get_for_download(
+            document_id, version_number
+        )
+    except DocumentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": "Version nicht gefunden."}},
+        ) from exc
+
+    if version.mime_type not in PREVIEW_MIME_WHITELIST:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail={
+                "error": {
+                    "code": "preview_unsupported",
+                    "message": "Für diesen Dateityp ist keine Inline-Vorschau verfügbar.",
+                }
+            },
+        )
+
+    fh = storage.open_read(version.storage_key)
+
+    def iterator():
+        try:
+            while True:
+                chunk = fh.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            fh.close()
+
+    safe_name = version.original_filename.replace('"', "")
+    headers = {
+        "Content-Disposition": f'inline; filename="{safe_name}"',
+        "Content-Length": str(version.file_size_bytes),
+        "X-Content-Type-Options": "nosniff",
+        # Defense-in-Depth: kein Skript-Pfad im Viewer.
+        "Content-Security-Policy": "default-src 'none'; img-src 'self' data:; object-src 'self'",
     }
     return StreamingResponse(iterator(), media_type=version.mime_type, headers=headers)
 

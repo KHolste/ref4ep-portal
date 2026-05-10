@@ -3534,6 +3534,27 @@ def test_project_library_module_has_required_tile_strings() -> None:
     assert "Projektunterlagen" in body
 
 
+def test_document_detail_has_preview_section() -> None:
+    """Block 0041 — Dokumentdetail enthält eine Vorschau-Section,
+    bettet PDFs per iframe ein, zeigt Bilder per <img> und hat einen
+    Fallback-Hinweis für nicht unterstützte Typen."""
+    body = (MODULES_DIR / "document_detail.js").read_text(encoding="utf-8")
+    assert "Vorschau" in body
+    assert "renderPreviewSection" in body
+    assert "document-preview-frame" in body
+    assert "document-preview-image" in body
+    assert "/preview" in body
+    # PDF-Pfad nutzt iframe.
+    assert 'h("iframe"' in body
+    # Bild-Pfad nutzt img.
+    assert 'h("img"' in body
+    # Fallback-Hinweis vorhanden.
+    assert "keine Vorschau verfügbar" in body
+    # "In neuem Tab öffnen" + "Herunterladen"-Buttons.
+    assert "In neuem Tab öffnen" in body
+    assert "Herunterladen" in body
+
+
 def test_project_library_milestone_tile_does_not_claim_unimplemented() -> None:
     """Patch-0040-Fix: Nach Patch 0039 darf der Hinweistext der
     Meilenstein-Kachel nicht mehr behaupten, die Verknüpfung sei nicht
@@ -3580,7 +3601,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0040-fix"
+_NAV_PATCH_VERSION = "0041"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
