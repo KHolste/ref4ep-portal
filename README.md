@@ -118,6 +118,8 @@ Aktuelle Doku — diese Dokumente werden gepflegt:
   Serverbetrieb, Update- und Backup-Ablauf für `portal.ref4ep.de`
 - [`docs/manual_smoke_test.md`](docs/manual_smoke_test.md) — manuelle
   Smoke-Test-Prozedur
+- [`docs/role_model.md`](docs/role_model.md) — Rollen- und
+  Rechtemodell (Ist-Zustand und Zielmodell mit Partnerleitung)
 
 Historische Planungsdokumente — Stand zum Zeitpunkt der jeweiligen
 Sprint-/Block-Planung; **nicht** der aktuelle Implementierungsstand:
