@@ -3669,3 +3669,55 @@ def test_project_library_module_is_actually_routed() -> None:
     modules = {module for _src, module in routes}
     assert "project_library" in modules
     assert (MODULES_DIR / "project_library.js").is_file()
+
+
+# ---- Block 0035-fix2 — Null-Safe WP-Zugriff in document_detail -------
+
+
+def test_document_detail_does_not_access_workpackage_code_without_null_check() -> None:
+    """Block 0035 erlaubt Dokumente ohne WP-Bezug. ``document_detail.js``
+    darf daher ``doc.workpackage.code``/``.title`` nicht roh zugreifen
+    — sonst crasht das Modul mit ``Cannot read properties of null
+    (reading 'code')``. Wir akzeptieren ``doc.workpackage?.code`` und
+    Zugriffe innerhalb von ``if (doc.workpackage)``-Guards."""
+    body = (MODULES_DIR / "document_detail.js").read_text(encoding="utf-8")
+    forbidden_patterns = ("doc.workpackage.code", "doc.workpackage.title")
+    for needle in forbidden_patterns:
+        assert needle not in body, (
+            f"document_detail.js darf ``{needle}`` nicht roh zugreifen — "
+            f"Bibliotheks-Dokumente ohne WP-Bezug haben ``doc.workpackage === null``."
+        )
+    # Der null-safe Zugriff (Optional Chaining) ist explizit verankert.
+    assert "doc.workpackage?.code" in body
+
+
+def test_document_detail_handles_documents_without_workpackage() -> None:
+    """Header-Block muss einen Pfad für Dokumente ohne WP-Bezug haben:
+    Bibliothek + Bibliotheksbereich-Label statt WP-Link."""
+    body = (MODULES_DIR / "document_detail.js").read_text(encoding="utf-8")
+    # Bibliotheksbereich-Mapping ist im Modul vorhanden.
+    assert "LIBRARY_SECTION_LABELS" in body
+    for label in (
+        "Projektunterlagen",
+        "Meilenstein-Dokumente",
+        "Literatur & Veröffentlichungen",
+        "Vorträge",
+        "Abschlussarbeiten",
+    ):
+        assert label in body, f"Library-Section-Label {label!r} fehlt"
+    # Sichtbarer UI-Hinweis bei WP-losem Dokument.
+    assert "ohne Arbeitspaketbezug" in body
+    # Conditional rendering: WP-Block läuft nur, wenn WP existiert.
+    assert "if (doc.workpackage)" in body or "doc.workpackage ?" in body
+
+
+def test_document_detail_can_comment_is_null_safe_on_workpackage() -> None:
+    """``canCommentDocument`` darf bei fehlendem ``doc.workpackage``
+    nicht crashen. Test prüft sowohl die Pfad-Trennung als auch die
+    Tatsache, dass es keinen rohen ``doc.workpackage.code`` mehr gibt."""
+    body = (MODULES_DIR / "document_detail.js").read_text(encoding="utf-8")
+    # Frühreturn bei fehlendem WP-Bezug ist sichtbar.
+    func_start = body.index("function canCommentDocument")
+    func_end = body.index("\n}\n", func_start)
+    func_block = body[func_start:func_end]
+    assert "if (!doc.workpackage)" in func_block

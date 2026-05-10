@@ -59,6 +59,15 @@ const DOCUMENT_COMMENT_STATUS_LABELS = {
   submitted: "eingereicht",
 };
 
+// Block 0035 — Bibliotheksbereich-Labels für Dokumente ohne WP-Bezug.
+const LIBRARY_SECTION_LABELS = {
+  project: "Projektunterlagen",
+  milestone: "Meilenstein-Dokumente",
+  literature: "Literatur & Veröffentlichungen",
+  presentation: "Vorträge",
+  thesis: "Abschlussarbeiten",
+};
+
 function formatBytes(n) {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KiB`;
@@ -367,7 +376,10 @@ function canCommentDocument(me, doc) {
   if (doc.is_deleted) return false;
   if (isAdmin(me)) return true;
   if (doc.status === "released") return true;
-  return isWpMember(me, doc.workpackage.code);
+  // Block 0035: Dokumente ohne WP-Bezug haben keinen
+  // Mitgliedschafts-Pfad — Kommentieren ist dann Admin/released-only.
+  if (!doc.workpackage) return false;
+  return isWpMember(me, doc.workpackage?.code);
 }
 
 function isOwnComment(me, comment) {
@@ -790,12 +802,40 @@ export async function render(container, ctx) {
     container.replaceChildren(pageHeader("Dokument"), renderError(err));
     return;
   }
-  const wpCode = doc.workpackage.code;
+  // Block 0035: ``doc.workpackage`` darf null sein
+  // (Projektbibliothek-Dokumente ohne WP-Bezug). Alle WP-bezogenen
+  // Zugriffe sind null-safe; Admin-Pfad bleibt als Fallback wirksam.
+  const wpCode = doc.workpackage?.code ?? null;
 
   const admin = isAdmin(me);
-  const memberHere = isWpMember(me, wpCode) || admin;
-  const leadHere = isWpLead(me, wpCode) || admin;
+  const memberHere = wpCode ? isWpMember(me, wpCode) || admin : admin;
+  const leadHere = wpCode ? isWpLead(me, wpCode) || admin : admin;
   const versions = doc.versions || [];
+
+  // WP- bzw. Bibliotheks-Zeile: bei WP-Bezug der bekannte Link auf
+  // das Arbeitspaket, sonst eine sachliche Anzeige des Bibliotheks-
+  // bereichs bzw. „ohne Arbeitspaketbezug".
+  let scopeLine;
+  if (doc.workpackage) {
+    scopeLine = h(
+      "p",
+      {},
+      "Workpackage: ",
+      h("a", { href: `/portal/workpackages/${wpCode}` }, wpCode),
+      ` — ${doc.workpackage?.title}`,
+    );
+  } else {
+    const sectionLabel = doc.library_section
+      ? LIBRARY_SECTION_LABELS[doc.library_section] || doc.library_section
+      : null;
+    scopeLine = h(
+      "p",
+      {},
+      "Projektbibliothek",
+      sectionLabel ? ` · Bereich: ${sectionLabel}` : "",
+      " · ohne Arbeitspaketbezug",
+    );
+  }
 
   const header = h(
     "div",
@@ -809,13 +849,7 @@ export async function render(container, ctx) {
       " ",
       badge(VISIBILITY_BADGES[doc.visibility] || VISIBILITY_BADGES.workpackage),
     ),
-    h(
-      "p",
-      {},
-      "Workpackage: ",
-      h("a", { href: `/portal/workpackages/${wpCode}` }, wpCode),
-      ` — ${doc.workpackage.title}`,
-    ),
+    scopeLine,
     h(
       "p",
       {},
