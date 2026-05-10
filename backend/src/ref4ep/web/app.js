@@ -6,6 +6,14 @@
 
 import { api, getAdminViewMode, setAdminViewMode } from "/portal/common.js";
 
+// Block 0035-Folgepatch: zentrale Asset-Version. Wird beim Modul-
+// Import als ``?v=…`` angehängt, damit Browser-/HTTP-Caches nach einem
+// Deploy zuverlässig invalidiert werden. Muss bei Änderungen in app.js,
+// common.js oder einem Modul (web/modules/*.js) hochgezogen werden;
+// der Asset-Test ``test_index_html_uses_cache_buster_for_app_js_and_style_css``
+// erzwingt das Mitwachsen.
+export const ASSET_VERSION = "0037";
+
 const ROUTES = [
   { pattern: /^\/portal\/?$/, module: "cockpit" },
   { pattern: /^\/portal\/workpackages\/?$/, module: "workpackages" },
@@ -37,7 +45,11 @@ const moduleCache = new Map();
 
 async function loadModule(name) {
   if (!moduleCache.has(name)) {
-    moduleCache.set(name, import(`/portal/modules/${name}.js`));
+    // ``?v=…`` an dynamische Imports anhängen, damit
+    // ``import(/portal/modules/X.js)`` nicht aus einem alten
+    // Disk-Cache bedient wird, wenn der Modul-Inhalt seit dem letzten
+    // Deploy geändert wurde.
+    moduleCache.set(name, import(`/portal/modules/${name}.js?v=${ASSET_VERSION}`));
   }
   return moduleCache.get(name);
 }

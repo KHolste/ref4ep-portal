@@ -75,6 +75,7 @@ const DOC_TYPE_LABELS = {
   deliverable: "Deliverable",
   report: "Bericht",
   note: "Notiz",
+  paper: "Paper",
   other: "sonstig",
 };
 
@@ -201,7 +202,7 @@ function renderUploadDialog(onSaved, onCancel) {
   const typeSelect = h(
     "select",
     {},
-    ...["other", "report", "note"].map((t) =>
+    ...["other", "paper", "report", "note"].map((t) =>
       h("option", { value: t }, DOC_TYPE_LABELS[t]),
     ),
   );
@@ -303,22 +304,67 @@ export async function render(container, ctx) {
 
   const isAdmin = ctx?.me?.person?.platform_role === "admin";
 
-  const dialogSlot = h("div", {});
-  function clearDialog() {
-    dialogSlot.replaceChildren();
+  // Block 0035-Folgepatch: echtes Modal-Overlay statt Inline-Dialog am
+  // Seitenende. ``modalSlot`` lebt fest am Container-Anfang, das Modal
+  // wird per Backdrop-Klick oder ESC geschlossen. Der bestehende
+  // Inline-``.dialog``-Helper bleibt für andere Module unverändert.
+  const modalSlot = h("div", {});
+  let modalKeyHandler = null;
+  function clearModal() {
+    if (modalKeyHandler) {
+      document.removeEventListener("keydown", modalKeyHandler);
+      modalKeyHandler = null;
+    }
+    document.body.classList.remove("modal-open");
+    modalSlot.replaceChildren();
   }
-  function showDialog(title, body) {
-    dialogSlot.replaceChildren(h("div", { class: "dialog" }, h("h3", {}, title), body));
+  function showModal(title, bodyEl) {
+    const closeBtn = h(
+      "button",
+      {
+        type: "button",
+        class: "library-modal-close",
+        "aria-label": "Schließen",
+      },
+      "×",
+    );
+    closeBtn.addEventListener("click", clearModal);
+    const dialog = h(
+      "div",
+      {
+        class: "library-modal",
+        role: "dialog",
+        "aria-modal": "true",
+        "aria-label": title,
+      },
+      h(
+        "div",
+        { class: "library-modal-head" },
+        h("h3", { class: "library-modal-title" }, title),
+        closeBtn,
+      ),
+      h("div", { class: "library-modal-body" }, bodyEl),
+    );
+    const backdrop = h("div", { class: "library-modal-backdrop" }, dialog);
+    backdrop.addEventListener("click", (ev) => {
+      if (ev.target === backdrop) clearModal();
+    });
+    modalKeyHandler = (ev) => {
+      if (ev.key === "Escape") clearModal();
+    };
+    document.addEventListener("keydown", modalKeyHandler);
+    document.body.classList.add("modal-open");
+    modalSlot.replaceChildren(backdrop);
   }
   function onUpload() {
-    showDialog(
-      "Dokument in die Projektbibliothek hochladen",
+    showModal(
+      "Dokument hochladen",
       renderUploadDialog(
         () => {
-          clearDialog();
+          clearModal();
           load();
         },
-        clearDialog,
+        clearModal,
       ),
     );
   }
@@ -425,7 +471,7 @@ export async function render(container, ctx) {
     tileSlot,
     filterBar,
     listSlot,
-    dialogSlot,
+    modalSlot,
   );
 
   // initial render: tiles + first load

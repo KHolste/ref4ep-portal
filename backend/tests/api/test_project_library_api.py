@@ -181,3 +181,24 @@ def test_status_filter_works(admin_client: TestClient, library_docs: dict[str, s
     assert r.status_code == 200
     statuses = {d["status"] for d in r.json()}
     assert statuses <= {"draft"}
+
+
+def test_admin_can_create_library_document_with_paper_type(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """Block 0035-Folgepatch: ``document_type='paper'`` wird vom
+    erweiterten CHECK-Constraint und vom Service akzeptiert."""
+    r = admin_client.post(
+        "/api/library/documents",
+        json={
+            "title": "Recommended Practices Paper",
+            "document_type": "paper",
+            "library_section": "literature",
+            "visibility": "internal",
+        },
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["document_type"] == "paper"
+    assert body["library_section"] == "literature"

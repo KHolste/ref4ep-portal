@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0018_project_library"
+CURRENT_HEAD = "0019_document_type_paper"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -1134,3 +1134,86 @@ def test_downgrade_to_0017_drops_library_section(tmp_db_path: Path) -> None:
     command.downgrade(cfg, "0017_test_campaign_photo_thumbnails")
     cols = {c["name"] for c in inspect(create_engine(db_url)).get_columns("document")}
     assert "library_section" not in cols
+
+
+# ---- Block 0035-Folgepatch — Dokumenttyp ``paper`` -------------------
+
+
+def test_document_type_paper_is_accepted_after_0019(tmp_db_path: Path) -> None:
+    """Dokumente mit ``document_type='paper'`` lassen sich nach
+    Migration 0019 anlegen — der CHECK-Constraint akzeptiert den
+    neuen Wert."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    engine = create_engine(db_url)
+    with engine.begin() as conn:
+        conn.exec_driver_sql("PRAGMA foreign_keys = ON")
+        conn.exec_driver_sql(
+            "INSERT INTO partner (id, name, short_name, country, is_deleted, "
+            "created_at, updated_at) VALUES "
+            "('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'P', 'P', 'DE', 0, "
+            "datetime('now'), datetime('now'))"
+        )
+        conn.exec_driver_sql(
+            "INSERT INTO person (id, email, display_name, partner_id, password_hash, "
+            "platform_role, is_active, must_change_password, is_deleted, "
+            "created_at, updated_at) VALUES "
+            "('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'p@x', 'P', "
+            "'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'h', 'admin', 1, 0, 0, "
+            "datetime('now'), datetime('now'))"
+        )
+        # Dokument ohne WP-Bezug (Bibliothek) mit Typ ``paper``.
+        conn.exec_driver_sql(
+            "INSERT INTO document (id, workpackage_id, title, slug, document_type, "
+            "status, visibility, library_section, created_by_person_id, is_deleted, "
+            "created_at, updated_at) VALUES "
+            "('cccccccc-cccc-cccc-cccc-cccccccccccc', NULL, 'Paper-Test', "
+            "'paper-test', 'paper', 'draft', 'internal', 'literature', "
+            "'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 0, "
+            "datetime('now'), datetime('now'))"
+        )
+    with engine.connect() as conn:
+        row = conn.exec_driver_sql(
+            "SELECT document_type FROM document WHERE id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'"
+        ).fetchone()
+    assert row is not None and row[0] == "paper"
+
+
+def test_downgrade_to_0018_rejects_paper(tmp_db_path: Path) -> None:
+    """Nach Downgrade auf 0018 lehnt der CHECK-Constraint den Typ
+    ``paper`` wieder ab."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0018_project_library")
+    engine = create_engine(db_url)
+    with engine.begin() as conn:
+        conn.exec_driver_sql("PRAGMA foreign_keys = ON")
+        conn.exec_driver_sql(
+            "INSERT INTO partner (id, name, short_name, country, is_deleted, "
+            "created_at, updated_at) VALUES "
+            "('dddddddd-dddd-dddd-dddd-dddddddddddd', 'P', 'P', 'DE', 0, "
+            "datetime('now'), datetime('now'))"
+        )
+        conn.exec_driver_sql(
+            "INSERT INTO person (id, email, display_name, partner_id, password_hash, "
+            "platform_role, is_active, must_change_password, is_deleted, "
+            "created_at, updated_at) VALUES "
+            "('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'p2@x', 'P', "
+            "'dddddddd-dddd-dddd-dddd-dddddddddddd', 'h', 'admin', 1, 0, 0, "
+            "datetime('now'), datetime('now'))"
+        )
+        try:
+            conn.exec_driver_sql(
+                "INSERT INTO document (id, workpackage_id, title, slug, document_type, "
+                "status, visibility, library_section, created_by_person_id, is_deleted, "
+                "created_at, updated_at) VALUES "
+                "('ffffffff-ffff-ffff-ffff-ffffffffffff', NULL, 'X', 'x', "
+                "'paper', 'draft', 'internal', NULL, "
+                "'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 0, "
+                "datetime('now'), datetime('now'))"
+            )
+        except Exception as exc:
+            assert "constraint" in str(exc).lower() or "CHECK" in str(exc).upper()
+        else:
+            raise AssertionError("CHECK-Constraint hätte ``paper`` ablehnen müssen.")

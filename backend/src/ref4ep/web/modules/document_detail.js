@@ -13,6 +13,7 @@ const TYPE_LABELS = {
   deliverable: "Deliverable",
   report: "Report",
   note: "Notiz",
+  paper: "Paper",
   other: "Sonstiges",
 };
 

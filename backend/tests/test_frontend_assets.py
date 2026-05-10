@@ -3571,7 +3571,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0035"
+_NAV_PATCH_VERSION = "0037"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -3744,3 +3744,80 @@ def test_project_library_upload_does_not_require_change_note() -> None:
     assert "mind. 5 Zeichen" not in body
     assert "Änderungsnotiz (optional)" in body
     assert 'if (noteValue) formData.append("change_note"' in body
+
+
+# ---- Block 0035-Folgepatch — Modal-Upload + Dokumenttyp Paper -------
+
+
+def test_project_library_uses_modal_overlay_for_upload() -> None:
+    """Klick auf „Dokument hochladen …" öffnet ein Modal-Overlay,
+    nicht mehr einen Inline-Dialog am Seitenende."""
+    body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
+    # Modal-Hülle + Backdrop sind verankert.
+    assert "library-modal-backdrop" in body
+    assert "library-modal" in body
+    # Tastatur-Schließen via ESC.
+    assert 'key === "Escape"' in body or "key === 'Escape'" in body
+    # Backdrop-Klick schließt das Modal.
+    assert "ev.target === backdrop" in body
+    # Body-Scroll-Lock während Modal offen.
+    assert "modal-open" in body
+    # Standard-Inline-Slot heißt jetzt ``modalSlot``, NICHT mehr
+    # ``dialogSlot``.
+    assert "modalSlot" in body
+
+
+def test_project_library_modal_styles_present() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (
+        ".library-modal-backdrop",
+        ".library-modal",
+        ".library-modal-head",
+        ".library-modal-body",
+        ".library-modal-close",
+    ):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+    # Position fixed + hoher z-index.
+    block = css.split(".library-modal-backdrop")[1].split("}")[0]
+    assert "position: fixed" in block
+    assert "z-index" in block
+    # Body-Scroll-Lock-Helper vorhanden.
+    assert "body.modal-open" in css
+
+
+def test_project_library_offers_paper_document_type() -> None:
+    body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
+    # Label-Mapping enthält Paper.
+    assert 'paper: "Paper"' in body
+    # Dropdown enthält ``paper`` als Option.
+    assert '"paper"' in body
+
+
+def test_document_detail_offers_paper_label() -> None:
+    body = (MODULES_DIR / "document_detail.js").read_text(encoding="utf-8")
+    assert 'paper: "Paper"' in body
+
+
+# ---- Block 0035-Folgepatch — Cache-Busting für dynamische Imports ---
+
+
+def test_app_js_exposes_central_asset_version_constant() -> None:
+    """``app.js`` exportiert eine zentrale ``ASSET_VERSION``, die der
+    Modul-Loader an dynamische Imports anhängt. Wert muss zur
+    aktuellen Patch-Version passen."""
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    assert "export const ASSET_VERSION" in body
+    assert f'"{_NAV_PATCH_VERSION}"' in body, (
+        f"ASSET_VERSION in app.js sollte {_NAV_PATCH_VERSION!r} sein."
+    )
+
+
+def test_app_js_module_loader_appends_cache_buster() -> None:
+    """``loadModule`` hängt ``?v=${ASSET_VERSION}`` an den dynamischen
+    Import an, damit Browser-/HTTP-Caches Modul-Updates nicht
+    verstecken."""
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    # Der Loader nutzt das Template mit ASSET_VERSION.
+    assert "/portal/modules/${name}.js?v=${ASSET_VERSION}" in body
+    # Negative: kein „nackter" Import ohne Cache-Buster mehr.
+    assert "/portal/modules/${name}.js`)" not in body
