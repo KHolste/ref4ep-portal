@@ -155,6 +155,31 @@ class AdminMembershipPatchRequest(BaseModel):
     wp_role: Literal["wp_lead", "wp_member"]
 
 
+# --------------------------------------------------------------------------- #
+# Block 0043 — Partnerrollen (Projektleitung)                                  #
+# --------------------------------------------------------------------------- #
+
+
+class AdminPartnerRolePersonRefOut(BaseModel):
+    id: str
+    email: str
+    display_name: str
+
+
+class AdminPartnerRoleOut(BaseModel):
+    id: str
+    partner_id: str
+    role: str
+    person: AdminPartnerRolePersonRefOut
+    created_at: datetime
+    created_by: AdminPartnerRolePersonRefOut
+
+
+class AdminPartnerRoleAddRequest(BaseModel):
+    person_id: str = Field(min_length=36, max_length=36)
+    role: Literal["partner_lead"] = "partner_lead"
+
+
 __all__ = [
     "AdminMembershipAddRequest",
     "AdminMembershipOut",
@@ -163,6 +188,9 @@ __all__ = [
     "AdminPartnerOut",
     "AdminPartnerPatchRequest",
     "AdminPartnerRefOut",
+    "AdminPartnerRoleAddRequest",
+    "AdminPartnerRoleOut",
+    "AdminPartnerRolePersonRefOut",
     "AdminPasswordResetResponse",
     "AdminPersonCreateRequest",
     "AdminPersonCreatedOut",

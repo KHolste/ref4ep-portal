@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0021_milestone_document_links"
+CURRENT_HEAD = "0022_partner_roles"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -1327,3 +1327,90 @@ def test_downgrade_to_0020_drops_milestone_document_link(tmp_db_path: Path) -> N
     command.downgrade(cfg, "0020_document_types_science")
     inspector = inspect(create_engine(db_url))
     assert "milestone_document_link" not in set(inspector.get_table_names())
+
+
+# ---- Block 0043 — Partnerrollen ---------------------------------------
+
+
+def test_partner_role_table_exists(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    assert "partner_role" in set(inspector.get_table_names())
+    cols = {c["name"] for c in inspector.get_columns("partner_role")}
+    assert {
+        "id",
+        "person_id",
+        "partner_id",
+        "role",
+        "created_by_person_id",
+        "created_at",
+    } == cols
+
+
+def test_partner_role_has_unique_constraint(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    uq = inspect(create_engine(db_url)).get_unique_constraints("partner_role")
+    cols_per_uq = {tuple(sorted(u["column_names"])) for u in uq}
+    assert ("partner_id", "person_id", "role") in cols_per_uq
+
+
+def test_partner_role_check_constraint_allows_partner_lead(tmp_db_path: Path) -> None:
+    """CHECK-Constraint akzeptiert den vorgesehenen Wert und lehnt
+    andere Werte ab."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    engine = create_engine(db_url)
+    with engine.begin() as conn:
+        conn.exec_driver_sql("PRAGMA foreign_keys = ON")
+        conn.exec_driver_sql(
+            "INSERT INTO partner (id, name, short_name, country, is_deleted, "
+            "created_at, updated_at) VALUES "
+            "('11111111-1111-1111-1111-111111111111', 'P', 'P', 'DE', 0, "
+            "datetime('now'), datetime('now'))"
+        )
+        conn.exec_driver_sql(
+            "INSERT INTO person (id, email, display_name, partner_id, password_hash, "
+            "platform_role, is_active, must_change_password, is_deleted, "
+            "created_at, updated_at) VALUES "
+            "('22222222-2222-2222-2222-222222222222', 'p@x', 'P', "
+            "'11111111-1111-1111-1111-111111111111', 'h', 'admin', 1, 0, 0, "
+            "datetime('now'), datetime('now'))"
+        )
+    # Erlaubter Wert geht durch:
+    with engine.begin() as conn:
+        conn.exec_driver_sql("PRAGMA foreign_keys = ON")
+        conn.exec_driver_sql(
+            "INSERT INTO partner_role (id, person_id, partner_id, role, "
+            "created_by_person_id, created_at) VALUES "
+            "('33333333-3333-3333-3333-333333333333', "
+            "'22222222-2222-2222-2222-222222222222', "
+            "'11111111-1111-1111-1111-111111111111', 'partner_lead', "
+            "'22222222-2222-2222-2222-222222222222', datetime('now'))"
+        )
+    # Unbekannter Rollenwert wird abgelehnt:
+    with engine.begin() as conn:
+        conn.exec_driver_sql("PRAGMA foreign_keys = ON")
+        try:
+            conn.exec_driver_sql(
+                "INSERT INTO partner_role (id, person_id, partner_id, role, "
+                "created_by_person_id, created_at) VALUES "
+                "('44444444-4444-4444-4444-444444444444', "
+                "'22222222-2222-2222-2222-222222222222', "
+                "'11111111-1111-1111-1111-111111111111', 'admin', "
+                "'22222222-2222-2222-2222-222222222222', datetime('now'))"
+            )
+        except Exception as exc:
+            assert "CHECK" in str(exc).upper() or "constraint" in str(exc).lower()
+        else:
+            raise AssertionError("CHECK-Constraint hätte 'admin' ablehnen müssen.")
+
+
+def test_downgrade_to_0021_drops_partner_role(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0021_milestone_document_links")
+    inspector = inspect(create_engine(db_url))
+    assert "partner_role" not in set(inspector.get_table_names())

@@ -12,9 +12,16 @@ from ref4ep.api.schemas.admin import (
     AdminPartnerCreateRequest,
     AdminPartnerOut,
     AdminPartnerPatchRequest,
+    AdminPartnerRoleAddRequest,
+    AdminPartnerRoleOut,
+    AdminPartnerRolePersonRefOut,
 )
-from ref4ep.domain.models import Partner
+from ref4ep.domain.models import Partner, PartnerRole
 from ref4ep.services.audit_logger import AuditLogger
+from ref4ep.services.partner_role_service import (
+    PartnerRoleNotFoundError,
+    PartnerRoleService,
+)
 from ref4ep.services.partner_service import PartnerService
 from ref4ep.services.permissions import AuthContext, can_admin
 
@@ -150,5 +157,134 @@ def delete_partner(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# --------------------------------------------------------------------------- #
+# Block 0043 — Partnerrollen (Projektleitung)                                  #
+# --------------------------------------------------------------------------- #
+
+
+def _partner_role_service(
+    session: Session, auth: AuthContext, *, audit: AuditLogger | None = None
+) -> PartnerRoleService:
+    return PartnerRoleService(
+        session,
+        role=auth.platform_role,
+        person_id=auth.person_id,
+        audit=audit,
+    )
+
+
+def _person_ref(person) -> AdminPartnerRolePersonRefOut:
+    return AdminPartnerRolePersonRefOut(
+        id=person.id,
+        email=person.email,
+        display_name=person.display_name,
+    )
+
+
+def _role_out(link: PartnerRole) -> AdminPartnerRoleOut:
+    return AdminPartnerRoleOut(
+        id=link.id,
+        partner_id=link.partner_id,
+        role=link.role,
+        person=_person_ref(link.person),
+        created_at=link.created_at,
+        created_by=_person_ref(link.created_by),
+    )
+
+
+def _ensure_partner_exists(session: Session, partner_id: str) -> Partner:
+    partner = session.get(Partner, partner_id)
+    if partner is None or partner.is_deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": "Partner nicht gefunden."}},
+        )
+    return partner
+
+
+@router.get(
+    "/partners/{partner_id}/roles",
+    response_model=list[AdminPartnerRoleOut],
+)
+def list_partner_roles(
+    partner_id: str,
+    session: SessionDep,
+    auth: AuthDep,
+) -> list[AdminPartnerRoleOut]:
+    _require_admin_or_403(auth)
+    _ensure_partner_exists(session, partner_id)
+    links = _partner_role_service(session, auth).list_for_partner(partner_id)
+    return [_role_out(link) for link in links]
+
+
+@router.post(
+    "/partners/{partner_id}/roles",
+    response_model=AdminPartnerRoleOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_csrf)],
+)
+def add_partner_role(
+    partner_id: str,
+    payload: AdminPartnerRoleAddRequest,
+    session: SessionDep,
+    auth: AuthDep,
+    audit: AuditDep,
+) -> AdminPartnerRoleOut:
+    _require_admin_or_403(auth)
+    _ensure_partner_exists(session, partner_id)
+    try:
+        link = _partner_role_service(session, auth, audit=audit).add_partner_role(
+            person_id=payload.person_id,
+            partner_id=partner_id,
+            role=payload.role,
+            actor_person_id=auth.person_id,
+        )
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"error": {"code": "invalid", "message": str(exc)}},
+        ) from exc
+    return _role_out(link)
+
+
+@router.delete(
+    "/partners/{partner_id}/roles/{person_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_csrf)],
+)
+def remove_partner_role(
+    partner_id: str,
+    person_id: str,
+    session: SessionDep,
+    auth: AuthDep,
+    audit: AuditDep,
+    role: str = "partner_lead",
+) -> Response:
+    _require_admin_or_403(auth)
+    _ensure_partner_exists(session, partner_id)
+    try:
+        _partner_role_service(session, auth, audit=audit).remove_partner_role(
+            person_id=person_id,
+            partner_id=partner_id,
+            role=role,
+        )
+    except PartnerRoleNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"error": {"code": "invalid", "message": str(exc)}},
         ) from exc
     return Response(status_code=status.HTTP_204_NO_CONTENT)

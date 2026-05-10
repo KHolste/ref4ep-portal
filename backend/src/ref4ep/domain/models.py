@@ -47,6 +47,10 @@ if TYPE_CHECKING:
 # und über CHECK-Constraints; eigener Python-Enum-Typ nicht nötig für Sprint 1).
 PLATFORM_ROLES = ("admin", "member")
 WP_ROLES = ("wp_lead", "wp_member")
+# Block 0043 — partnerbezogene Rollen (UI-Label „Projektleitung").
+# Wirkung auf Permissions folgt in 0045/0046; in 0043 ausschließlich
+# Datenebene und Admin-Verwaltung.
+PARTNER_ROLES = ("partner_lead",)
 
 # Block 0009 — Cockpit-Status pro Arbeitspaket. Default ``planned``.
 WORKPACKAGE_STATUSES = (
@@ -371,6 +375,10 @@ class Partner(Base):
         cascade="all, delete-orphan",
         order_by="PartnerContact.name",
     )
+    partner_roles: Mapped[list[PartnerRole]] = relationship(
+        back_populates="partner",
+        cascade="all, delete-orphan",
+    )
 
 
 class Person(Base):
@@ -398,6 +406,11 @@ class Person(Base):
     partner: Mapped[Partner] = relationship(back_populates="persons")
     memberships: Mapped[list[Membership]] = relationship(
         back_populates="person", cascade="all, delete-orphan"
+    )
+    partner_roles: Mapped[list[PartnerRole]] = relationship(
+        back_populates="person",
+        cascade="all, delete-orphan",
+        foreign_keys="PartnerRole.person_id",
     )
 
 
@@ -1170,3 +1183,48 @@ class MilestoneDocumentLink(Base):
     milestone: Mapped[Milestone] = relationship()
     document: Mapped[Document] = relationship()
     created_by: Mapped[Person] = relationship()
+
+
+# --------------------------------------------------------------------------- #
+# Block 0043 — Partnerrollen (Projektleitung)                                 #
+# --------------------------------------------------------------------------- #
+
+
+class PartnerRole(Base):
+    """Person × Partner × Rolle.
+
+    Aktuell ist ``role`` ausschließlich ``partner_lead`` (UI-Label
+    „Projektleitung"). Eine Person kann bei mehreren Partnern
+    Projektleitung sein; ein Partner kann mehrere Projektleitungen
+    haben.
+
+    Wirkung auf Berechtigungen folgt in den Patches 0045/0046; in 0043
+    ist die Tabelle reine Datengrundlage + Admin-Verwaltung.
+    """
+
+    __tablename__ = "partner_role"
+    __table_args__ = (
+        UniqueConstraint(
+            "person_id", "partner_id", "role", name="uq_partner_role_person_partner_role"
+        ),
+        CheckConstraint("role IN ('partner_lead')", name="ck_partner_role_role"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    person_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("person.id"), nullable=False, index=True
+    )
+    partner_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("partner.id"), nullable=False, index=True
+    )
+    role: Mapped[str] = mapped_column(String, nullable=False)
+    created_by_person_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("person.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc
+    )
+
+    person: Mapped[Person] = relationship(back_populates="partner_roles", foreign_keys=[person_id])
+    partner: Mapped[Partner] = relationship(back_populates="partner_roles")
+    created_by: Mapped[Person] = relationship(foreign_keys=[created_by_person_id])
