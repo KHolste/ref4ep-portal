@@ -25,6 +25,8 @@ from ref4ep.services.permissions import (
     can_write_document,
 )
 from ref4ep.services.storage_validation import (
+    CHANGE_NOTE_DEFAULT_FIRST,
+    CHANGE_NOTE_DEFAULT_NEXT,
     compute_storage_key,
     validate_change_note,
     validate_mime,
@@ -89,7 +91,7 @@ class DocumentVersionService:
         file_stream: BinaryIO,
         original_filename: str,
         mime_type: str,
-        change_note: str,
+        change_note: str | None = None,
         version_label: str | None = None,
     ) -> tuple[DocumentVersion, list[str]]:
         if self.storage is None:
@@ -106,6 +108,21 @@ class DocumentVersionService:
         validate_mime(mime_type)
         cleaned_note = validate_change_note(change_note)
         original_filename = (original_filename or "").strip() or "unbenannt"
+
+        # Block 0036: Wenn der Nutzer keine Änderungsnotiz mitgibt,
+        # füllen wir einen neutralen Default ein. Erst-Upload bekommt
+        # eine andere Default-Notiz als Folge-Versionen, damit das
+        # Dokumentdetail die Genese sauber wiedergibt.
+        if not cleaned_note:
+            has_existing_versions = (
+                self.session.scalars(
+                    select(DocumentVersion.id).where(DocumentVersion.document_id == document_id)
+                ).first()
+                is not None
+            )
+            cleaned_note = (
+                CHANGE_NOTE_DEFAULT_NEXT if has_existing_versions else CHANGE_NOTE_DEFAULT_FIRST
+            )
 
         version_id = str(uuid.uuid4())
         storage_key = compute_storage_key(document_id, version_id)

@@ -160,10 +160,8 @@ function renderUploadDialog(documentId, onSuccess) {
   });
   const noteInput = h("textarea", {
     name: "change_note",
-    required: true,
-    minlength: "5",
     rows: "3",
-    placeholder: "Was hat sich geändert? (mind. 5 Zeichen)",
+    placeholder: "Was hat sich geändert? (optional)",
   });
   const labelInput = h("input", { type: "text", name: "version_label" });
   const errorBox = h("p", { class: "error", style: "display:none" }, "");
@@ -183,7 +181,11 @@ function renderUploadDialog(documentId, onSuccess) {
     try {
       const formData = new FormData();
       formData.append("file", fileInput.files[0]);
-      formData.append("change_note", noteInput.value);
+      // Block 0036: nur senden, wenn der Nutzer wirklich etwas
+      // eingegeben hat — sonst greift der Server-Default
+      // (``Initialer Upload`` / ``Neue Version hochgeladen``).
+      const noteValue = (noteInput.value || "").trim();
+      if (noteValue) formData.append("change_note", noteValue);
       if (labelInput.value) formData.append("version_label", labelInput.value);
 
       const csrf = (document.cookie.match(/(?:^|;\s*)ref4ep_csrf=([^;]+)/) || [])[1];
@@ -216,7 +218,7 @@ function renderUploadDialog(documentId, onSuccess) {
     "form",
     { class: "stacked", onsubmit: onSubmit, enctype: "multipart/form-data" },
     h("label", {}, "Datei", fileDropzone),
-    h("label", {}, "Änderungsnotiz (Pflicht)", noteInput),
+    h("label", {}, "Änderungsnotiz (optional)", noteInput),
     h("label", {}, "Versions-Label (optional)", labelInput),
     statusBox,
     errorBox,

@@ -25,7 +25,12 @@ MIME_WHITELIST: frozenset[str] = frozenset(
     }
 )
 
-CHANGE_NOTE_MIN_LEN = 5
+# Block 0036 — Versionsnotiz ist optional. Frühere Pflicht-
+# Mindestlänge entfällt; der Service setzt bei leerer Eingabe einen
+# neutralen Default („Initialer Upload" bzw. „Neue Version
+# hochgeladen"), siehe ``DocumentVersionService.upload_new_version``.
+CHANGE_NOTE_DEFAULT_FIRST = "Initialer Upload"
+CHANGE_NOTE_DEFAULT_NEXT = "Neue Version hochgeladen"
 
 # Block 0028 — engere MIME-Whitelist nur für Fotos (Schnappschüsse aus
 # der Vakuumkammer o. ä.). Bewusst kein PDF/Office hier: das wäre eine
@@ -54,12 +59,15 @@ def validate_size(size_bytes: int, max_bytes: int) -> None:
         )
 
 
-def validate_change_note(note: str) -> str:
-    """Trimmt Whitespace und erzwingt die Mindestlänge."""
-    cleaned = (note or "").strip()
-    if len(cleaned) < CHANGE_NOTE_MIN_LEN:
-        raise ValueError(f"Änderungsnotiz muss mindestens {CHANGE_NOTE_MIN_LEN} Zeichen enthalten.")
-    return cleaned
+def validate_change_note(note: str | None) -> str:
+    """Trimmt Whitespace.
+
+    Block 0036: Die frühere Pflicht-Mindestlänge entfällt. Aufrufer
+    erhalten den getrimmten String — gegebenenfalls leer. Den
+    Default-Text setzt der Service in
+    :meth:`DocumentVersionService.upload_new_version`.
+    """
+    return (note or "").strip()
 
 
 def compute_storage_key(document_id: str, version_id: str) -> str:

@@ -207,9 +207,7 @@ function renderUploadDialog(onSaved, onCancel) {
   );
   const noteInput = h("textarea", {
     rows: "2",
-    required: true,
-    minlength: "5",
-    placeholder: "Versionsnotiz (Pflicht, mind. 5 Zeichen)",
+    placeholder: "Änderungsnotiz (optional)",
   });
   const descriptionInput = h("textarea", {
     rows: "2",
@@ -240,7 +238,10 @@ function renderUploadDialog(onSaved, onCancel) {
       // Anschließend Versions-Upload (multipart, bestehender Endpunkt).
       const formData = new FormData();
       formData.append("file", fileInput.files[0]);
-      formData.append("change_note", noteInput.value);
+      // Block 0036: leere Notiz weglassen — Server setzt
+      // automatisch ``Initialer Upload`` für Erst-Versionen.
+      const noteValue = (noteInput.value || "").trim();
+      if (noteValue) formData.append("change_note", noteValue);
       const csrf = (document.cookie.match(/(?:^|;\s*)ref4ep_csrf=([^;]+)/) || [])[1];
       const response = await fetch(`/api/documents/${created.id}/versions`, {
         method: "POST",
@@ -276,7 +277,7 @@ function renderUploadDialog(onSaved, onCancel) {
     h("label", {}, "Bibliotheksbereich (optional)", sectionSelect),
     h("label", {}, "Dokumenttyp", typeSelect),
     h("label", {}, "Sichtbarkeit", visibilitySelect),
-    h("label", {}, "Versionsnotiz", noteInput),
+    h("label", {}, "Änderungsnotiz (optional)", noteInput),
     h("label", {}, "Beschreibung (optional)", descriptionInput),
     statusBox,
     errorBox,

@@ -501,7 +501,7 @@ async def upload_version(
     storage: StorageDep,
     audit: AuditDep,
     file: Annotated[UploadFile, File(...)],
-    change_note: Annotated[str, Form()],
+    change_note: Annotated[str | None, Form()] = None,
     version_label: Annotated[str | None, Form()] = None,
 ) -> DocumentVersionUploadResponse:
     # Eingangsvalidierung VOR dem Storage-Aufruf — verhindert vergebliches Schreiben.
@@ -513,13 +513,9 @@ async def upload_version(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail={"error": {"code": "unsupported_media_type", "message": str(exc)}},
         ) from exc
-    try:
-        validate_change_note(change_note)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail={"error": {"code": "invalid_change_note", "message": str(exc)}},
-        ) from exc
+    # Block 0036: Versionsnotiz ist optional. ``validate_change_note``
+    # trimmt nur noch — keine Mindestlänge mehr.
+    change_note = validate_change_note(change_note)
 
     max_bytes = settings.max_upload_mb * 1024 * 1024
 

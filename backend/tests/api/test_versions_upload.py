@@ -42,15 +42,71 @@ def test_first_upload_returns_version_one_with_hash(
     assert body["warnings"] == []
 
 
-def test_short_change_note_returns_422(member_client: TestClient, member_in_wp3) -> None:
+def test_missing_change_note_falls_back_to_default_first_upload(
+    member_client: TestClient, member_in_wp3
+) -> None:
+    """Block 0036: Versionsnotiz ist optional. Beim Erst-Upload wird
+    der Default ``Initialer Upload`` gesetzt."""
     doc_id = _create_doc(member_client)
     r = member_client.post(
         f"/api/documents/{doc_id}/versions",
-        files={"file": ("x.pdf", io.BytesIO(b"abc"), "application/pdf")},
-        data={"change_note": "  "},
+        files={"file": ("x.pdf", io.BytesIO(b"%PDF-1.4 dat"), "application/pdf")},
+        # KEIN ``change_note``-Form-Feld
         headers=_csrf(member_client),
     )
-    assert r.status_code == 422
+    assert r.status_code == 201, r.text
+    assert r.json()["version"]["change_note"] == "Initialer Upload"
+
+
+def test_blank_change_note_falls_back_to_default(member_client: TestClient, member_in_wp3) -> None:
+    """Block 0036: Whitespace-Notiz wird wie Leereingabe behandelt."""
+    doc_id = _create_doc(member_client)
+    r = member_client.post(
+        f"/api/documents/{doc_id}/versions",
+        files={"file": ("x.pdf", io.BytesIO(b"%PDF-1.4 dat"), "application/pdf")},
+        data={"change_note": "   "},
+        headers=_csrf(member_client),
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["version"]["change_note"] == "Initialer Upload"
+
+
+def test_missing_change_note_falls_back_to_next_version_default(
+    member_client: TestClient, member_in_wp3
+) -> None:
+    """Block 0036: Folge-Versionen ohne explizite Notiz bekommen den
+    Default ``Neue Version hochgeladen``."""
+    doc_id = _create_doc(member_client)
+    member_client.post(
+        f"/api/documents/{doc_id}/versions",
+        files={"file": ("v1.pdf", io.BytesIO(b"%PDF-1.4 v1"), "application/pdf")},
+        data={"change_note": "v1 mit Notiz"},
+        headers=_csrf(member_client),
+    )
+    r = member_client.post(
+        f"/api/documents/{doc_id}/versions",
+        files={"file": ("v2.pdf", io.BytesIO(b"%PDF-1.4 v2 different"), "application/pdf")},
+        # KEIN ``change_note``
+        headers=_csrf(member_client),
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["version"]["change_note"] == "Neue Version hochgeladen"
+
+
+def test_short_change_note_is_accepted_as_optional(
+    member_client: TestClient, member_in_wp3
+) -> None:
+    """Block 0036: Kurze Notizen (<5 Zeichen) sind nicht mehr
+    abgelehnt — die Mindestlänge entfällt."""
+    doc_id = _create_doc(member_client)
+    r = member_client.post(
+        f"/api/documents/{doc_id}/versions",
+        files={"file": ("x.pdf", io.BytesIO(b"%PDF-1.4 dat"), "application/pdf")},
+        data={"change_note": "ok"},
+        headers=_csrf(member_client),
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["version"]["change_note"] == "ok"
 
 
 def test_unsupported_mime_returns_415(member_client: TestClient, member_in_wp3) -> None:

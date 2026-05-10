@@ -3721,3 +3721,26 @@ def test_document_detail_can_comment_is_null_safe_on_workpackage() -> None:
     func_end = body.index("\n}\n", func_start)
     func_block = body[func_start:func_end]
     assert "if (!doc.workpackage)" in func_block
+
+
+# ---- Block 0036 — Versionsnotiz ist optional --------------------------
+
+
+def test_document_detail_version_upload_does_not_require_change_note() -> None:
+    body = (MODULES_DIR / "document_detail.js").read_text(encoding="utf-8")
+    # Pflicht-/Mindestlängen-Marker sind weg.
+    assert "Änderungsnotiz (Pflicht)" not in body
+    assert "mind. 5 Zeichen" not in body
+    # Neuer Optional-Hinweis ist verankert.
+    assert "Änderungsnotiz (optional)" in body
+    # Frontend lässt das Feld weg, wenn nichts eingegeben wurde —
+    # damit der Server-Default greifen kann.
+    assert 'if (noteValue) formData.append("change_note"' in body
+
+
+def test_project_library_upload_does_not_require_change_note() -> None:
+    body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
+    assert "Versionsnotiz (Pflicht" not in body
+    assert "mind. 5 Zeichen" not in body
+    assert "Änderungsnotiz (optional)" in body
+    assert 'if (noteValue) formData.append("change_note"' in body

@@ -41,11 +41,12 @@ def test_validate_size_rejects_zero_and_too_large() -> None:
     validate_size(100, 100)  # genau am Limit ist erlaubt
 
 
-def test_validate_change_note_min_length_after_strip() -> None:
-    with pytest.raises(ValueError):
-        validate_change_note("    ")
-    with pytest.raises(ValueError):
-        validate_change_note("abc")
+def test_validate_change_note_trims_only_no_min_length() -> None:
+    """Block 0036: Versionsnotiz ist optional. ``validate_change_note``
+    trimmt nur Whitespace und erzwingt keine Mindestlänge mehr."""
+    assert validate_change_note("    ") == ""
+    assert validate_change_note(None) == ""
+    assert validate_change_note("abc") == "abc"
     assert validate_change_note("  ändert das Format  ") == "ändert das Format"
 
 

@@ -88,17 +88,72 @@ def test_second_upload_assigns_version_number_two(
     assert v2.version_number == 2
 
 
-def test_short_change_note_rejected(seeded_session: Session, tmp_storage_dir: Path) -> None:
+def test_missing_change_note_uses_default_first_upload(
+    seeded_session: Session, tmp_storage_dir: Path
+) -> None:
+    """Block 0036: Beim ersten Upload ohne explizite Notiz wird
+    automatisch ``Initialer Upload`` gespeichert."""
     doc_id, auth, storage = _setup(seeded_session, tmp_storage_dir)
     service = DocumentVersionService(seeded_session, auth=auth, storage=storage)
-    with pytest.raises(ValueError):
-        service.upload_new_version(
-            doc_id,
-            file_stream=io.BytesIO(b"abc"),
-            original_filename="x.pdf",
-            mime_type="application/pdf",
-            change_note="ab",
-        )
+    version, _warnings = service.upload_new_version(
+        doc_id,
+        file_stream=io.BytesIO(b"%PDF-1.4 first"),
+        original_filename="x.pdf",
+        mime_type="application/pdf",
+        # change_note bewusst weggelassen
+    )
+    assert version.change_note == "Initialer Upload"
+
+
+def test_blank_change_note_uses_default(seeded_session: Session, tmp_storage_dir: Path) -> None:
+    """Block 0036: Whitespace-Notiz wird wie Leereingabe behandelt."""
+    doc_id, auth, storage = _setup(seeded_session, tmp_storage_dir)
+    service = DocumentVersionService(seeded_session, auth=auth, storage=storage)
+    version, _warnings = service.upload_new_version(
+        doc_id,
+        file_stream=io.BytesIO(b"%PDF-1.4 dat"),
+        original_filename="x.pdf",
+        mime_type="application/pdf",
+        change_note="   ",
+    )
+    assert version.change_note == "Initialer Upload"
+
+
+def test_missing_change_note_for_next_version_uses_other_default(
+    seeded_session: Session, tmp_storage_dir: Path
+) -> None:
+    doc_id, auth, storage = _setup(seeded_session, tmp_storage_dir)
+    service = DocumentVersionService(seeded_session, auth=auth, storage=storage)
+    service.upload_new_version(
+        doc_id,
+        file_stream=io.BytesIO(b"%PDF-1.4 v1"),
+        original_filename="v1.pdf",
+        mime_type="application/pdf",
+        change_note="Erstfassung",
+    )
+    seeded_session.commit()
+    v2, _ = service.upload_new_version(
+        doc_id,
+        file_stream=io.BytesIO(b"%PDF-1.4 v2"),
+        original_filename="v2.pdf",
+        mime_type="application/pdf",
+        # ohne explizite Notiz
+    )
+    assert v2.change_note == "Neue Version hochgeladen"
+
+
+def test_short_change_note_is_accepted(seeded_session: Session, tmp_storage_dir: Path) -> None:
+    """Block 0036: Kurze Notizen sind keine Validierungsfehler mehr."""
+    doc_id, auth, storage = _setup(seeded_session, tmp_storage_dir)
+    service = DocumentVersionService(seeded_session, auth=auth, storage=storage)
+    version, _warnings = service.upload_new_version(
+        doc_id,
+        file_stream=io.BytesIO(b"%PDF-1.4 dat"),
+        original_filename="x.pdf",
+        mime_type="application/pdf",
+        change_note="ab",
+    )
+    assert version.change_note == "ab"
 
 
 def test_unsupported_mime_rejected(seeded_session: Session, tmp_storage_dir: Path) -> None:
