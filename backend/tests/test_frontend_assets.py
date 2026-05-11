@@ -3534,6 +3534,15 @@ def test_project_library_module_has_required_tile_strings() -> None:
     assert "Projektunterlagen" in body
 
 
+def test_app_js_opens_lead_team_for_partner_lead() -> None:
+    """Block 0045 — Projektleitungen sehen den „Mein Team"-Eintrag in
+    der Navigation."""
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    assert "partner_roles" in body
+    assert "isAnyPartnerLead" in body
+    assert 'r.role === "partner_lead"' in body
+
+
 def test_partner_detail_has_partner_lead_section() -> None:
     """Block 0044 — Partnerdetail enthält die neue Section
     „Projektleitung" mit den vorgesehenen Endpunkten und Texten."""
@@ -3620,7 +3629,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0044"
+_NAV_PATCH_VERSION = "0045"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:

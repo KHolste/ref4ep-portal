@@ -10,7 +10,7 @@ ab, damit Sprint 3 sie ohne Anpassung weiterverwenden kann.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -24,12 +24,27 @@ class MembershipInfo:
     wp_role: str
 
 
+@dataclass(frozen=True)
+class PartnerRoleInfo:
+    """Block 0045 — passiv gehaltene Partnerrolle im AuthContext.
+
+    Aktuell ist ``role`` ausschließlich ``partner_lead`` (UI-Label
+    „Projektleitung"). Wirkung auf Permissions wird über die Helper
+    ``is_partner_lead_for`` / Service-Pfade gesteuert; das Vorhalten
+    der Liste im AuthContext spart DB-Roundtrips in heißen Pfaden."""
+
+    partner_id: str
+    role: str
+
+
 @dataclass
 class AuthContext:
     person_id: str
     email: str
     platform_role: str
     memberships: list[MembershipInfo]
+    # Block 0045 — Liste der Partnerrollen der eingeloggten Person.
+    partner_roles: list[PartnerRoleInfo] = field(default_factory=list)
 
 
 def can_admin(role: str) -> bool:
@@ -44,6 +59,30 @@ def is_wp_lead(auth: AuthContext, workpackage_id: str) -> bool:
     return any(
         m.workpackage_id == workpackage_id and m.wp_role == "wp_lead" for m in auth.memberships
     )
+
+
+def is_partner_lead_for(auth: AuthContext | None, partner_id: str) -> bool:
+    """True, wenn der eingeloggte Account Partnerleitung
+    (``partner_lead``) für den genannten Partner ist.
+
+    Wirkungsbereich (Block 0045): Personen- und Partnerstammdaten-
+    Verwaltung des eigenen Partners. **Erweitert ausdrücklich nicht**
+    Lese-/Schreibrechte auf Dokumente, WPs, Meilensteine oder
+    Testkampagnen — diese Pfade folgen weiter ``Membership`` /
+    ``can_admin``.
+    """
+    if auth is None:
+        return False
+    return any(
+        pr.partner_id == partner_id and pr.role == "partner_lead" for pr in auth.partner_roles
+    )
+
+
+def partner_lead_partner_ids(auth: AuthContext | None) -> set[str]:
+    """Set der Partner-IDs, für die der Account Projektleitung ist."""
+    if auth is None:
+        return set()
+    return {pr.partner_id for pr in auth.partner_roles if pr.role == "partner_lead"}
 
 
 # --------------------------------------------------------------------------- #

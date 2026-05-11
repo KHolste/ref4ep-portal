@@ -75,9 +75,11 @@ class PartnerContactService:
         return can_admin(self.role or "")
 
     def _is_lead_for(self, partner_id: str) -> bool:
+        """Block 0045 — WP-Lead des Lead-Partner-WPs **oder**
+        Projektleitung (``partner_lead``) für den Partner."""
         if not self.person_id:
             return False
-        return PartnerService(self.session).is_wp_lead_for_partner(self.person_id, partner_id)
+        return PartnerService(self.session).is_partner_representative(self.person_id, partner_id)
 
     def can_manage(self, partner_id: str) -> bool:
         return self._is_admin() or self._is_lead_for(partner_id)

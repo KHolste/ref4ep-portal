@@ -82,7 +82,7 @@ def get_partner(partner_id: str, session: SessionDep, auth: AuthDep) -> PartnerD
             detail={"error": {"code": "not_found", "message": "Partner nicht gefunden."}},
         )
     is_admin = can_admin(auth.platform_role)
-    is_lead = service.is_wp_lead_for_partner(auth.person_id, partner_id)
+    is_lead = service.is_partner_representative(auth.person_id, partner_id)
     return _detail_out(
         partner,
         can_edit=is_admin or is_lead,

@@ -1,4 +1,4 @@
-"""„Mein Team"-Endpoints für WP-Leads (Block 0013).
+"""„Mein Team“-Endpoints für WP-Leads (Block 0013).
 
 Eigener Router unter ``/api/lead/...`` — bewusst getrennt von den
 Admin-Routen, damit die Admin-Berechtigungen nicht aufgeweicht werden.
@@ -41,7 +41,7 @@ from ref4ep.api.schemas import (
     LeadWorkpackageMemberOut,
     LeadWorkpackageOut,
 )
-from ref4ep.domain.models import Membership, Person, Workpackage
+from ref4ep.domain.models import Membership, PartnerRole, Person, Workpackage
 from ref4ep.services.audit_logger import AuditLogger
 from ref4ep.services.auth import generate_initial_password
 from ref4ep.services.permissions import can_admin
@@ -59,7 +59,16 @@ AuditDep = Annotated[AuditLogger, Depends(get_audit_logger)]
 
 
 def _require_lead_or_admin(actor: Person, session: Session) -> None:
-    """403, wenn der Aufrufer weder Admin noch in irgendeinem WP wp_lead ist."""
+    """403, wenn der Aufrufer weder Admin noch WP-Lead noch
+    Projektleitung (``partner_lead``) ist.
+
+    Block 0045 — Eingang zur Lead-Sicht öffnet sich zusätzlich für
+    Partnerleitungen. Die Lead-Routen wirken weiterhin auf
+    ``actor.partner_id`` — Partnerleitung kann also nur den eigenen
+    Login-Partner verwalten. Wer Partnerleitung für **einen anderen**
+    Partner ist, sieht hier seinen eigenen Partner, nicht den fremden
+    (das wäre eine eigene Route — Folgepunkt).
+    """
     if can_admin(actor.platform_role):
         return
     has_lead = session.scalars(
@@ -70,16 +79,27 @@ def _require_lead_or_admin(actor: Person, session: Session) -> None:
         )
         .limit(1)
     ).first()
-    if has_lead is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": {
-                    "code": "forbidden",
-                    "message": "„Mein Team“ ist nur für WP-Leads zugänglich.",
-                }
-            },
+    if has_lead is not None:
+        return
+    has_partner_lead = session.scalars(
+        select(PartnerRole.id)
+        .where(
+            PartnerRole.person_id == actor.id,
+            PartnerRole.role == "partner_lead",
         )
+        .limit(1)
+    ).first()
+    if has_partner_lead is not None:
+        return
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={
+            "error": {
+                "code": "forbidden",
+                "message": "„Mein Team“ ist nur für WP-Leads und Projektleitungen zugänglich.",
+            }
+        },
+    )
 
 
 def _person_out(person: Person) -> LeadPersonOut:

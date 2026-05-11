@@ -21,6 +21,7 @@ from ref4ep.api.schemas import (
     LoginResponse,
     MembershipOut,
     MeOut,
+    MePartnerRoleOut,
     PartnerRefOut,
     PasswordChangeRequest,
     PersonOut,
@@ -152,4 +153,16 @@ def me(person: PersonDep) -> MeOut:
         )
         for m in person.memberships
     ]
-    return MeOut(person=_person_to_out(person), memberships=memberships)
+    partner_roles = [
+        MePartnerRoleOut(
+            partner_id=pr.partner_id,
+            partner_short_name=pr.partner.short_name,
+            role=pr.role,
+        )
+        for pr in person.partner_roles
+    ]
+    return MeOut(
+        person=_person_to_out(person),
+        memberships=memberships,
+        partner_roles=partner_roles,
+    )

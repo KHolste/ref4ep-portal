@@ -26,7 +26,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ref4ep.domain.models import Membership, Partner, Workpackage
+from ref4ep.domain.models import Membership, Partner, PartnerRole, Workpackage
 from ref4ep.services.audit_logger import AuditLogger
 from ref4ep.services.permissions import can_admin
 from ref4ep.services.validators import normalise_text, validate_country_code
@@ -121,6 +121,29 @@ class PartnerService:
             .limit(1)
         )
         return self.session.scalars(stmt).first() is not None
+
+    def is_partner_lead_for(self, person_id: str, partner_id: str) -> bool:
+        """Block 0045 — True, wenn ``person_id`` als ``partner_lead``
+        am Partner eingetragen ist. Schiene für Stammdaten-Updates
+        durch die Projektleitung."""
+        stmt = (
+            select(PartnerRole.id)
+            .where(
+                PartnerRole.person_id == person_id,
+                PartnerRole.partner_id == partner_id,
+                PartnerRole.role == "partner_lead",
+            )
+            .limit(1)
+        )
+        return self.session.scalars(stmt).first() is not None
+
+    def is_partner_representative(self, person_id: str, partner_id: str) -> bool:
+        """Sammelbegriff für „darf Stammdaten des Partners eingeschränkt
+        pflegen": WP-Lead eines Lead-Partner-WPs **oder** Projekt-
+        leitung."""
+        return self.is_wp_lead_for_partner(person_id, partner_id) or self.is_partner_lead_for(
+            person_id, partner_id
+        )
 
     # ---- write ----------------------------------------------------------
 
@@ -237,18 +260,24 @@ class PartnerService:
     def update_by_wp_lead(self, partner_id: str, **fields: object) -> Partner:
         """Update, eingeschränkt auf ``WP_LEAD_FIELDS``.
 
-        Voraussetzung: ``self.person_id`` ist ein WP-Lead in einem
-        Arbeitspaket, dessen ``lead_partner_id`` dem Partner
-        entspricht. Soft-deleted oder fachlich inaktive Partner
-        können nicht geändert werden.
+        Voraussetzung (Block 0045): ``self.person_id`` ist entweder
+        WP-Lead eines Lead-Partner-WPs **oder** Projektleitung
+        (``partner_lead``) für den Partner. Der Methodenname bleibt
+        aus historischen Gründen — Folgepunkt: rename in
+        ``update_by_partner_representative``.
+
+        Soft-deleted oder fachlich inaktive Partner können nicht
+        geändert werden.
         """
         if not self.person_id:
             raise PermissionError("Kein eingeloggter Nutzer.")
         partner = self.get_by_id(partner_id)
         if partner is None or partner.is_deleted:
             raise LookupError(f"Partner {partner_id} nicht gefunden.")
-        if not self.is_wp_lead_for_partner(self.person_id, partner_id):
-            raise PermissionError("Nur WP-Leads des Partners dürfen ihn bearbeiten.")
+        if not self.is_partner_representative(self.person_id, partner_id):
+            raise PermissionError(
+                "Nur WP-Leads oder Projektleitung des Partners dürfen ihn bearbeiten."
+            )
         # Felder ausserhalb der Whitelist werden still ignoriert; das ist
         # zugleich die Schutzschicht gegen versehentliches Setzen von
         # short_name/country/internal_note/is_active/is_deleted.

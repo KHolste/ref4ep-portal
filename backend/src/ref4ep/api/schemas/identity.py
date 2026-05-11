@@ -364,9 +364,23 @@ class WPMembershipOut(BaseModel):
     wp_role: str
 
 
+class MePartnerRoleOut(BaseModel):
+    """Block 0045 — kompakte Sicht auf eine Partnerrolle der
+    eingeloggten Person. Aktuell ist ``role`` ausschließlich
+    ``partner_lead`` (UI-Label „Projektleitung")."""
+
+    partner_id: str
+    partner_short_name: str
+    role: str
+
+
 class MeOut(BaseModel):
     person: PersonOut
     memberships: list[MembershipOut]
+    # Block 0045 — Partnerrollen der eingeloggten Person. Frontend
+    # nutzt das z. B., um den „Mein Team"-Eintrag auch für
+    # Projektleitungen ohne WP-Lead-Mitgliedschaft sichtbar zu machen.
+    partner_roles: list[MePartnerRoleOut] = Field(default_factory=list)
 
 
 class LoginRequest(BaseModel):

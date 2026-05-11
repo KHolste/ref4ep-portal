@@ -17,7 +17,7 @@ from ref4ep.api.config import Settings
 from ref4ep.domain.models import Person
 from ref4ep.services.audit_logger import AuditLogger
 from ref4ep.services.auth import read_session_token, verify_csrf
-from ref4ep.services.permissions import AuthContext, MembershipInfo
+from ref4ep.services.permissions import AuthContext, MembershipInfo, PartnerRoleInfo
 
 SESSION_COOKIE = "ref4ep_session"
 CSRF_COOKIE = "ref4ep_csrf"
@@ -129,9 +129,15 @@ def get_auth_context(person: CurrentPersonDep) -> AuthContext:
         )
         for m in person.memberships
     ]
+    # Block 0045 — Partnerrollen passiv mitführen. Auswertung erfolgt
+    # gezielt in den Service-Pfaden, die Partnerleitung berücksichtigen.
+    partner_roles = [
+        PartnerRoleInfo(partner_id=pr.partner_id, role=pr.role) for pr in person.partner_roles
+    ]
     return AuthContext(
         person_id=person.id,
         email=person.email,
         platform_role=person.platform_role,
         memberships=memberships,
+        partner_roles=partner_roles,
     )

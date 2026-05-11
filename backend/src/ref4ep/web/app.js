@@ -12,7 +12,7 @@ import { api, getAdminViewMode, setAdminViewMode } from "/portal/common.js";
 // common.js oder einem Modul (web/modules/*.js) hochgezogen werden;
 // der Asset-Test ``test_index_html_uses_cache_buster_for_app_js_and_style_css``
 // erzwingt das Mitwachsen.
-export const ASSET_VERSION = "0044";
+export const ASSET_VERSION = "0045";
 
 const ROUTES = [
   { pattern: /^\/portal\/?$/, module: "cockpit" },
@@ -180,8 +180,12 @@ function applyRoleVisibility() {
   // geschaltet hat, blenden wir Admin-Funktionen aus.
   const effectiveAdmin = realAdmin && getAdminViewMode() !== "user";
   const isAnyWpLead = (currentMe?.memberships || []).some((m) => m.wp_role === "wp_lead");
-  // „Mein Team": sichtbar für WP-Leads und (Admin in Admin-Ansicht).
-  if (effectiveAdmin || isAnyWpLead) {
+  // Block 0045: Projektleitungen (partner_lead) sehen ebenfalls
+  // „Mein Team" — sie verwalten Mitarbeiter ihres eigenen Partners.
+  const isAnyPartnerLead = (currentMe?.partner_roles || []).some(
+    (r) => r.role === "partner_lead",
+  );
+  if (effectiveAdmin || isAnyWpLead || isAnyPartnerLead) {
     const lead = document.getElementById("nav-lead-team");
     if (lead) lead.hidden = false;
   }
