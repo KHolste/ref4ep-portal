@@ -15,6 +15,8 @@ import {
   api,
   appendChildren,
   crossNav,
+  formatLocalDate,
+  formatLocalDateTime,
   h,
   pageHeader,
   renderEmpty,
@@ -89,27 +91,11 @@ function sameDay(a, b) {
   );
 }
 
-function formatDateTime(iso) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleString("de-DE", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatDateOnly(iso) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleDateString("de-DE", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-}
+// Anzeige-Helfer leiten an die zentralen Helfer in common.js durch.
+// Beide arbeiten mit naiven ISO-Strings als lokale Projektzeit
+// (Europe/Berlin) — siehe Kommentar im Helfer-Block.
+const formatDateTime = formatLocalDateTime;
+const formatDateOnly = formatLocalDate;
 
 // ---- Event-Klassen / -Status ------------------------------------------
 

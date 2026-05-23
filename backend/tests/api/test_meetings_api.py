@@ -712,3 +712,120 @@ def test_meeting_create_rejects_composite_label_as_workpackage_id(
     )
     assert r.status_code == 404
     assert "WP1.1" in r.json()["detail"]["error"]["message"]
+
+
+# ---- Block 0028 — Zeitzonen-Regression ---------------------------------
+#
+# Symptom: Eine im Frontend-Formular gewählte lokale Uhrzeit (``10:00``)
+# wurde nach dem Speichern um zwei Stunden geringer angezeigt (``08:00``).
+# Ursache war eine implizite UTC-Konvertierung im Frontend
+# (``new Date(value).toISOString()``) in Kombination mit naiver Rückgabe
+# aus SQLite. Wir behandeln Termin-Zeiten jetzt durchgängig als naive
+# lokale Projektzeit — die Stunde darf zwischen Eingabe, Speicherung
+# und Wiederauslieferung nicht wandern.
+
+
+def test_meeting_create_preserves_local_hour_summer(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """CEST-Fall (Juni): ``10:00`` lokal bleibt ``10:00`` lokal."""
+    r = admin_client.post(
+        "/api/meetings",
+        json={
+            "title": "Sommerzeit-Treffen",
+            # naive lokale Zeit (kein ``Z``, kein Offset) — genau das,
+            # was der ``datetime-local``-Helper im Frontend sendet.
+            "starts_at": "2026-06-15T10:00:00",
+            "ends_at": "2026-06-15T11:30:00",
+            "workpackage_ids": [],
+        },
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["starts_at"].startswith("2026-06-15T10:00")
+    assert body["ends_at"].startswith("2026-06-15T11:30")
+    # Verifikation auf DB-Ebene: Stunde wurde nicht über UTC geschoben.
+    meeting = seeded_session.query(Meeting).filter_by(id=body["id"]).one()
+    assert meeting.starts_at.hour == 10
+    assert meeting.starts_at.minute == 0
+
+
+def test_meeting_create_preserves_local_hour_winter(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """CET-Fall (Januar): ``09:00`` lokal bleibt ``09:00`` lokal."""
+    r = admin_client.post(
+        "/api/meetings",
+        json={
+            "title": "Winterzeit-Treffen",
+            "starts_at": "2026-01-15T09:00:00",
+            "workpackage_ids": [],
+        },
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["starts_at"].startswith("2026-01-15T09:00")
+    meeting = seeded_session.query(Meeting).filter_by(id=body["id"]).one()
+    assert meeting.starts_at.hour == 9
+
+
+def test_meeting_get_returns_naive_iso_without_offset(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """Die API liefert das gespeicherte Datetime ohne ``Z`` / Offset.
+
+    Das ist die Voraussetzung dafür, dass ``new Date(...)`` im Browser
+    die Eingabe wieder als lokale Projektzeit interpretiert und nicht
+    erneut über UTC schiebt."""
+    r = admin_client.post(
+        "/api/meetings",
+        json={
+            "title": "Roundtrip",
+            "starts_at": "2026-06-15T10:00:00",
+            "workpackage_ids": [],
+        },
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 201, r.text
+    meeting_id = r.json()["id"]
+
+    r = admin_client.get(f"/api/meetings/{meeting_id}")
+    assert r.status_code == 200
+    iso = r.json()["starts_at"]
+    # weder ``Z`` noch ``+`` / ``-`` für Offset im ISO-String
+    assert not iso.endswith("Z"), iso
+    assert "+" not in iso, iso
+    # Format ``YYYY-MM-DDTHH:MM(:SS)`` ohne Zone
+    assert iso.startswith("2026-06-15T10:00")
+
+
+def test_meeting_patch_does_not_shift_hour(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """PATCH ohne Zeitänderung darf den gespeicherten Wert nicht
+    verschieben — ein typischer Editier-Roundtrip aus dem Formular."""
+    r = admin_client.post(
+        "/api/meetings",
+        json={
+            "title": "Edit-Roundtrip",
+            "starts_at": "2026-07-01T14:30:00",
+            "workpackage_ids": [],
+        },
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 201, r.text
+    meeting_id = r.json()["id"]
+
+    # PATCH nur mit dem aus dem API-Read übernommenen Wert (so wie das
+    # Frontend es nach ``isoToLocalInput`` + ``localInputToPayload``
+    # zurückschickt — ohne ``Z``).
+    iso = r.json()["starts_at"]
+    r2 = admin_client.patch(
+        f"/api/meetings/{meeting_id}",
+        json={"starts_at": iso},
+        headers=_csrf(admin_client),
+    )
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["starts_at"].startswith("2026-07-01T14:30")

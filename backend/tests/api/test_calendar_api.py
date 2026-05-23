@@ -686,3 +686,74 @@ def test_filter_combinations_respond_200(admin_client: TestClient, params: dict[
     r = admin_client.get("/api/calendar/events", params=params)
     assert r.status_code == 200
     assert isinstance(r.json(), list)
+
+
+# ---- Block 0028 — Zeitzonen-Regression (Calendar) ----------------------
+
+
+def test_calendar_meeting_starts_at_has_no_z_or_offset(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """Meeting-Events im Kalender liefern naive ISO-Strings.
+
+    Vorher hat ``_ensure_aware_utc`` der API-Antwort fälschlich ein
+    ``Z`` angeheftet — das Frontend hat den Wert dann als UTC
+    interpretiert und im Browser um 2 Stunden verschoben angezeigt.
+    Naive Werte (lokale Projektzeit) lösen das Problem konsistent."""
+    service = _admin_meeting_service(seeded_session)
+    service.create_meeting(
+        title="TZ-Regression",
+        starts_at=datetime(2026, 6, 15, 10, 0),  # naive — wie aus dem Frontend
+        ends_at=datetime(2026, 6, 15, 11, 30),
+        workpackage_ids=[],
+    )
+    seeded_session.commit()
+    r = admin_client.get("/api/calendar/events?from=2026-06-01&to=2026-06-30")
+    assert r.status_code == 200
+    found = next(e for e in r.json() if e["title"] == "TZ-Regression")
+    assert not found["starts_at"].endswith("Z")
+    assert "+" not in found["starts_at"]
+    assert found["starts_at"].startswith("2026-06-15T10:00")
+    assert not found["ends_at"].endswith("Z")
+    assert found["ends_at"].startswith("2026-06-15T11:30")
+
+
+def test_calendar_milestone_actual_date_still_used_for_achieved(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """Regressionswächter: nach Umstellung auf naive lokale Zeit muss
+    die ``actual_date``-Sonderlogik für erreichte Meilensteine
+    weiterhin am tatsächlichen Erreichungstag landen."""
+    wp = _wp_id(seeded_session, "WP3.1")
+    ms = Milestone(
+        code="MS-TZ-01",
+        title="Erreicht im TZ-Fix",
+        workpackage_id=wp,
+        planned_date=_date(2026, 6, 10),
+        actual_date=_date(2026, 6, 20),
+        status="achieved",
+    )
+    seeded_session.add(ms)
+    seeded_session.commit()
+    r = admin_client.get("/api/calendar/events?from=2026-06-01&to=2026-06-30")
+    matching = next(e for e in r.json() if e["source_id"] == ms.id)
+    assert matching["starts_at"].startswith("2026-06-20")
+    assert matching["status"] == "achieved"
+
+
+def test_calendar_sorts_across_naive_meetings_and_date_events(
+    admin_client: TestClient, seeded_session: Session
+) -> None:
+    """``events.sort(...)`` muss Meetings (aus datetime-Spalten) und
+    date-basierte Quellen (Milestone/Action) mischen können — alle
+    sind naive datetimes."""
+    s = _admin_meeting_service(seeded_session)
+    s.create_meeting(title="Vormittag", starts_at=datetime(2026, 6, 15, 9, 0), workpackage_ids=[])
+    s.create_meeting(title="Nachmittag", starts_at=datetime(2026, 6, 15, 15, 0), workpackage_ids=[])
+    seeded_session.commit()
+    r = admin_client.get("/api/calendar/events?from=2026-06-01&to=2026-06-30")
+    assert r.status_code == 200
+    titles = [e["title"] for e in r.json()]
+    assert "Vormittag" in titles
+    assert "Nachmittag" in titles
+    assert titles.index("Vormittag") < titles.index("Nachmittag")

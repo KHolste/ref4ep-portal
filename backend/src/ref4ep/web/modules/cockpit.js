@@ -16,6 +16,7 @@ import {
   api,
   crossNav,
   effectivePlatformRole,
+  formatLocalDateTime,
   getLastSeenAt,
   h,
   markSeenNow,
@@ -61,18 +62,6 @@ function formatDate(iso) {
   if (!iso) return "—";
   const [y, m, d] = iso.split("-");
   return `${d}.${m}.${y}`;
-}
-
-function formatDateTime(iso) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleString("de-DE", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 function statusBadge(status) {
@@ -354,7 +343,7 @@ function renderMyMeetingsCard(myCockpit) {
       "li",
       {},
       h("a", { href: `/portal/meetings/${m.id}` }, m.title),
-      ` · ${formatDateTime(m.starts_at)}`,
+      ` · ${formatLocalDateTime(m.starts_at)}`,
       m.workpackage_codes?.length ? ` · ${m.workpackage_codes.join(", ")}` : "",
       " · ",
       h("span", { class: "muted" }, MEETING_STATUS_LABELS[m.status] || m.status),
@@ -415,7 +404,7 @@ function renderActivityEntry(entry) {
     h(
       "div",
       { class: "activity-meta" },
-      formatDateTime(entry.timestamp),
+      formatLocalDateTime(entry.timestamp),
       entry.actor ? ` · ${entry.actor}` : "",
     ),
   );
@@ -423,7 +412,7 @@ function renderActivityEntry(entry) {
 
 function renderActivityBox(entries, since) {
   const heading = since
-    ? `Änderungen seit deinem letzten Besuch (${formatDateTime(since)})`
+    ? `Änderungen seit deinem letzten Besuch (${formatLocalDateTime(since)})`
     : "Änderungen der letzten 14 Tage";
   if (!entries.length) {
     return h(

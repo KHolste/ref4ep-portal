@@ -7,7 +7,10 @@
 import {
   api,
   crossNav,
+  formatLocalDateTime,
   h,
+  isoToLocalInput,
+  localInputToPayload,
   pageHeader,
   renderEmpty,
   renderError,
@@ -67,18 +70,6 @@ function nullIfBlank(value) {
   return v === "" ? null : v;
 }
 
-function formatDateTime(iso) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleString("de-DE", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function formatDate(iso) {
   if (!iso) return "—";
   const [y, m, d] = iso.split("-");
@@ -89,27 +80,16 @@ function statusBadge(status) {
   return h("span", { class: "badge" }, STATUS_LABELS[status] || status);
 }
 
-function toLocalInput(iso) {
-  // datetime-local braucht "YYYY-MM-DDTHH:MM" ohne Sekunden/Zone.
-  if (!iso) return "";
-  const d = new Date(iso);
-  const pad = (n) => String(n).padStart(2, "0");
-  return (
-    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
-    `T${pad(d.getHours())}:${pad(d.getMinutes())}`
-  );
-}
-
 function renderEditMeetingForm(meeting, workpackages, onSaved, onCancel) {
   const titleInput = h("input", { type: "text", value: meeting.title, required: true });
   const startsAtInput = h("input", {
     type: "datetime-local",
-    value: toLocalInput(meeting.starts_at),
+    value: isoToLocalInput(meeting.starts_at),
     required: true,
   });
   const endsAtInput = h("input", {
     type: "datetime-local",
-    value: toLocalInput(meeting.ends_at),
+    value: isoToLocalInput(meeting.ends_at),
   });
   const formatSelect = h(
     "select",
@@ -161,8 +141,8 @@ function renderEditMeetingForm(meeting, workpackages, onSaved, onCancel) {
     errorBox.style.display = "none";
     const payload = {
       title: titleInput.value,
-      starts_at: new Date(startsAtInput.value).toISOString(),
-      ends_at: endsAtInput.value ? new Date(endsAtInput.value).toISOString() : null,
+      starts_at: localInputToPayload(startsAtInput.value),
+      ends_at: localInputToPayload(endsAtInput.value),
       format: formatSelect.value,
       category: categorySelect.value,
       status: statusSelect.value,
@@ -514,8 +494,8 @@ function renderHeader(meeting) {
       "p",
       {},
       "Termin: ",
-      formatDateTime(meeting.starts_at),
-      meeting.ends_at ? ` – ${formatDateTime(meeting.ends_at)}` : "",
+      formatLocalDateTime(meeting.starts_at),
+      meeting.ends_at ? ` – ${formatLocalDateTime(meeting.ends_at)}` : "",
     ),
     h("p", {}, `Format: ${FORMAT_LABELS[meeting.format] || meeting.format}`),
     meeting.location ? h("p", {}, `Ort: ${meeting.location}`) : null,

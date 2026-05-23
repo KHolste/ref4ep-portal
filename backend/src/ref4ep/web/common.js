@@ -66,6 +66,81 @@ export function clearAndAppend(container, ...nodes) {
   container.replaceChildren(...nodes);
 }
 
+// ---- Datums-/Zeit-Helfer (Block 0028 — Zeitzonen-Fix) -------------------
+//
+// Das Portal behandelt vom Nutzer eingegebene Termin-Zeiten konsistent
+// als **lokale Projektzeit** (Europe/Berlin). Begründung:
+//
+// - SQLite kennt keinen echten Zeitzonen-Typ; auch ``DateTime(timezone=True)``
+//   wird als naiver Wert geschrieben und kommt als naiver Wert zurück.
+// - Pydantic serialisiert naive ``datetime``-Werte ohne ``Z``/Offset.
+// - ``new Date("2026-06-15T10:00:00")`` interpretiert einen offset-freien
+//   ISO-String als lokale Browserzeit — passt damit eins-zu-eins zur
+//   Spaltenanzeige.
+// - Sommerzeit-/Winterzeitwechsel werden vom Browser automatisch über
+//   ``toLocaleString("de-DE", …)`` aufgelöst — keine pauschale
+//   ``+2 h``-Korrektur.
+//
+// Falsch wäre ``new Date(datetimeLocalValue).toISOString()`` — das
+// interpretiert die lokale Eingabe und verschiebt sie nach UTC, sodass
+// 10:00 lokal als 08:00 in der DB landet und im Frontend als 08:00
+// wieder angezeigt wird.
+
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+
+// API-Werte (ISO ohne Offset) in das ``YYYY-MM-DDTHH:MM``-Format wandeln,
+// das ``<input type="datetime-local">`` erwartet. Der Wert wird als
+// lokale Zeit interpretiert — wenn der Server schon naive lokale Zeit
+// liefert (Soll-Zustand), ist das eine identische Rückwandlung.
+export function isoToLocalInput(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return (
+    `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` +
+    `T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  );
+}
+
+// Ein ``datetime-local``-Eingabewert wird **unverändert** als naive ISO-
+// Zeichenkette an die API geschickt. Pydantic akzeptiert sie als naive
+// ``datetime`` — die Stunde bleibt erhalten und wandert nicht über UTC.
+// Leerer/whitespace-Eingabe → ``null`` (für optionale Felder).
+export function localInputToPayload(value) {
+  const v = (value || "").trim();
+  return v === "" ? null : v;
+}
+
+// Anzeige eines API-Datums + Uhrzeit als deutsche lokale Zeit.
+// Naive ISO-Strings ohne Offset werden als lokale Zeit interpretiert —
+// genau das, was wir wollen.
+export function formatLocalDateTime(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("de-DE", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+// Anzeige nur des Datums-Teils — z. B. für all-day-Events im Kalender.
+export function formatLocalDate(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("de-DE", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
 // Sicherer Ersatz für ``container.replaceChildren(...)``: filtert
 // ``null``/``undefined``/``false`` heraus und coerct alles andere in
 // einen Textknoten — sonst macht die DOM-API aus ``null`` den Text

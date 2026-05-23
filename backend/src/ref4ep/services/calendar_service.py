@@ -37,7 +37,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time
+from datetime import date, datetime, time
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -81,23 +81,37 @@ class CalendarEvent:
 # --------------------------------------------------------------------------- #
 
 
-def _start_of_day_utc(d: date) -> datetime:
-    return datetime.combine(d, time.min, tzinfo=UTC)
+def _start_of_day(d: date) -> datetime:
+    """Tagesanfang als naive ``datetime`` in lokaler Projektzeit.
+
+    Das Portal behandelt vom Nutzer eingegebene Zeiten konsistent als
+    naive Werte in Europe/Berlin (siehe Frontend-Helfer in common.js).
+    Damit Sortierung und Vergleiche zwischen Quellen aufgehen, müssen
+    auch die aus ``date``-Spalten abgeleiteten Werte naive bleiben."""
+    return datetime.combine(d, time.min)
 
 
-def _end_of_day_utc(d: date) -> datetime:
-    return datetime.combine(d, time.max, tzinfo=UTC)
+def _end_of_day(d: date) -> datetime:
+    """Tagesende als naive ``datetime`` in lokaler Projektzeit."""
+    return datetime.combine(d, time.max)
 
 
-def _ensure_aware_utc(dt: datetime | None) -> datetime | None:
-    """SQLite reicht ``DateTime(timezone=True)`` als naive Werte zurück —
-    wir hängen UTC an, damit die Sortierung über alle Quellen hinweg
-    konsistent ist (sonst: ``can't compare naive and aware datetimes``)."""
+def _strip_tzinfo(dt: datetime | None) -> datetime | None:
+    """Datetime auf naive normalisieren, ohne den Wert umzurechnen.
+
+    Hintergrund: Die Meeting-Tabelle ist als ``DateTime(timezone=True)``
+    deklariert, SQLite speichert sie aber als naive Zeichenkette und
+    liefert sie auch naive zurück. Eingehende Datentypen aus Tests/
+    Migrationen können vereinzelt aware sein — wir entfernen das
+    ``tzinfo``, damit ``events.sort(...)`` (das die Quellen mischt) nie
+    auf ``can't compare naive and aware datetimes`` läuft.
+
+    Der Wert wird **nicht** in eine andere Zeitzone konvertiert — die
+    bisher fälschliche UTC-Etikettierung war genau die Ursache der
+    Zwei-Stunden-Verschiebung in der Meeting-Anzeige."""
     if dt is None:
         return None
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=UTC)
-    return dt
+    return dt.replace(tzinfo=None) if dt.tzinfo is not None else dt
 
 
 def _format_date_de(d: date) -> str:
@@ -224,8 +238,8 @@ class CalendarService:
         mine: bool,
         own_wps: set[str],
     ) -> list[CalendarEvent]:
-        from_dt = _start_of_day_utc(from_)
-        to_dt = _end_of_day_utc(to)
+        from_dt = _start_of_day(from_)
+        to_dt = _end_of_day(to)
         # Range-Overlap auf datetime-Spalten:
         #   meeting.starts_at <= to_dt
         #   AND COALESCE(meeting.ends_at, meeting.starts_at) >= from_dt
@@ -279,8 +293,8 @@ class CalendarService:
                     source_id=m.id,
                     type="meeting",
                     title=m.title,
-                    starts_at=_ensure_aware_utc(m.starts_at),
-                    ends_at=_ensure_aware_utc(m.ends_at),
+                    starts_at=_strip_tzinfo(m.starts_at),
+                    ends_at=_strip_tzinfo(m.ends_at),
                     all_day=False,
                     status=m.status,
                     workpackage_codes=wp_codes,
@@ -358,8 +372,8 @@ class CalendarService:
                     type="campaign",
                     title=f"{c.code} — {c.title}",
                     # MVP: Anzeige am Startdatum, Zeitraum in der description.
-                    starts_at=_start_of_day_utc(c.starts_on),
-                    ends_at=_start_of_day_utc(c.ends_on) if c.ends_on else None,
+                    starts_at=_start_of_day(c.starts_on),
+                    ends_at=_start_of_day(c.ends_on) if c.ends_on else None,
                     all_day=True,
                     status=c.status,
                     workpackage_codes=wp_codes,
@@ -439,7 +453,7 @@ class CalendarService:
                     source_id=ms.id,
                     type="milestone",
                     title=f"{ms.code} — {ms.title}",
-                    starts_at=_start_of_day_utc(effective_date),
+                    starts_at=_start_of_day(effective_date),
                     ends_at=None,
                     all_day=True,
                     status=ms.status,
@@ -494,7 +508,7 @@ class CalendarService:
                     # ``a.text`` kann lang sein; kürzen wir bewusst nicht im
                     # Backend — die UI macht das per CSS.
                     title=a.text,
-                    starts_at=_start_of_day_utc(a.due_date),
+                    starts_at=_start_of_day(a.due_date),
                     ends_at=None,
                     all_day=True,
                     status=a.status,

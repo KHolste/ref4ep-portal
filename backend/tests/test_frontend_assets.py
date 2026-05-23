@@ -4018,3 +4018,61 @@ def test_portal_modal_styles_share_rules_with_library_modal() -> None:
     assert ".library-modal-backdrop,\n.portal-modal-backdrop" in css
     assert ".library-modal,\n.portal-modal {" in css
     assert ".library-modal-body,\n.portal-modal-body" in css
+
+
+# ---- Block 0028 — Zeitzonen-Regression (Frontend-Assets) ---------------
+#
+# Statische Prüfung, damit der ``new Date(value).toISOString()``-Bug
+# nicht erneut in einen ``datetime-local``-Submit-Pfad eingeführt wird.
+# Die fachliche Roundtrip-Garantie steckt in den API-Tests
+# (test_meetings_api.py / test_calendar_api.py); hier sichern wir
+# zusätzlich den Modulcode gegen einen versehentlichen Rückfall ab.
+
+
+def test_common_js_exports_local_datetime_helpers() -> None:
+    body = (WEB_DIR / "common.js").read_text(encoding="utf-8")
+    for fn in (
+        "export function isoToLocalInput",
+        "export function localInputToPayload",
+        "export function formatLocalDateTime",
+        "export function formatLocalDate",
+    ):
+        assert fn in body, f"common.js sollte {fn!r} exportieren"
+
+
+def test_meeting_modules_use_local_datetime_helpers_and_no_toISOString() -> None:
+    """``datetime-local``-Werte aus dem Meeting-Formular dürfen nicht
+    über ``new Date(...).toISOString()`` nach UTC verschoben werden —
+    das war die Ursache der 2-Stunden-Anzeige-Verschiebung."""
+    for name in ("meetings.js", "meeting_detail.js"):
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        assert "localInputToPayload" in body, (
+            f"{name} sollte den zentralen localInputToPayload-Helper nutzen"
+        )
+        # Genau dieses Pattern war der Bug: lokales datetime-local →
+        # neue Date interpretiert als lokal → .toISOString() schiebt
+        # nach UTC. Es darf nirgends mehr im Submit-Pfad stehen.
+        assert ".toISOString()" not in body, (
+            f"{name} darf .toISOString() nicht für datetime-local-Werte verwenden"
+        )
+
+
+def test_meeting_modules_render_dates_via_local_helper() -> None:
+    """Anzeige läuft über ``formatLocalDateTime`` — der Helper
+    interpretiert naive ISO-Strings als lokale Projektzeit (das ist
+    der Default-Pfad von ``new Date(...)`` im Browser)."""
+    for name in ("meetings.js", "meeting_detail.js", "meeting_print.js", "cockpit.js"):
+        body = (MODULES_DIR / name).read_text(encoding="utf-8")
+        assert "formatLocalDateTime" in body, (
+            f"{name} sollte formatLocalDateTime für Meeting-Zeiten nutzen"
+        )
+
+
+def test_calendar_module_uses_local_helpers_and_keeps_month_grid_range() -> None:
+    """Regression-Wächter: der Kalender verwendet die zentralen lokalen
+    Anzeige-Helfer und ``monthGridRange()`` bleibt vorhanden."""
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    assert "formatLocalDateTime" in body
+    assert "formatLocalDate" in body
+    # Der gerade korrigierte Rasterbereich darf nicht regressieren.
+    assert "function monthGridRange" in body

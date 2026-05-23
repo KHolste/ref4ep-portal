@@ -8,7 +8,9 @@
 import {
   api,
   crossNav,
+  formatLocalDateTime,
   h,
+  localInputToPayload,
   pageHeader,
   renderEmpty,
   renderError,
@@ -40,18 +42,6 @@ const STATUS_LABELS = {
   completed: "abgeschlossen",
   cancelled: "abgesagt",
 };
-
-function formatDate(iso) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleString("de-DE", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 function nullIfBlank(value) {
   const v = (value || "").trim();
@@ -106,8 +96,8 @@ function renderCreateDialog(workpackages, onSaved, onCancel) {
     errorBox.style.display = "none";
     const payload = {
       title: titleInput.value,
-      starts_at: new Date(startsAtInput.value).toISOString(),
-      ends_at: endsAtInput.value ? new Date(endsAtInput.value).toISOString() : null,
+      starts_at: localInputToPayload(startsAtInput.value),
+      ends_at: localInputToPayload(endsAtInput.value),
       format: formatSelect.value,
       category: categorySelect.value,
       location: nullIfBlank(locationInput.value),
@@ -157,7 +147,7 @@ function rowFor(meeting) {
   return h(
     "tr",
     {},
-    h("td", {}, formatDate(meeting.starts_at)),
+    h("td", {}, formatLocalDateTime(meeting.starts_at)),
     h("td", {}, h("a", { href: `/portal/meetings/${meeting.id}` }, meeting.title)),
     h("td", {}, CATEGORY_LABELS[meeting.category] || meeting.category),
     h("td", {}, FORMAT_LABELS[meeting.format] || meeting.format),

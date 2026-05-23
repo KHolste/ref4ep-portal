@@ -6,7 +6,13 @@
 // /portal/meetings/{id}/print — derselbe Auth- und Berechtigungspfad
 // wie die normale Detailseite (Server filtert nach can_view).
 
-import { api, h, renderError, renderLoading } from "/portal/common.js";
+import {
+  api,
+  formatLocalDateTime,
+  h,
+  renderError,
+  renderLoading,
+} from "/portal/common.js";
 
 const FORMAT_LABELS = {
   online: "online",
@@ -56,18 +62,6 @@ const DOC_LABEL_LABELS = {
   other: "Sonstiges",
 };
 
-function formatDateTime(iso) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleString("de-DE", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function formatDate(iso) {
   if (!iso) return "—";
   const [y, m, d] = iso.split("-");
@@ -83,8 +77,8 @@ function renderHeader(meeting) {
       "p",
       { class: "muted" },
       "Termin: ",
-      formatDateTime(meeting.starts_at),
-      meeting.ends_at ? ` – ${formatDateTime(meeting.ends_at)}` : "",
+      formatLocalDateTime(meeting.starts_at),
+      meeting.ends_at ? ` – ${formatLocalDateTime(meeting.ends_at)}` : "",
       " · ",
       `Format: ${FORMAT_LABELS[meeting.format] || meeting.format}`,
       meeting.location ? ` · Ort: ${meeting.location}` : "",
