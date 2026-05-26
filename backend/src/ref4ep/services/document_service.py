@@ -175,11 +175,12 @@ class DocumentService:
     ) -> Document:
         """Legt ein neues Dokument an.
 
-        Block 0035: ``workpackage_code`` darf ``None`` sein — Admins
-        können dann übergreifende Bibliotheksdokumente ohne WP-Bezug
-        anlegen. Ohne WP ist nur Admin schreibberechtigt.
-        ``library_section`` ist optional; wenn gesetzt, muss der Wert
-        in :data:`LIBRARY_SECTIONS` enthalten sein.
+        ``workpackage_code`` darf ``None`` sein — Bibliotheksdokumente
+        ohne WP-Bezug dürfen alle eingeloggten Nutzer anlegen (anonyme
+        Aufrufer nicht). WP-Dokumente erfordern weiterhin Admin oder
+        WP-Mitgliedschaft. ``library_section`` ist optional; wenn
+        gesetzt, muss der Wert in :data:`LIBRARY_SECTIONS` enthalten
+        sein.
         """
         if document_type not in DOCUMENT_TYPES:
             raise ValueError(f"Unbekannter Dokumenttyp: {document_type!r}")
@@ -196,12 +197,10 @@ class DocumentService:
                 raise LookupError(f"Workpackage {workpackage_code!r} nicht gefunden.")
             self._require_write(wp)
         else:
+            # Bibliotheks-Dokumente ohne WP-Bezug: jeder eingeloggte Nutzer
+            # darf anlegen. Anonyme Aufrufer werden hier abgewiesen.
             if self.auth is None:
                 raise PermissionError("Nicht angemeldet.")
-            if not can_admin(self.auth.platform_role):
-                raise PermissionError(
-                    "Dokumente ohne Arbeitspaket-Bezug dürfen nur Admins anlegen."
-                )
 
         assert self.auth is not None
 

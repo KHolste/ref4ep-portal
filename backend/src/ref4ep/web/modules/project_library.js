@@ -6,8 +6,9 @@
 // (``enforce_visibility=true``); das Modul fügt KEINE eigenen
 // Sichtbarkeitsregeln hinzu.
 //
-// Upload eines Dokuments ohne WP-Bezug ist Admins vorbehalten;
-// die Versions-Anlage läuft anschließend über die Detailseite.
+// Upload eines Dokuments ohne WP-Bezug steht allen eingeloggten
+// Konsortiumsmitgliedern offen; die Versions-Anlage läuft anschließend
+// über die Detailseite. Anonyme Aufrufer sehen den Upload-Button nicht.
 
 import {
   api,
@@ -292,7 +293,7 @@ function renderUploadDialog(onSaved, onCancel) {
   return h(
     "form",
     { class: "stacked library-upload-form", onsubmit: onSubmit, enctype: "multipart/form-data" },
-    h("p", { class: "muted" }, "Hier hochgeladene Dokumente landen ohne Arbeitspaket-Bezug in der Projektbibliothek. Nur Admins."),
+    h("p", { class: "muted" }, "Hier hochgeladene Dokumente landen ohne Arbeitspaket-Bezug in der Projektbibliothek. Eingeloggte Konsortiumsmitglieder dürfen anlegen und neue Versionen hochladen."),
     h("label", {}, "Datei", dropzone),
     h("label", {}, "Titel", titleInput),
     h("label", {}, "Bibliotheksbereich (optional)", sectionSelect),
@@ -322,7 +323,10 @@ export async function render(container, ctx) {
     withoutWorkpackage: false,
   };
 
-  const isAdmin = ctx?.me?.person?.platform_role === "admin";
+  // Bibliotheks-Upload steht jedem eingeloggten Konsortiumsmitglied
+  // offen; anonyme Aufrufer sehen den Button nicht. Die Backend-Route
+  // ``POST /api/library/documents`` setzt dieselbe Schwelle.
+  const isLoggedIn = Boolean(ctx?.me?.person);
 
   // Block 0035-Folgepatch: echtes Modal-Overlay statt Inline-Dialog am
   // Seitenende. ``modalSlot`` lebt fest am Container-Anfang, das Modal
@@ -414,7 +418,7 @@ export async function render(container, ctx) {
           state.section
             ? "Es gibt aktuell keine sichtbaren Dokumente in dieser Kachel."
             : "Es gibt aktuell keine sichtbaren Dokumente.",
-          isAdmin ? { label: "Dokument hochladen …", onClick: onUpload } : null,
+          isLoggedIn ? { label: "Dokument hochladen …", onClick: onUpload } : null,
         ),
       );
     } else {
@@ -473,7 +477,7 @@ export async function render(container, ctx) {
     ),
   );
 
-  const actionBar = isAdmin
+  const actionBar = isLoggedIn
     ? h(
         "div",
         { class: "actions" },

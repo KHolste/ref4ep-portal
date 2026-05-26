@@ -917,7 +917,13 @@ export async function render(container, ctx) {
   const wpCode = doc.workpackage?.code ?? null;
 
   const admin = isAdmin(me);
-  const memberHere = wpCode ? isWpMember(me, wpCode) || admin : admin;
+  // Bibliotheks-Dokumente (kein WP-Bezug) sind für jeden eingeloggten
+  // Nutzer beschreibbar — das spiegelt ``can_write_document`` im
+  // Backend. WP-Dokumente bleiben an Membership/Admin gebunden.
+  // Lead-Schwelle (Release/Public-Visibility) bleibt unverändert:
+  // ohne WP nur Admin.
+  const loggedIn = Boolean(me?.person);
+  const memberHere = wpCode ? isWpMember(me, wpCode) || admin : loggedIn;
   const leadHere = wpCode ? isWpLead(me, wpCode) || admin : admin;
   const versions = doc.versions || [];
 

@@ -120,15 +120,19 @@ def can_read_document(auth: AuthContext | None, document: Document) -> bool:
 def can_write_document(auth: AuthContext | None, document: Document) -> bool:
     """Wer darf Metadaten ändern bzw. neue Versionen hochladen (Sprint 2).
 
-    Block 0035: bei ``workpackage_id IS NULL`` (Projektbibliothek) ist
-    ausschließlich Admin schreibberechtigt.
+    Bibliotheks-Dokumente (``workpackage_id IS NULL``) sind für alle
+    eingeloggten Nutzer beschreibbar. WP-Dokumente bleiben auf Admin
+    bzw. WP-Mitgliedschaft beschränkt. Soft-gelöschte Dokumente sind
+    in keinem Fall beschreibbar; anonyme Aufrufer ebenfalls nicht.
+    Release-/Freigabe-Logik (``can_release``/``can_unrelease``/
+    ``can_set_visibility(public)``) bleibt davon unberührt.
     """
     if auth is None or document.is_deleted:
         return False
     if can_admin(auth.platform_role):
         return True
     if document.workpackage_id is None:
-        return False
+        return True
     return is_member_of(auth, document.workpackage_id)
 
 

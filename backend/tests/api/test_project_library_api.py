@@ -48,13 +48,18 @@ def test_anonymous_cannot_create_library_document(client: TestClient) -> None:
     assert r.status_code in (401, 403)
 
 
-def test_member_cannot_create_library_document(member_client: TestClient) -> None:
+def test_member_can_create_library_document(member_client: TestClient) -> None:
+    """Eingeloggte Konsortiumsmitglieder dürfen Bibliotheksdokumente
+    anlegen — Admin-only ist aufgehoben."""
     r = member_client.post(
         "/api/library/documents",
-        json={"title": "Privat", "document_type": "other"},
+        json={"title": "Member-Lib", "document_type": "other"},
         headers=_csrf(member_client),
     )
-    assert r.status_code == 403
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["workpackage"] is None
+    assert body["title"] == "Member-Lib"
 
 
 def test_admin_can_create_library_document_without_workpackage(
@@ -222,3 +227,160 @@ def test_admin_can_create_library_document_with_new_science_types(
         )
         assert r.status_code == 201, (doc_type, r.text)
         assert r.json()["document_type"] == doc_type
+
+
+# ---- Bibliotheks-Schreibrechte für eingeloggte Nutzer -----------------
+#
+# Bibliotheksdokumente (``workpackage_id IS NULL``) sind für alle
+# eingeloggten Konsortiumsmitglieder anlegbar und beschreibbar. WP-
+# Dokumente bleiben unverändert an Membership/Admin gebunden. Release/
+# Freigabe sowie Soft-Delete bleiben restriktiv (Admin bzw. WP-Lead).
+
+
+def test_member_can_upload_version_to_library_document(
+    member_client: TestClient,
+    seeded_session: Session,
+    admin_person_id: str,
+) -> None:
+    """Eingeloggte Member dürfen eine neue Version zu einem
+    Bibliotheksdokument hochladen — Admin-only ist aufgehoben."""
+    import hashlib
+    import io
+
+    doc_id = _create_library_doc_via_service(
+        seeded_session, title="Lib-Member-Upload", library_section="project"
+    )
+    payload = b"%PDF-1.4 member content"
+    r = member_client.post(
+        f"/api/documents/{doc_id}/versions",
+        files={"file": ("v1.pdf", io.BytesIO(payload), "application/pdf")},
+        data={"change_note": "Erstversion durch Member"},
+        headers=_csrf(member_client),
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["version"]["version_number"] == 1
+    assert body["version"]["sha256"] == hashlib.sha256(payload).hexdigest()
+
+
+def test_anonymous_cannot_upload_version_to_library_document(
+    client: TestClient,
+    seeded_session: Session,
+    admin_person_id: str,
+) -> None:
+    """Anonyme Aufrufer dürfen weiterhin keine neue Version zu einem
+    Bibliotheksdokument hochladen — die Schwelle bleibt ‚eingeloggt'."""
+    import io
+
+    doc_id = _create_library_doc_via_service(
+        seeded_session, title="Lib-Anon-Block", library_section="project"
+    )
+    client.cookies.clear()
+    r = client.post(
+        f"/api/documents/{doc_id}/versions",
+        files={"file": ("x.pdf", io.BytesIO(b"%PDF-1.4 anon"), "application/pdf")},
+        data={"change_note": "darf nicht durchgehen"},
+    )
+    assert r.status_code in (401, 403)
+
+
+def test_member_cannot_upload_version_to_wp_document_without_membership(
+    member_client: TestClient,
+    seeded_session: Session,
+    admin_person_id: str,
+) -> None:
+    """Bibliotheks-Öffnung gilt NICHT für WP-Dokumente: Ein Member ohne
+    Membership auf dem zugehörigen WP bleibt mit 403 ausgesperrt."""
+    import io
+
+    auth = _admin_auth(seeded_session)
+    wp_doc = DocumentService(seeded_session, auth=auth).create(
+        workpackage_code="WP3",
+        title="WP3-Restricted",
+        document_type="report",
+    )
+    seeded_session.commit()
+    r = member_client.post(
+        f"/api/documents/{wp_doc.id}/versions",
+        files={"file": ("x.pdf", io.BytesIO(b"%PDF-1.4 nope"), "application/pdf")},
+        data={"change_note": "ohne Membership"},
+        headers=_csrf(member_client),
+    )
+    assert r.status_code == 403
+
+
+def test_wp_member_can_still_upload_version_to_wp_document(
+    member_client: TestClient, seeded_session: Session, member_in_wp3
+) -> None:
+    """WP-Membership-Pfad bleibt unverändert: WP-Mitglied darf hochladen."""
+    import io
+
+    create = member_client.post(
+        "/api/workpackages/WP3/documents",
+        json={"title": "WP3-Member-Upload", "document_type": "report"},
+        headers=_csrf(member_client),
+    )
+    assert create.status_code == 201, create.text
+    doc_id = create.json()["id"]
+    r = member_client.post(
+        f"/api/documents/{doc_id}/versions",
+        files={"file": ("v1.pdf", io.BytesIO(b"%PDF-1.4 wp"), "application/pdf")},
+        data={"change_note": "WP-Member-Upload"},
+        headers=_csrf(member_client),
+    )
+    assert r.status_code == 201, r.text
+
+
+def test_member_cannot_release_library_document(
+    member_client: TestClient,
+    seeded_session: Session,
+    admin_person_id: str,
+) -> None:
+    """Release-/Freigaberechte bleiben restriktiv: ein Member darf ein
+    Bibliotheksdokument NICHT freigeben, obwohl er es jetzt beschreiben
+    und in Review schicken darf. Ohne WP-Bezug ist die Freigabe Admin-
+    only (``can_release``-Pfad fällt bei ``workpackage_id IS NULL`` auf
+    Admin zurück, der WP-Lead-Zweig greift nicht)."""
+    import io
+
+    doc_id = _create_library_doc_via_service(
+        seeded_session, title="Lib-Release-Block", library_section="project"
+    )
+    upload = member_client.post(
+        f"/api/documents/{doc_id}/versions",
+        files={"file": ("v1.pdf", io.BytesIO(b"%PDF-1.4 v1"), "application/pdf")},
+        data={"change_note": "Member-Upload"},
+        headers=_csrf(member_client),
+    )
+    assert upload.status_code == 201, upload.text
+    version_number = upload.json()["version"]["version_number"]
+    # Status auf in_review setzen (darf Member auch bei Lib-Docs).
+    review = member_client.post(
+        f"/api/documents/{doc_id}/status",
+        json={"to": "in_review"},
+        headers=_csrf(member_client),
+    )
+    assert review.status_code == 200, review.text
+    # Release ist trotz in_review für Member verboten.
+    r = member_client.post(
+        f"/api/documents/{doc_id}/release",
+        json={"version_number": version_number},
+        headers=_csrf(member_client),
+    )
+    assert r.status_code == 403
+
+
+def test_member_cannot_soft_delete_library_document(
+    member_client: TestClient,
+    seeded_session: Session,
+    admin_person_id: str,
+) -> None:
+    """Soft-Delete bleibt Admin-only — auch bei Bibliotheksdokumenten."""
+    doc_id = _create_library_doc_via_service(
+        seeded_session, title="Lib-Soft-Delete-Block", library_section="project"
+    )
+    r = member_client.delete(
+        f"/api/documents/{doc_id}",
+        headers=_csrf(member_client),
+    )
+    assert r.status_code == 403

@@ -3603,15 +3603,50 @@ def test_project_library_module_uses_visibility_safe_endpoint() -> None:
     assert "/api/documents/${doc.id}" not in body
 
 
-def test_project_library_upload_uses_dedicated_admin_route() -> None:
+def test_project_library_upload_uses_library_route() -> None:
     body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
-    # Anlage über die Admin-Route (Service erzwingt Admin).
+    # Anlage über die Library-Route (Service prüft Login).
     assert "/api/library/documents" in body
     # Versions-Upload geht über den bestehenden Endpunkt — keine
     # eigene neue Storage-Logik im Frontend.
     assert "/versions" in body
     # Drag-and-Drop nutzt den zentralen Helper.
     assert "createFileDropzone" in body
+
+
+def test_project_library_upload_button_visible_for_logged_in_users() -> None:
+    """Bibliotheks-Upload steht jedem eingeloggten Nutzer offen:
+    ``isLoggedIn`` löst die frühere Admin-only-Sichtbarkeit ab. Der
+    Button ``Dokument hochladen …`` und die Empty-State-Aktion hängen
+    beide an dieser Variable. Der frühere Hinweistext „Nur Admins."
+    wurde entfernt — sonst widerspräche er der neuen Schwelle."""
+    body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
+    assert "isLoggedIn" in body
+    assert "ctx?.me?.person" in body
+    # Sichtbarkeits-Schalter für Action-Bar und Empty-State greifen auf
+    # isLoggedIn zu, nicht mehr auf isAdmin.
+    assert "const actionBar = isLoggedIn" in body
+    assert 'isLoggedIn ? { label: "Dokument hochladen …"' in body
+    # Die alte Admin-only-Sichtbarkeit ist verschwunden.
+    assert 'platform_role === "admin"' not in body
+    assert "isAdmin ?" not in body
+    # Hinweis im Upload-Dialog spiegelt die neue Schwelle.
+    assert "Nur Admins." not in body
+    assert "Eingeloggte Konsortiumsmitglieder" in body
+
+
+def test_document_detail_library_upload_visible_for_logged_in_users() -> None:
+    """``memberHere`` ist in document_detail.js der Sichtbarkeits-Schalter
+    für „Neue Version hochladen …", Metadaten-Edit und Status-Wechsel.
+    Bei Bibliotheks-Dokumenten (kein WP-Code) muss er für jeden
+    eingeloggten Nutzer truthy sein. Lead-Schwelle (Release/Public-
+    Visibility) bleibt unverändert: ohne WP nur Admin."""
+    body = (MODULES_DIR / "document_detail.js").read_text(encoding="utf-8")
+    # Neue Bibliotheks-Schwelle: loggedIn statt admin als Fallback.
+    assert "const loggedIn = Boolean(me?.person)" in body
+    assert "const memberHere = wpCode ? isWpMember(me, wpCode) || admin : loggedIn" in body
+    # Lead-Schwelle bleibt restriktiv: ohne WP nur Admin.
+    assert "const leadHere = wpCode ? isWpLead(me, wpCode) || admin : admin" in body
 
 
 def test_project_library_styles_present() -> None:

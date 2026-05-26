@@ -55,9 +55,11 @@ def test_admin_can_create_library_document_without_workpackage(seeded_session: S
     assert doc.visibility == "internal"
 
 
-def test_member_cannot_create_library_document_without_workpackage(
+def test_member_can_create_library_document_without_workpackage(
     seeded_session: Session,
 ) -> None:
+    """Eingeloggte Konsortiumsmitglieder dürfen Bibliotheksdokumente
+    ohne WP-Bezug anlegen — Admin-only ist aufgehoben."""
     _ensure_admin(seeded_session)
     member = PersonService(seeded_session, role="admin").create(
         email="member-lib@test.example",
@@ -70,10 +72,24 @@ def test_member_cannot_create_library_document_without_workpackage(
     auth = AuthContext(
         person_id=member.id, email=member.email, platform_role="member", memberships=[]
     )
+    doc = DocumentService(seeded_session, auth=auth).create(
+        workpackage_code=None,
+        title="Stille Notiz",
+        document_type="note",
+    )
+    assert doc.workpackage_id is None
+    assert doc.created_by_person_id == member.id
+
+
+def test_anonymous_cannot_create_library_document_without_workpackage(
+    seeded_session: Session,
+) -> None:
+    """Anonyme Aufrufer dürfen kein Bibliotheksdokument anlegen."""
+    _ensure_admin(seeded_session)
     with pytest.raises(PermissionError):
-        DocumentService(seeded_session, auth=auth).create(
+        DocumentService(seeded_session, auth=None).create(
             workpackage_code=None,
-            title="Stille Notiz",
+            title="Anonym",
             document_type="note",
         )
 
@@ -144,7 +160,11 @@ def test_can_read_document_without_workpackage_workpackage_visibility_anon_false
     assert can_read_document(None, doc) is False
 
 
-def test_can_write_document_without_workpackage_only_admin(seeded_session: Session) -> None:
+def test_can_write_document_without_workpackage_for_logged_in_users(
+    seeded_session: Session,
+) -> None:
+    """Bibliotheks-Dokumente sind für Admin UND eingeloggte Member
+    beschreibbar; anonym bleibt verboten."""
     _ensure_admin(seeded_session)
     auth = _admin_auth(seeded_session)
     doc = DocumentService(seeded_session, auth=auth).create(
@@ -155,7 +175,27 @@ def test_can_write_document_without_workpackage_only_admin(seeded_session: Sessi
     seeded_session.commit()
     member_auth = AuthContext(person_id="m", email="m@x", platform_role="member", memberships=[])
     assert can_write_document(auth, doc) is True
+    assert can_write_document(member_auth, doc) is True
+    assert can_write_document(None, doc) is False
+
+
+def test_can_write_document_without_workpackage_blocked_on_soft_delete(
+    seeded_session: Session,
+) -> None:
+    """Soft-gelöschte Bibliotheks-Dokumente sind nicht mehr beschreibbar
+    — auch nicht für eingeloggte Member."""
+    _ensure_admin(seeded_session)
+    auth = _admin_auth(seeded_session)
+    doc = DocumentService(seeded_session, auth=auth).create(
+        workpackage_code=None,
+        title="Library-Deleted",
+        document_type="other",
+    )
+    doc.is_deleted = True
+    seeded_session.commit()
+    member_auth = AuthContext(person_id="m", email="m@x", platform_role="member", memberships=[])
     assert can_write_document(member_auth, doc) is False
+    assert can_write_document(auth, doc) is False
 
 
 def test_list_internal_with_library_section_filter(seeded_session: Session) -> None:
