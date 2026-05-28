@@ -85,12 +85,20 @@ const DOCUMENT_COMMENT_STATUS_LABELS = {
 };
 
 // Block 0035 — Bibliotheksbereich-Labels für Dokumente ohne WP-Bezug.
+// Block 0050 — sieben fachliche Themenfelder ergänzt.
 const LIBRARY_SECTION_LABELS = {
   project: "Projektunterlagen",
   milestone: "Meilenstein-Dokumente",
   literature: "Literatur & Veröffentlichungen",
   presentation: "Vorträge",
   thesis: "Abschlussarbeiten",
+  technical_documentation: "Technische Dokumentation",
+  measurement_test_campaigns: "Mess- und Testkampagnen",
+  round_robin: "Ringvergleiche",
+  meetings_minutes: "Meetings & Protokolle",
+  standards_procedures: "Standards & Verfahren",
+  templates_forms: "Vorlagen & Formulare",
+  software_data_formats: "Software & Datenformate",
 };
 
 function formatBytes(n) {

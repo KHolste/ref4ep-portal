@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0022_partner_roles"
+CURRENT_HEAD = "0023_library_section_themes"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -1414,3 +1414,73 @@ def test_downgrade_to_0021_drops_partner_role(tmp_db_path: Path) -> None:
     command.downgrade(cfg, "0021_milestone_document_links")
     inspector = inspect(create_engine(db_url))
     assert "partner_role" not in set(inspector.get_table_names())
+
+
+# ---- Block 0050 — fachliche Themenfelder Projektbibliothek ----------
+
+_NEW_LIBRARY_SECTIONS_DB = (
+    "technical_documentation",
+    "measurement_test_campaigns",
+    "round_robin",
+    "meetings_minutes",
+    "standards_procedures",
+    "templates_forms",
+    "software_data_formats",
+)
+
+
+def test_new_library_sections_are_accepted_after_0023(tmp_db_path: Path) -> None:
+    """Block 0050 — die sieben neuen ``library_section``-Slugs werden
+    nach Migration 0023 vom CHECK-Constraint durchgelassen."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    engine = create_engine(db_url)
+    with engine.begin() as conn:
+        conn.exec_driver_sql("PRAGMA foreign_keys = ON")
+        _seed_minimal_partner_and_admin(conn)
+        for idx, section in enumerate(_NEW_LIBRARY_SECTIONS_DB, start=1):
+            doc_id = f"55555555-6666-7777-8888-{idx:012d}"
+            conn.exec_driver_sql(
+                "INSERT INTO document (id, workpackage_id, title, slug, document_type, "
+                "status, visibility, library_section, created_by_person_id, is_deleted, "
+                "created_at, updated_at) VALUES "
+                f"('{doc_id}', NULL, 'Sec-{section}', 'sec-{section}', "
+                f"'other', 'draft', 'internal', '{section}', "
+                "'22222222-3333-4444-5555-666666666666', 0, "
+                "datetime('now'), datetime('now'))"
+            )
+    with engine.connect() as conn:
+        rows = conn.exec_driver_sql(
+            "SELECT library_section FROM document WHERE library_section IN ("
+            "'technical_documentation','measurement_test_campaigns','round_robin',"
+            "'meetings_minutes','standards_procedures','templates_forms',"
+            "'software_data_formats') ORDER BY library_section"
+        ).fetchall()
+    assert {r[0] for r in rows} == set(_NEW_LIBRARY_SECTIONS_DB)
+
+
+def test_downgrade_to_0022_rejects_new_library_sections(tmp_db_path: Path) -> None:
+    """Block 0050 — nach Downgrade auf 0022 dürfen die neuen Slugs nicht
+    mehr eingefügt werden; bestehende Slugs bleiben gültig."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0022_partner_roles")
+    engine = create_engine(db_url)
+    with engine.begin() as conn:
+        conn.exec_driver_sql("PRAGMA foreign_keys = ON")
+        _seed_minimal_partner_and_admin(conn)
+        try:
+            conn.exec_driver_sql(
+                "INSERT INTO document (id, workpackage_id, title, slug, document_type, "
+                "status, visibility, library_section, created_by_person_id, is_deleted, "
+                "created_at, updated_at) VALUES "
+                "('66666666-7777-8888-9999-aaaaaaaaaaaa', NULL, 'X', 'x', "
+                "'other', 'draft', 'internal', 'round_robin', "
+                "'22222222-3333-4444-5555-666666666666', 0, "
+                "datetime('now'), datetime('now'))"
+            )
+        except Exception as exc:
+            assert "constraint" in str(exc).lower() or "CHECK" in str(exc).upper()
+        else:
+            raise AssertionError("CHECK-Constraint hätte 'round_robin' ablehnen müssen.")

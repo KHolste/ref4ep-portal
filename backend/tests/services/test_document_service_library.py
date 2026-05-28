@@ -106,6 +106,35 @@ def test_unknown_library_section_is_rejected(seeded_session: Session) -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "section",
+    [
+        "technical_documentation",
+        "measurement_test_campaigns",
+        "round_robin",
+        "meetings_minutes",
+        "standards_procedures",
+        "templates_forms",
+        "software_data_formats",
+    ],
+)
+def test_new_theme_library_sections_accepted(seeded_session: Session, section: str) -> None:
+    """Block 0050 — die sieben neuen fachlichen Themenfelder sind als
+    ``library_section`` gültig und werden vom DB-CHECK durchgelassen.
+    Bestehende Slugs sind weiterhin abgedeckt durch
+    ``test_list_internal_with_library_section_filter``."""
+    _ensure_admin(seeded_session)
+    auth = _admin_auth(seeded_session)
+    doc = DocumentService(seeded_session, auth=auth).create(
+        workpackage_code=None,
+        title=f"Theme-{section}",
+        document_type="other",
+        library_section=section,
+    )
+    seeded_session.commit()  # forciert den DB-CHECK
+    assert doc.library_section == section
+
+
 def test_workpackage_visibility_without_workpackage_is_rejected(
     seeded_session: Session,
 ) -> None:

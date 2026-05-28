@@ -3534,6 +3534,39 @@ def test_project_library_module_has_required_tile_strings() -> None:
     assert "Projektunterlagen" in body
 
 
+# ---- Block 0050 — fachliche Themenfelder der Projektbibliothek -------
+
+# Reihenfolge entspricht der gewünschten Anordnung im Anforderungstext.
+_NEW_LIBRARY_SECTIONS: tuple[tuple[str, str], ...] = (
+    ("technical_documentation", "Technische Dokumentation"),
+    ("measurement_test_campaigns", "Mess- und Testkampagnen"),
+    ("round_robin", "Ringvergleiche"),
+    ("meetings_minutes", "Meetings & Protokolle"),
+    ("standards_procedures", "Standards & Verfahren"),
+    ("templates_forms", "Vorlagen & Formulare"),
+    ("software_data_formats", "Software & Datenformate"),
+)
+
+
+def test_project_library_module_lists_new_theme_sections() -> None:
+    """Block 0050 — sieben fachliche Themenfelder erscheinen als Kacheln
+    in der Projektbibliothek. Slug + deutsches Label müssen beide im
+    Modul auftauchen (Slug für Backend-Filter, Label für UI)."""
+    body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
+    for slug, label in _NEW_LIBRARY_SECTIONS:
+        assert f'key: "{slug}"' in body, f"Slug {slug!r} fehlt in SECTIONS"
+        assert label in body, f"Label {label!r} fehlt in SECTIONS"
+
+
+def test_document_detail_maps_new_theme_section_labels() -> None:
+    """Block 0050 — Dokumentdetail rendert die deutschen Labels der
+    neuen Themenfelder bei Library-Dokumenten ohne WP-Bezug."""
+    body = (MODULES_DIR / "document_detail.js").read_text(encoding="utf-8")
+    for slug, label in _NEW_LIBRARY_SECTIONS:
+        assert f"{slug}:" in body, f"Slug {slug!r} fehlt in LIBRARY_SECTION_LABELS"
+        assert label in body, f"Label {label!r} fehlt in LIBRARY_SECTION_LABELS"
+
+
 def test_app_js_opens_lead_team_for_partner_lead() -> None:
     """Block 0045 — Projektleitungen sehen den „Mein Team"-Eintrag in
     der Navigation."""

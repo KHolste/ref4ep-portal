@@ -271,13 +271,34 @@ DOCUMENT_VISIBILITIES = ("workpackage", "internal", "public")
 # ``document_type``); NULL bedeutet „nicht in einer eigenen Kachel
 # kategorisiert" — solche Dokumente erscheinen weiter über die
 # Arbeitspaket-Kachel, sofern ein WP-Bezug existiert.
-LIBRARY_SECTIONS = ("project", "milestone", "literature", "presentation", "thesis")
+LIBRARY_SECTIONS = (
+    "project",
+    "milestone",
+    "literature",
+    "presentation",
+    "thesis",
+    # Block 0050 — fachliche Themenfelder der Projektbibliothek.
+    "technical_documentation",
+    "measurement_test_campaigns",
+    "round_robin",
+    "meetings_minutes",
+    "standards_procedures",
+    "templates_forms",
+    "software_data_formats",
+)
 LIBRARY_SECTION_LABELS_DE = {
     "project": "Projektunterlagen",
     "milestone": "Meilenstein-Dokumente",
     "literature": "Literatur & Veröffentlichungen",
     "presentation": "Vorträge",
     "thesis": "Abschlussarbeiten",
+    "technical_documentation": "Technische Dokumentation",
+    "measurement_test_campaigns": "Mess- und Testkampagnen",
+    "round_robin": "Ringvergleiche",
+    "meetings_minutes": "Meetings & Protokolle",
+    "standards_procedures": "Standards & Verfahren",
+    "templates_forms": "Vorlagen & Formulare",
+    "software_data_formats": "Software & Datenformate",
 }
 
 # Block 0024 — Lebenszyklus eines Review-Kommentars auf einer

@@ -384,3 +384,86 @@ def test_member_cannot_soft_delete_library_document(
         headers=_csrf(member_client),
     )
     assert r.status_code == 403
+
+
+# ---- Block 0050 — fachliche Themenfelder der Projektbibliothek -------
+
+_NEW_THEME_SECTIONS = (
+    "technical_documentation",
+    "measurement_test_campaigns",
+    "round_robin",
+    "meetings_minutes",
+    "standards_procedures",
+    "templates_forms",
+    "software_data_formats",
+)
+
+
+@pytest.mark.parametrize("section", _NEW_THEME_SECTIONS)
+def test_admin_can_create_library_document_with_new_theme_section(
+    admin_client: TestClient, section: str
+) -> None:
+    """Block 0050 — jeder der sieben neuen ``library_section``-Slugs wird
+    vom POST /api/library/documents akzeptiert. Bestehende Slugs sind
+    durch eigene Tests bereits abgedeckt."""
+    r = admin_client.post(
+        "/api/library/documents",
+        json={
+            "title": f"Theme-Test {section}",
+            "document_type": "other",
+            "library_section": section,
+            "visibility": "internal",
+        },
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["library_section"] == section
+
+
+@pytest.mark.parametrize("section", _NEW_THEME_SECTIONS)
+def test_library_section_filter_returns_only_new_theme_section(
+    admin_client: TestClient,
+    seeded_session: Session,
+    admin_person_id: str,
+    section: str,
+) -> None:
+    """Listing-Filter ``?library_section=<neuer Slug>`` funktioniert
+    weiterhin und liefert nur Dokumente dieses Themenfeldes."""
+    _create_library_doc_via_service(
+        seeded_session, title=f"Theme-Filter {section}", library_section=section
+    )
+    r = admin_client.get(f"/api/documents?library_section={section}")
+    assert r.status_code == 200, r.text
+    sections = {d["library_section"] for d in r.json()}
+    assert sections == {section}
+
+
+def test_unknown_library_section_is_still_rejected(admin_client: TestClient) -> None:
+    """Regression: unbekannter ``library_section``-Slug wird weiterhin
+    mit 422 abgelehnt, auch nach Aufnahme der neuen Themenfelder."""
+    r = admin_client.post(
+        "/api/library/documents",
+        json={"title": "x", "document_type": "other", "library_section": "no_such_section"},
+        headers=_csrf(admin_client),
+    )
+    assert r.status_code == 422
+
+
+def test_member_can_create_library_document_with_new_theme_section(
+    member_client: TestClient,
+) -> None:
+    """Block 0050 verträgt sich mit Block 0049: eingeloggter Member
+    legt ein Bibliotheksdokument mit einem der neuen Themenfelder an
+    — kein Admin-only-Rückschritt."""
+    r = member_client.post(
+        "/api/library/documents",
+        json={
+            "title": "Member-Theme",
+            "document_type": "other",
+            "library_section": "round_robin",
+            "visibility": "internal",
+        },
+        headers=_csrf(member_client),
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["library_section"] == "round_robin"

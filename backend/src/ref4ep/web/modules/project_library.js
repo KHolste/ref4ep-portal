@@ -56,6 +56,48 @@ const SECTIONS = [
     label: "Abschlussarbeiten",
     description: "Bachelor-, Master-, Promotions- und Projektarbeiten.",
   },
+  // Block 0050 — fachliche Themenfelder der Projektbibliothek.
+  {
+    key: "technical_documentation",
+    label: "Technische Dokumentation",
+    description:
+      "Zeichnungen, CAD/STEP, Schnittstellen, Geräteunterlagen.",
+  },
+  {
+    key: "measurement_test_campaigns",
+    label: "Mess- und Testkampagnen",
+    description:
+      "Testpläne, Protokolle, Messbedingungen, Facility-Infos.",
+  },
+  {
+    key: "round_robin",
+    label: "Ringvergleiche",
+    description:
+      "Ablauf, Teilnehmerinfos, Datenformate, Vergleichsunterlagen.",
+  },
+  {
+    key: "meetings_minutes",
+    label: "Meetings & Protokolle",
+    description: "Agenden, Protokolle, Beschlüsse.",
+  },
+  {
+    key: "standards_procedures",
+    label: "Standards & Verfahren",
+    description:
+      "Messvorschriften, Kalibrierverfahren, Auswerteprozeduren.",
+  },
+  {
+    key: "templates_forms",
+    label: "Vorlagen & Formulare",
+    description:
+      "Protokollvorlagen, Datenblattvorlagen, Upload-/Namenskonventionen.",
+  },
+  {
+    key: "software_data_formats",
+    label: "Software & Datenformate",
+    description:
+      "Auswerteskripte, Formatbeschreibungen, Datenstandards.",
+  },
 ];
 
 const SECTION_LABELS = Object.fromEntries(SECTIONS.map((s) => [s.key, s.label]));
