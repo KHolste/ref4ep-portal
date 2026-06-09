@@ -37,11 +37,48 @@ CHANGE_NOTE_DEFAULT_NEXT = "Neue Version hochgeladen"
 # fachliche Type-Verwechslung — formale Unterlagen gehören als Document.
 PHOTO_MIME_WHITELIST: frozenset[str] = frozenset({"image/png", "image/jpeg"})
 
+# Block 0044 — niedrigschwellige Kampagnen-Anhänge. Breiter als die
+# Foto-Whitelist (PDF, CSV, Office, Bilder), aber bewusst KEINE
+# Ausführbares/Archive-mit-Code. Anders als ``Document`` ohne
+# Review-/Versions-Lifecycle — informelle Beilagen mit Soft-Delete.
+ATTACHMENT_MIME_WHITELIST: frozenset[str] = frozenset(
+    {
+        # PDF
+        "application/pdf",
+        # CSV — Browser senden uneinheitlich.
+        "text/csv",
+        "application/csv",
+        # Office (modern, OOXML)
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        # Office (legacy, binär)
+        "application/msword",
+        "application/vnd.ms-excel",
+        "application/vnd.ms-powerpoint",
+        # Bilder
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/webp",
+    }
+)
+
+# MIME-Typen, für die ein Thumbnail erzeugt wird. Für PDF/CSV/Office
+# bleiben die Thumbnail-Felder NULL (Frontend zeigt ein Typ-Icon).
+ATTACHMENT_THUMBNAIL_MIME_TYPES: frozenset[str] = frozenset(
+    {"image/png", "image/jpeg", "image/gif", "image/webp"}
+)
+
 _UUID_PATTERN = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 _STORAGE_KEY_RE = re.compile(rf"^documents/{_UUID_PATTERN}/{_UUID_PATTERN}\.bin$")
 _PHOTO_STORAGE_KEY_RE = re.compile(rf"^photos/{_UUID_PATTERN}/{_UUID_PATTERN}\.bin$")
 _PHOTO_THUMBNAIL_STORAGE_KEY_RE = re.compile(
     rf"^photos/{_UUID_PATTERN}/{_UUID_PATTERN}\.thumb\.bin$"
+)
+_ATTACHMENT_STORAGE_KEY_RE = re.compile(rf"^attachments/{_UUID_PATTERN}/{_UUID_PATTERN}\.bin$")
+_ATTACHMENT_THUMBNAIL_STORAGE_KEY_RE = re.compile(
+    rf"^attachments/{_UUID_PATTERN}/{_UUID_PATTERN}\.thumb\.bin$"
 )
 
 
@@ -106,3 +143,33 @@ def compute_photo_thumbnail_storage_key(campaign_id: str, photo_id: str) -> str:
 def validate_photo_thumbnail_storage_key(key: str) -> None:
     if not _PHOTO_THUMBNAIL_STORAGE_KEY_RE.match(key):
         raise ValueError(f"Foto-Thumbnail-Storage-Key ungültig: {key!r}")
+
+
+# ---- Block 0044 — Kampagnen-Anhang-Helfer ----------------------------
+
+
+def validate_attachment_mime(mime: str) -> None:
+    if mime not in ATTACHMENT_MIME_WHITELIST:
+        raise ValueError(f"Anhang-MIME-Typ nicht erlaubt: {mime!r}")
+
+
+def attachment_has_thumbnail_support(mime: str) -> bool:
+    return mime in ATTACHMENT_THUMBNAIL_MIME_TYPES
+
+
+def compute_attachment_storage_key(campaign_id: str, attachment_id: str) -> str:
+    return f"attachments/{campaign_id}/{attachment_id}.bin"
+
+
+def compute_attachment_thumbnail_storage_key(campaign_id: str, attachment_id: str) -> str:
+    return f"attachments/{campaign_id}/{attachment_id}.thumb.bin"
+
+
+def validate_attachment_storage_key(key: str) -> None:
+    if not _ATTACHMENT_STORAGE_KEY_RE.match(key):
+        raise ValueError(f"Anhang-Storage-Key ungültig: {key!r}")
+
+
+def validate_attachment_thumbnail_storage_key(key: str) -> None:
+    if not _ATTACHMENT_THUMBNAIL_STORAGE_KEY_RE.match(key):
+        raise ValueError(f"Anhang-Thumbnail-Storage-Key ungültig: {key!r}")

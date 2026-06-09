@@ -77,6 +77,7 @@ class CampaignDetailOut(BaseModel):
     can_edit: bool = False
     can_upload_photo: bool = False
     can_create_note: bool = False
+    can_upload_attachment: bool = False
 
 
 # ---- Requests ---------------------------------------------------------
@@ -182,7 +183,33 @@ class CampaignNoteUpdateRequest(BaseModel):
     body_md: str = Field(min_length=1)
 
 
+# ---- Block 0044 — Kampagnen-Anhänge (beliebige Dateien) ---------------
+
+
+class CampaignAttachmentOut(BaseModel):
+    id: str
+    original_filename: str
+    mime_type: str
+    file_size_bytes: int
+    sha256: str
+    description: str | None = None
+    uploaded_by: CampaignPersonOut
+    created_at: datetime
+    updated_at: datetime
+    can_edit: bool = False
+    # Thumbnail-Metadaten — NULL für Nicht-Bild-Anhänge (PDF/CSV/Office).
+    thumbnail_mime_type: str | None = None
+    thumbnail_size_bytes: int | None = None
+    has_thumbnail: bool = False
+
+
+class CampaignAttachmentDescriptionRequest(BaseModel):
+    description: str | None = None
+
+
 __all__ = [
+    "CampaignAttachmentDescriptionRequest",
+    "CampaignAttachmentOut",
     "CampaignCreateRequest",
     "CampaignDetailOut",
     "CampaignDocumentLinkAddRequest",

@@ -4,8 +4,10 @@ Lesen ist auth-only; Schreiben CSRF + Service-Permission.
 ``TestCampaignService`` kapselt die Berechtigungslogik (Admin oder
 WP-Lead aller beteiligten WPs).
 
-Es gibt **keinen** Hard-Delete und **keinen** Datei-Upload — Dokumente
-werden ausschließlich über das bestehende Dokumentenregister verlinkt.
+Es gibt **keinen** Hard-Delete. Formale Unterlagen werden über das
+Dokumentenregister verlinkt (``/documents``); daneben gibt es
+niedrigschwellige Direkt-Uploads: Fotos (Block 0028, nur PNG/JPEG) und
+beliebige Datei-Anhänge (Block 0044 — PDF/CSV/Office/Bilder).
 """
 
 from __future__ import annotations
@@ -38,6 +40,8 @@ from ref4ep.api.deps import (
     require_csrf,
 )
 from ref4ep.api.schemas.campaigns import (
+    CampaignAttachmentDescriptionRequest,
+    CampaignAttachmentOut,
     CampaignCreateRequest,
     CampaignDetailOut,
     CampaignDocumentLinkAddRequest,
@@ -58,12 +62,20 @@ from ref4ep.api.schemas.campaigns import (
 from ref4ep.domain.models import (
     Person,
     TestCampaign,
+    TestCampaignAttachment,
     TestCampaignNote,
     TestCampaignParticipant,
     TestCampaignPhoto,
 )
 from ref4ep.services.audit_logger import AuditLogger
 from ref4ep.services.permissions import AuthContext
+from ref4ep.services.test_campaign_attachment_service import (
+    CampaignAttachmentNotFoundError,
+    TestCampaignAttachmentService,
+)
+from ref4ep.services.test_campaign_attachment_service import (
+    CampaignNotFoundError as CampaignNotFoundForAttachmentError,
+)
 from ref4ep.services.test_campaign_note_service import (
     CampaignNoteNotFoundError,
     TestCampaignNoteService,
@@ -195,12 +207,19 @@ def _can_create_note(campaign: TestCampaign, actor: Person) -> bool:
     return _can_upload_photo(campaign, actor)
 
 
+def _can_upload_attachment(campaign: TestCampaign, actor: Person) -> bool:
+    """Block 0044 — Anhang hochladen darf wer Foto hochladen darf
+    (Teilnehmer + Admin)."""
+    return _can_upload_photo(campaign, actor)
+
+
 def _detail(
     campaign: TestCampaign,
     *,
     can_edit: bool,
     can_upload_photo: bool = False,
     can_create_note: bool = False,
+    can_upload_attachment: bool = False,
 ) -> CampaignDetailOut:
     return CampaignDetailOut(
         id=campaign.id,
@@ -226,6 +245,7 @@ def _detail(
         can_edit=can_edit,
         can_upload_photo=can_upload_photo,
         can_create_note=can_create_note,
+        can_upload_attachment=can_upload_attachment,
     )
 
 
@@ -312,6 +332,7 @@ def create_campaign(
         can_edit=True,
         can_upload_photo=_can_upload_photo(campaign, actor),
         can_create_note=_can_create_note(campaign, actor),
+        can_upload_attachment=_can_upload_attachment(campaign, actor),
     )
 
 
@@ -329,6 +350,7 @@ def get_campaign(campaign_id: str, actor: ActorDep, session: SessionDep) -> Camp
         can_edit=service.can_edit_campaign(campaign),
         can_upload_photo=_can_upload_photo(campaign, actor),
         can_create_note=_can_create_note(campaign, actor),
+        can_upload_attachment=_can_upload_attachment(campaign, actor),
     )
 
 
@@ -360,6 +382,7 @@ def patch_campaign(
         can_edit=True,
         can_upload_photo=_can_upload_photo(campaign, actor),
         can_create_note=_can_create_note(campaign, actor),
+        can_upload_attachment=_can_upload_attachment(campaign, actor),
     )
 
 
@@ -384,6 +407,7 @@ def cancel_campaign(
         can_edit=True,
         can_upload_photo=_can_upload_photo(campaign, actor),
         can_create_note=_can_create_note(campaign, actor),
+        can_upload_attachment=_can_upload_attachment(campaign, actor),
     )
 
 
@@ -419,6 +443,7 @@ def add_campaign_participant(
         can_edit=True,
         can_upload_photo=_can_upload_photo(campaign, actor),
         can_create_note=_can_create_note(campaign, actor),
+        can_upload_attachment=_can_upload_attachment(campaign, actor),
     )
 
 
@@ -489,6 +514,7 @@ def link_campaign_document(
         can_edit=True,
         can_upload_photo=_can_upload_photo(campaign, actor),
         can_create_note=_can_create_note(campaign, actor),
+        can_upload_attachment=_can_upload_attachment(campaign, actor),
     )
 
 
@@ -902,6 +928,260 @@ def thumbnail_campaign_photo(
             fh.close()
 
     safe_name = photo.original_filename.replace('"', "")
+    headers = {
+        "Content-Disposition": f'inline; filename="{safe_name}"',
+        "Content-Length": str(size_bytes),
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "private",
+    }
+    return StreamingResponse(iterator(), media_type=mime_type, headers=headers)
+
+
+# --------------------------------------------------------------------------- #
+# Block 0044 — Datei-Anhänge für Testkampagnen (PDF, CSV, Office, Bilder)     #
+# --------------------------------------------------------------------------- #
+
+
+def _attachment_service(
+    session: Session,
+    auth: AuthContext,
+    *,
+    audit: AuditLogger | None = None,
+    storage: Storage | None = None,
+) -> TestCampaignAttachmentService:
+    return TestCampaignAttachmentService(session, auth=auth, audit=audit, storage=storage)
+
+
+def _attachment_out(
+    attachment: TestCampaignAttachment, auth: AuthContext
+) -> CampaignAttachmentOut:
+    can_edit = (
+        auth.platform_role == "admin" or auth.person_id == attachment.uploaded_by_person_id
+    )
+    return CampaignAttachmentOut(
+        id=attachment.id,
+        original_filename=attachment.original_filename,
+        mime_type=attachment.mime_type,
+        file_size_bytes=attachment.file_size_bytes,
+        sha256=attachment.sha256,
+        description=attachment.description,
+        uploaded_by=_person_out(attachment.uploaded_by),
+        created_at=attachment.created_at,
+        updated_at=attachment.updated_at,
+        can_edit=can_edit,
+        thumbnail_mime_type=attachment.thumbnail_mime_type,
+        thumbnail_size_bytes=attachment.thumbnail_size_bytes,
+        has_thumbnail=attachment.thumbnail_storage_key is not None,
+    )
+
+
+@router.get(
+    "/campaigns/{campaign_id}/attachments",
+    response_model=list[CampaignAttachmentOut],
+)
+def list_campaign_attachments(
+    campaign_id: str,
+    _: ActorDep,
+    auth: AuthDep,
+    session: SessionDep,
+) -> list[CampaignAttachmentOut]:
+    try:
+        attachments = _attachment_service(session, auth).list_for_campaign(campaign_id)
+    except CampaignNotFoundForAttachmentError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    return [_attachment_out(a, auth) for a in attachments]
+
+
+@router.post(
+    "/campaigns/{campaign_id}/attachments",
+    response_model=CampaignAttachmentOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_csrf)],
+)
+async def upload_campaign_attachment(
+    campaign_id: str,
+    auth: AuthDep,
+    session: SessionDep,
+    settings: SettingsDep,
+    storage: StorageDep,
+    audit: AuditDep,
+    file: Annotated[UploadFile, File(...)],
+    description: Annotated[str | None, Form()] = None,
+) -> CampaignAttachmentOut:
+    mime_type = (file.content_type or "").lower()
+
+    max_bytes = settings.max_upload_mb * 1024 * 1024
+    file_stream = _SizeLimitingStream(file.file, max_bytes)
+
+    try:
+        attachment = _attachment_service(session, auth, audit=audit, storage=storage).upload(
+            campaign_id,
+            file_stream=file_stream,
+            original_filename=file.filename or "unbenannt",
+            mime_type=mime_type,
+            description=description,
+        )
+    except _PayloadTooLarge as exc:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail={"error": {"code": "payload_too_large", "message": str(exc)}},
+        ) from exc
+    except CampaignNotFoundForAttachmentError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "forbidden", "message": str(exc)}},
+        ) from exc
+    except ValueError as exc:
+        # Falsche MIME-Whitelist → 415, leere Datei → 422.
+        message = str(exc)
+        if "MIME" in message or "mime" in message:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail={"error": {"code": "unsupported_media_type", "message": message}},
+            ) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"error": {"code": "invalid", "message": message}},
+        ) from exc
+    return _attachment_out(attachment, auth)
+
+
+@router.patch(
+    "/campaigns/{campaign_id}/attachments/{attachment_id}",
+    response_model=CampaignAttachmentOut,
+    dependencies=[Depends(require_csrf)],
+)
+def patch_campaign_attachment_description(
+    campaign_id: str,
+    attachment_id: str,
+    payload: CampaignAttachmentDescriptionRequest,
+    auth: AuthDep,
+    session: SessionDep,
+    audit: AuditDep,
+) -> CampaignAttachmentOut:
+    try:
+        attachment = _attachment_service(session, auth, audit=audit).update_description(
+            attachment_id, description=payload.description
+        )
+    except CampaignAttachmentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "forbidden", "message": str(exc)}},
+        ) from exc
+    return _attachment_out(attachment, auth)
+
+
+@router.delete(
+    "/campaigns/{campaign_id}/attachments/{attachment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_csrf)],
+)
+def delete_campaign_attachment(
+    campaign_id: str,
+    attachment_id: str,
+    auth: AuthDep,
+    session: SessionDep,
+    audit: AuditDep,
+) -> Response:
+    try:
+        _attachment_service(session, auth, audit=audit).soft_delete(attachment_id)
+    except CampaignAttachmentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "forbidden", "message": str(exc)}},
+        ) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/campaigns/{campaign_id}/attachments/{attachment_id}/download")
+def download_campaign_attachment(
+    campaign_id: str,
+    attachment_id: str,
+    auth: AuthDep,
+    session: SessionDep,
+    storage: StorageDep,
+) -> StreamingResponse:
+    try:
+        attachment, fh = _attachment_service(session, auth, storage=storage).open_read_stream(
+            attachment_id
+        )
+    except CampaignAttachmentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+
+    def iterator():
+        try:
+            while True:
+                chunk = fh.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            fh.close()
+
+    # Beliebige Dateitypen → bewusst ``attachment`` (Download) statt
+    # ``inline``, um Rendering im Browser-Kontext zu vermeiden.
+    safe_name = attachment.original_filename.replace('"', "")
+    headers = {
+        "Content-Disposition": f'attachment; filename="{safe_name}"',
+        "Content-Length": str(attachment.file_size_bytes),
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "private",
+    }
+    return StreamingResponse(iterator(), media_type=attachment.mime_type, headers=headers)
+
+
+@router.get("/campaigns/{campaign_id}/attachments/{attachment_id}/thumbnail")
+def thumbnail_campaign_attachment(
+    campaign_id: str,
+    attachment_id: str,
+    auth: AuthDep,
+    session: SessionDep,
+    storage: StorageDep,
+) -> StreamingResponse:
+    """Liefert das Thumbnail eines Bild-Anhangs; bei Nicht-Bild-Anhängen
+    gibt es kein Thumbnail-Artefakt und es wird das Original geliefert."""
+    try:
+        attachment, fh, mime_type, size_bytes, _is_thumb = _attachment_service(
+            session, auth, storage=storage
+        ).open_thumbnail_stream(attachment_id)
+    except CampaignAttachmentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": str(exc)}},
+        ) from exc
+
+    def iterator():
+        try:
+            while True:
+                chunk = fh.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            fh.close()
+
+    safe_name = attachment.original_filename.replace('"', "")
     headers = {
         "Content-Disposition": f'inline; filename="{safe_name}"',
         "Content-Length": str(size_bytes),

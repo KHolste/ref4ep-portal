@@ -959,6 +959,11 @@ class TestCampaign(Base):
         cascade="all, delete-orphan",
         order_by="TestCampaignNote.created_at",
     )
+    attachments: Mapped[list[TestCampaignAttachment]] = relationship(
+        back_populates="campaign",
+        cascade="all, delete-orphan",
+        order_by="TestCampaignAttachment.created_at",
+    )
 
 
 class TestCampaignWorkpackage(Base):
@@ -1163,6 +1168,56 @@ class TestCampaignNote(Base):
 
     campaign: Mapped[TestCampaign] = relationship(back_populates="notes")
     author: Mapped[Person] = relationship()
+
+
+# --------------------------------------------------------------------------- #
+# Block 0044 — Kampagnen-Anhänge (beliebige Dateien)                          #
+# --------------------------------------------------------------------------- #
+
+
+class TestCampaignAttachment(Base):
+    """Niedrigschwelliger Datei-Anhang zu einer Testkampagne.
+
+    Bewusst kein ``Document`` (formale, versionierte Unterlage mit
+    Review-/Release-Lifecycle) und kein ``TestCampaignPhoto`` (nur
+    PNG/JPEG): Anhänge sind beliebige Beilagen — PDF, CSV, Office,
+    Bilder — mit optionaler Beschreibung und Soft-Delete. Für
+    Bild-MIME-Typen wird ein Thumbnail erzeugt (Felder sonst NULL).
+    """
+
+    __tablename__ = "test_campaign_attachment"
+    # pytest sammelt sonst diese Klasse als Test-Klasse ein.
+    __test__ = False
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    campaign_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("test_campaign.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    uploaded_by_person_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("person.id"), nullable=False
+    )
+    storage_key: Mapped[str] = mapped_column(String, nullable=False)
+    original_filename: Mapped[str] = mapped_column(String, nullable=False)
+    mime_type: Mapped[str] = mapped_column(String, nullable=False)
+    file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    description: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Thumbnail-Artefakt — nur für Bild-Anhänge gesetzt, sonst NULL.
+    thumbnail_storage_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    thumbnail_mime_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    thumbnail_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now_utc, onupdate=_now_utc
+    )
+    is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    campaign: Mapped[TestCampaign] = relationship(back_populates="attachments")
+    uploaded_by: Mapped[Person] = relationship()
 
 
 # --------------------------------------------------------------------------- #
