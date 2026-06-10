@@ -365,8 +365,8 @@ function renderMyMeetingsCard(myCockpit) {
 function renderMyArea(myCockpit) {
   return h(
     "section",
-    {},
-    h("h2", {}, "Mein Bereich"),
+    { class: "cockpit-section" },
+    h("h2", { class: "cockpit-section-title" }, "Mein Bereich"),
     h(
       "div",
       { class: "my-area-grid" },
@@ -432,6 +432,30 @@ function renderActivityBox(entries, since) {
 
 // ---- Projekt-Cockpit (verdichtet) -------------------------------------
 
+// Ein Meilenstein als ruhige, lesbare Zeile: Titelzeile (Code + Titel),
+// darunter eine Meta-Zeile (Plandatum, Fälligkeit, WP), rechts der Status.
+// Gleiche Datenpunkte wie zuvor — nur klarere visuelle Trennung.
+function renderMilestoneItem(ms) {
+  return h(
+    "li",
+    { class: "cockpit-milestone-item" },
+    h(
+      "div",
+      { class: "cockpit-milestone-main" },
+      h("span", { class: "cockpit-milestone-code" }, ms.code),
+      h("span", { class: "cockpit-milestone-title" }, ms.title),
+    ),
+    h(
+      "div",
+      { class: "cockpit-milestone-meta" },
+      h("span", {}, `Plandatum ${formatDate(ms.planned_date)}`),
+      h("span", { class: "cockpit-milestone-due" }, dueLabel(ms.days_to_planned)),
+      h("span", {}, "WP: ", wpLinkOrSpan(ms.workpackage_code, ms.workpackage_title || "")),
+    ),
+    h("div", { class: "cockpit-milestone-status" }, msStatusBadge(ms.status)),
+  );
+}
+
 function renderUpcomingCard(milestones) {
   if (!milestones.length) {
     return h(
@@ -441,26 +465,11 @@ function renderUpcomingCard(milestones) {
       renderEmpty("Keine offenen Meilensteine in der Zukunft."),
     );
   }
-  const items = milestones.map((ms) =>
-    h(
-      "li",
-      {},
-      h("strong", {}, ms.code),
-      ` — ${ms.title}`,
-      h("br", {}),
-      `Plandatum: ${formatDate(ms.planned_date)} (${dueLabel(ms.days_to_planned)})`,
-      h("br", {}),
-      "WP: ",
-      wpLinkOrSpan(ms.workpackage_code, ms.workpackage_title || ""),
-      " · ",
-      msStatusBadge(ms.status),
-    ),
-  );
   return h(
     "section",
     { class: "cockpit-card" },
     h("h2", {}, "Nächste Meilensteine"),
-    h("ul", {}, ...items),
+    h("ul", { class: "cockpit-milestone-list" }, ...milestones.map(renderMilestoneItem)),
     h(
       "p",
       { class: "muted" },
@@ -478,26 +487,11 @@ function renderOverdueCard(milestones) {
       renderEmpty("Keine überfälligen Meilensteine."),
     );
   }
-  const items = milestones.map((ms) =>
-    h(
-      "li",
-      {},
-      h("strong", {}, ms.code),
-      ` — ${ms.title}`,
-      h("br", {}),
-      `Plandatum: ${formatDate(ms.planned_date)} — ${dueLabel(ms.days_to_planned)}`,
-      h("br", {}),
-      "WP: ",
-      wpLinkOrSpan(ms.workpackage_code, ms.workpackage_title || ""),
-      " · ",
-      msStatusBadge(ms.status),
-    ),
-  );
   return h(
     "section",
     { class: "cockpit-card danger" },
     h("h2", {}, "Überfällige Meilensteine"),
-    h("ul", {}, ...items),
+    h("ul", { class: "cockpit-milestone-list" }, ...milestones.map(renderMilestoneItem)),
   );
 }
 
@@ -865,6 +859,10 @@ export async function render(container, ctx) {
     "Persönliche Sicht und aktuelle Projektkennzahlen — alles auf einer Seite.",
     { meta: partnerLine },
   );
+  // Kopfzone: der Page-Header wird in eine ruhige Hero-Karte gefasst, damit
+  // Begrüßung, Projektkontext und Stammdaten-Link als zusammenhängender
+  // Block wirken und nicht verloren oben links stehen.
+  const hero = h("header", { class: "cockpit-hero" }, greeting);
 
   // Slots werden in einer Reihenfolge zusammengesteckt, die sich nach der
   // effektiven Plattformrolle richtet:
@@ -884,7 +882,7 @@ export async function render(container, ctx) {
   const myAreaSlot = h("div", {}, renderLoading("Mein Bereich wird geladen …"));
   const activitySlot = h("div", {}, renderLoading("Aktivitäten werden geladen …"));
   const projectSlot = h("div", {}, renderLoading("Projekt-Cockpit wird geladen …"));
-  const projectHeader = h("h2", {}, "Projekt-Cockpit");
+  const projectHeader = h("h2", { class: "cockpit-section-title" }, "Projekt-Cockpit");
   // ``myAreaHeader`` ist ein unsichtbarer Anker für Screenreader, damit die
   // Sektionsreihenfolge in der Admin-Ansicht semantisch stabil bleibt.
   const myAreaHeader = h("h2", { class: "sr-only" }, "Mein Bereich (Übersicht)");
@@ -894,12 +892,20 @@ export async function render(container, ctx) {
     ? [projectHeader, projectSlot, myAreaHeader, myAreaSlot]
     : [myAreaSlot, projectHeader, projectSlot];
 
+  // Gesamte Cockpit-Ausgabe in eine zentrierte Seiten-Shell fassen
+  // (moderne Max-Width, konsistenter vertikaler Rhythmus). Alle neuen
+  // Stile sind unter ``.cockpit-page`` gescopt — keine Nebenwirkungen
+  // auf andere Module.
   container.replaceChildren(
-    greeting,
-    kpiSlot,
-    ...orderedBlocks,
-    activitySlot,
-    nav,
+    h(
+      "div",
+      { class: "cockpit-page" },
+      hero,
+      kpiSlot,
+      ...orderedBlocks,
+      activitySlot,
+      nav,
+    ),
   );
 
   // „Seit letztem Besuch": vor dem Fetch lesen, danach erst markieren.
