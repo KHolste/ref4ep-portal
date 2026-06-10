@@ -3697,7 +3697,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0061"
+_NAV_PATCH_VERSION = "0062"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4342,6 +4342,28 @@ def test_calendar_pilot_background_image_is_local_and_no_external_assets() -> No
     # Das referenzierte Bild liegt im ausgelieferten Static-Verzeichnis.
     img = WEB_DIR.parent / "static" / "images" / "calendar-hero.jpg"
     assert img.is_file(), f"Hintergrundbild fehlt: {img}"
+
+
+def test_campaigns_hero_uses_local_image_and_keeps_controls() -> None:
+    """Testkampagnen-Hero nutzt ein lokales technisches Motiv über den
+    ``/static``-Mount (kein externes Bild), behält Stat-Chips und den
+    Anlege-Button und führt keinen ``undefined``-Renderpfad wieder ein."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert 'url("/static/images/campaigns-hero.jpg")' in css
+    # Hero ist dunkel mit heller Schrift + glasigen Chips + Teal-Button.
+    hero = css[css.index("main#app.campaigns-page .campaigns-hero {") :]
+    hero = hero[: hero.index("}")]
+    assert "url(" in hero and "rgba(13, 19, 33" in hero
+    assert "main#app.campaigns-page .campaigns-hero-actions button" in css
+    # Bild liegt im ausgelieferten Static-Verzeichnis.
+    img = WEB_DIR.parent / "static" / "images" / "campaigns-hero.jpg"
+    assert img.is_file(), f"Testkampagnen-Hero-Bild fehlt: {img}"
+    # Modul-seitig: Hero/Stats/Anlege-Aktion da, kein dangling undefined.
+    body = (MODULES_DIR / "campaigns.js").read_text(encoding="utf-8")
+    assert "campaigns-hero" in body
+    assert "renderCampaignStats" in body
+    assert "Testkampagne anlegen" in body
+    assert "headerNodes[1]" not in body
 
 
 def test_library_hero_uses_local_image_and_keeps_upload() -> None:

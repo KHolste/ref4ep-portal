@@ -6085,18 +6085,31 @@ main#app.campaigns-page {
 
 /* ---- Kopfband mit integrierter Primäraktion ----------------------- */
 
+/* Dunkler Bild-Hero mit technischem Kampagnen-/Antriebsmotiv
+ * (EP-Triebwerk auf dem Prüfstand). Bild liegt lokal unter
+ * /static/images/campaigns-hero.jpg; das Motiv bringt bereits Teal- und
+ * Amber-Anteile in der Ref4EP-Palette mit und wird durch ein kräftiges
+ * dunkles Overlay dezent gehalten (Lesbarkeit hat Vorrang). Bewusst
+ * anders als Kalender/Bibliothek (Motiv, Teal-Button, glasige Chips). */
 main#app.campaigns-page .campaigns-hero {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--rds-space-4);
-  background: linear-gradient(135deg, #ffffff 0%, var(--rds-accent-teal-soft) 100%);
-  border: 1px solid var(--rds-border);
-  border-left: 4px solid var(--rds-text-strong);
+  overflow: hidden;
+  color: #ffffff;
+  background:
+    linear-gradient(
+      100deg,
+      rgba(13, 19, 33, 0.92) 0%,
+      rgba(16, 23, 40, 0.8) 45%,
+      rgba(20, 30, 54, 0.58) 100%
+    ),
+    #0d1321 url("/static/images/campaigns-hero.jpg") center / cover no-repeat;
   border-radius: var(--rds-radius-lg);
-  box-shadow: var(--rds-shadow-sm);
-  padding: var(--rds-space-5) var(--rds-space-6);
+  box-shadow: var(--rds-shadow-md);
+  padding: var(--rds-space-6);
   margin-bottom: var(--rds-space-6);
 }
 
@@ -6111,29 +6124,38 @@ main#app.campaigns-page .campaigns-hero .page-header {
 }
 
 main#app.campaigns-page .campaigns-hero .page-title {
-  font-size: 1.5rem;
+  font-size: 1.7rem;
+  color: #ffffff;
+}
+
+main#app.campaigns-page .campaigns-hero .page-subtitle {
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 70ch;
 }
 
 main#app.campaigns-page .campaigns-hero-actions {
   flex: none;
 }
 
+/* Teal-Primärbutton — gut sichtbar auf dem dunklen Hero, greift den
+ * Teal-Glow des Motivs auf. */
 main#app.campaigns-page .campaigns-hero-actions button {
   padding: 0.5rem 1.1rem;
   font-size: 0.9rem;
   font-weight: 600;
   color: #ffffff;
-  background: var(--rds-text-strong);
-  border: 1px solid var(--rds-text-strong);
+  background: var(--rds-accent-teal);
+  border: 1px solid var(--rds-accent-teal);
   border-radius: var(--rds-radius-sm);
   cursor: pointer;
+  transition: background-color 0.12s ease;
 }
 
 main#app.campaigns-page .campaigns-hero-actions button:hover {
-  background: #243a62;
+  background: #196676;
 }
 
-/* Stat-Chips */
+/* Stat-Chips: halbtransparent/glasig auf dem dunklen Hero. */
 main#app.campaigns-page .campaigns-stats {
   display: flex;
   flex-wrap: wrap;
@@ -6146,20 +6168,20 @@ main#app.campaigns-page .campaign-stat {
   align-items: baseline;
   gap: 0.4rem;
   padding: 0.3rem 0.8rem;
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid var(--rds-border);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.24);
   border-radius: 999px;
 }
 
 main#app.campaigns-page .campaign-stat-value {
   font-weight: 700;
-  color: var(--rds-text-strong);
+  color: #ffffff;
   font-variant-numeric: tabular-nums lining-nums;
 }
 
 main#app.campaigns-page .campaign-stat-label {
   font-size: var(--rds-fs-meta);
-  color: var(--rds-text-muted);
+  color: rgba(255, 255, 255, 0.78);
 }
 
 /* ---- Filter-Card --------------------------------------------------- */
