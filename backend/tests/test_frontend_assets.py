@@ -3697,7 +3697,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0059"
+_NAV_PATCH_VERSION = "0060"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4358,6 +4358,27 @@ def test_library_hero_uses_local_image_and_keeps_upload() -> None:
     body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
     assert "const actionBar = isLoggedIn" in body
     assert "library-hero" in body
+
+
+def test_library_tiles_have_interactive_polish_scoped() -> None:
+    """Kategorie-Kacheln: Akzentbalken (::before), Hover-Lift, klare
+    aktive Kachel und CSS-Marker am Titel — alles eng auf die
+    Projektbibliothek gescopt, ohne externe Assets."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for needle in (
+        "main#app.project-library-page .library-tile::before",
+        "main#app.project-library-page .library-tile:hover",
+        "main#app.project-library-page .library-tile.active",
+        "main#app.project-library-page .library-tile-title::before",
+    ):
+        assert needle in css, f"style.css sollte {needle!r} enthalten"
+    # Dezenter Hover-Lift.
+    hov = css.index("main#app.project-library-page .library-tile:hover")
+    assert "translateY(-2px)" in css[hov : css.index("}", hov)]
+    # Marker ist reines CSS (kein Bild/Icon im Kachel-Markup).
+    body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
+    assert "library-tile" in body
+    assert "<img" not in body
 
 
 def test_library_page_subtle_background_layer_is_scoped_and_local() -> None:

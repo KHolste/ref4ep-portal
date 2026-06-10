@@ -5564,62 +5564,112 @@ main#app.project-library-page .library-hero .actions button:hover {
 
 main#app.project-library-page .library-tile-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: var(--rds-space-3);
+  grid-template-columns: repeat(auto-fill, minmax(238px, 1fr));
+  gap: var(--rds-space-4);
   margin-bottom: var(--rds-space-6);
 }
 
+/* Hochwertige, interaktive Auswahlkarten (Phase 10) — gescopt, reine
+ * CSS-Aufwertung ohne JS-/Logik-Änderung, keine externen Assets. */
 main#app.project-library-page .library-tile {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--rds-space-1);
   text-align: left;
   cursor: pointer;
+  overflow: hidden;
   background: var(--rds-surface-raised);
   border: 1px solid var(--rds-border);
-  border-left: 3px solid var(--rds-border-strong);
-  border-radius: var(--rds-radius-md);
-  padding: var(--rds-space-4);
-  transition: box-shadow 0.12s ease, border-color 0.12s ease,
-    transform 0.12s ease;
+  border-radius: var(--rds-radius-lg);
+  padding: var(--rds-space-5) var(--rds-space-4) var(--rds-space-4);
+  box-shadow: var(--rds-shadow-sm);
+  transition: box-shadow 0.14s ease, border-color 0.14s ease,
+    transform 0.14s ease;
+}
+
+/* Farbiger oberer Akzentbalken (rein dekorativ, kein Icon). */
+main#app.project-library-page .library-tile::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--rds-border-strong);
+  transition: background-color 0.14s ease;
 }
 
 main#app.project-library-page .library-tile:hover {
   box-shadow: var(--rds-shadow-md);
-  border-left-color: var(--rds-accent-teal);
-  transform: translateY(-1px);
+  border-color: var(--rds-border-strong);
+  transform: translateY(-2px);
+}
+
+main#app.project-library-page .library-tile:hover::before {
+  background: var(--rds-accent-teal);
 }
 
 main#app.project-library-page .library-tile.active {
   border-color: var(--rds-accent-teal);
-  border-left-color: var(--rds-accent-teal);
   background: var(--rds-accent-teal-soft);
 }
 
-main#app.project-library-page .library-tile-all {
-  border-left-color: var(--rds-text-strong);
+main#app.project-library-page .library-tile.active::before {
+  background: var(--rds-accent-teal);
+}
+
+main#app.project-library-page .library-tile-all::before {
+  background: var(--rds-text-strong);
 }
 
 main#app.project-library-page .library-tile-all.active {
   border-color: var(--rds-text-strong);
-  border-left-color: var(--rds-text-strong);
   background: var(--rds-surface-strong);
 }
 
+main#app.project-library-page .library-tile-all.active::before {
+  background: var(--rds-text-strong);
+}
+
+/* Titel mit kleinem CSS-Marker-Quadrat (kein externes Icon). */
 main#app.project-library-page .library-tile-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: var(--rds-fs-card-title);
   font-weight: 600;
   color: var(--rds-text-strong);
+}
+
+main#app.project-library-page .library-tile-title::before {
+  content: "";
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 2px;
+  background: var(--rds-accent-teal);
+}
+
+main#app.project-library-page .library-tile-all .library-tile-title::before {
+  background: var(--rds-text-strong);
 }
 
 main#app.project-library-page .library-tile-description {
   font-size: var(--rds-fs-meta);
   line-height: 1.45;
+  color: var(--rds-text-muted);
 }
 
+/* Längere Hinweise (z. B. Meilenstein-Dokumente) typografisch absetzen. */
 main#app.project-library-page .library-tile-hint {
+  margin-top: var(--rds-space-1);
+  padding-top: var(--rds-space-1);
+  border-top: 1px dashed var(--rds-border);
   font-size: 0.72rem;
   font-style: italic;
   line-height: 1.4;
+  color: var(--rds-text-subtle);
 }
 
 /* ---- Filter-Card --------------------------------------------------- */
