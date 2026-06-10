@@ -267,9 +267,7 @@ def test_uploader_can_edit_description(admin_seeded: Session, tmp_storage_dir: P
     assert updated.description == "neu"
 
 
-def test_other_member_cannot_edit_description(
-    admin_seeded: Session, tmp_storage_dir: Path
-) -> None:
+def test_other_member_cannot_edit_description(admin_seeded: Session, tmp_storage_dir: Path) -> None:
     cid = _create_campaign(admin_seeded, code="TC-ATT-FOREIGN")
     uploader = _create_member(admin_seeded, email="attu@test.example")
     intruder = _create_member(admin_seeded, email="atti@test.example")
@@ -290,9 +288,7 @@ def test_other_member_cannot_edit_description(
         ).update_description(att.id, description="übergriffig")
 
 
-def test_admin_can_edit_foreign_description(
-    admin_seeded: Session, tmp_storage_dir: Path
-) -> None:
+def test_admin_can_edit_foreign_description(admin_seeded: Session, tmp_storage_dir: Path) -> None:
     cid = _create_campaign(admin_seeded, code="TC-ATT-ADMINEDIT")
     member = _create_member(admin_seeded, email="attsomeone@test.example")
     _add_participant(admin_seeded, cid, member.id)
@@ -329,9 +325,9 @@ def test_uploader_can_soft_delete(admin_seeded: Session, tmp_storage_dir: Path) 
     refreshed = admin_seeded.get(TestCampaignAttachment, att.id)
     assert refreshed is not None and refreshed.is_deleted is True
     assert (
-        TestCampaignAttachmentService(
-            admin_seeded, auth=auth, storage=storage
-        ).list_for_campaign(cid)
+        TestCampaignAttachmentService(admin_seeded, auth=auth, storage=storage).list_for_campaign(
+            cid
+        )
         == []
     )
 
@@ -359,9 +355,7 @@ def test_upload_emits_audit_entry(admin_seeded: Session, tmp_storage_dir: Path) 
     _, auth = _admin_auth(admin_seeded)
     audit = AuditLogger(admin_seeded, actor_person_id=auth.person_id)
     storage = LocalFileStorage(tmp_storage_dir)
-    TestCampaignAttachmentService(
-        admin_seeded, auth=auth, audit=audit, storage=storage
-    ).upload(
+    TestCampaignAttachmentService(admin_seeded, auth=auth, audit=audit, storage=storage).upload(
         cid,
         file_stream=io.BytesIO(PDF_BYTES),
         original_filename="x.pdf",

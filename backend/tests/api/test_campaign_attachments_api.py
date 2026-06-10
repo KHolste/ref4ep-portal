@@ -136,9 +136,7 @@ def test_csrf_required_for_upload(admin_client: TestClient, seeded_session: Sess
 # ---- Permission-Matrix + Whitelist -------------------------------------
 
 
-def test_admin_can_upload_pdf_and_list(
-    admin_client: TestClient, seeded_session: Session
-) -> None:
+def test_admin_can_upload_pdf_and_list(admin_client: TestClient, seeded_session: Session) -> None:
     cid = _create_campaign(seeded_session, code="TC-ATT-A1", wp_codes=["WP3"])
     out = _upload(admin_client, cid, description="Rohprotokoll")
     assert out["status"] == 201, out["raw"].text
@@ -160,9 +158,7 @@ def test_csv_accepted(admin_client: TestClient, seeded_session: Session) -> None
     assert out["json"]["mime_type"] == "text/csv"
 
 
-def test_image_upload_reports_thumbnail(
-    admin_client: TestClient, seeded_session: Session
-) -> None:
+def test_image_upload_reports_thumbnail(admin_client: TestClient, seeded_session: Session) -> None:
     cid = _create_campaign(seeded_session, code="TC-ATT-IMG", wp_codes=["WP3"])
     out = _upload(
         admin_client, cid, content=_real_jpeg_bytes(), filename="kammer.jpg", mime="image/jpeg"
@@ -172,13 +168,9 @@ def test_image_upload_reports_thumbnail(
     assert out["json"]["thumbnail_mime_type"] == "image/jpeg"
 
 
-def test_unsupported_mime_returns_415(
-    admin_client: TestClient, seeded_session: Session
-) -> None:
+def test_unsupported_mime_returns_415(admin_client: TestClient, seeded_session: Session) -> None:
     cid = _create_campaign(seeded_session, code="TC-ATT-MIME", wp_codes=["WP3"])
-    out = _upload(
-        admin_client, cid, content=b"<html></html>", filename="x.html", mime="text/html"
-    )
+    out = _upload(admin_client, cid, content=b"<html></html>", filename="x.html", mime="text/html")
     assert out["status"] == 415
 
 
@@ -287,9 +279,7 @@ def test_detail_can_upload_attachment_false_for_non_participant(
 # ---- Download + Thumbnail ----------------------------------------------
 
 
-def test_download_streams_as_attachment(
-    admin_client: TestClient, seeded_session: Session
-) -> None:
+def test_download_streams_as_attachment(admin_client: TestClient, seeded_session: Session) -> None:
     cid = _create_campaign(seeded_session, code="TC-ATT-DL", wp_codes=["WP3"])
     aid = _upload(admin_client, cid)["json"]["id"]
     r = admin_client.get(f"/api/campaigns/{cid}/attachments/{aid}/download")
@@ -306,16 +296,12 @@ def test_download_returns_404_for_soft_deleted(
 ) -> None:
     cid = _create_campaign(seeded_session, code="TC-ATT-DLDEL", wp_codes=["WP3"])
     aid = _upload(admin_client, cid)["json"]["id"]
-    admin_client.delete(
-        f"/api/campaigns/{cid}/attachments/{aid}", headers=_csrf(admin_client)
-    )
+    admin_client.delete(f"/api/campaigns/{cid}/attachments/{aid}", headers=_csrf(admin_client))
     r = admin_client.get(f"/api/campaigns/{cid}/attachments/{aid}/download")
     assert r.status_code == 404
 
 
-def test_thumbnail_endpoint_for_image(
-    admin_client: TestClient, seeded_session: Session
-) -> None:
+def test_thumbnail_endpoint_for_image(admin_client: TestClient, seeded_session: Session) -> None:
     cid = _create_campaign(seeded_session, code="TC-ATT-THUMB", wp_codes=["WP3"])
     aid = _upload(
         admin_client, cid, content=_real_jpeg_bytes(), filename="kammer.jpg", mime="image/jpeg"

@@ -7,15 +7,18 @@
 //   3. Arbeitspakete       — Liste der WP-Codes
 //   4. Fotos (Block 0028)  — Galerie mit Bildunterschrift, Upload für
 //                            Teilnehmende und Admin
-//   5. Kampagnennotizen    — niedrigschwellige Arbeitsnotizen mit Mini-
+//   5. Anhänge (Block 0044)— beliebige Dateien (PDF/CSV/Office/Bilder)
+//                            mit Beschreibung; Direkt-Upload für
+//                            Teilnehmende und Admin
+//   6. Kampagnennotizen    — niedrigschwellige Arbeitsnotizen mit Mini-
 //      (Block 0029)         Markdown-Renderer; KEIN Laborbuch
-//   6. Beteiligte Personen — Karten pro Person mit Rollen-Pill (deutsch,
+//   7. Beteiligte Personen — Karten pro Person mit Rollen-Pill (deutsch,
 //                            kein UPPER-Badge)
-//   7. Dokumente           — Karten mit Label, Titel, WP, Entknüpfen-Button
+//   8. Dokumente           — Karten mit Label, Titel, WP, Entknüpfen-Button
 //
-// Aktionen erscheinen nur, wenn ``can_edit=true``. Es gibt KEINEN
-// Datei-Upload — Dokumente werden ausschließlich über
-// /api/documents?include_archived=false ausgewählt und verlinkt.
+// Aktionen erscheinen nur bei entsprechender Berechtigung. Formale
+// Dokumente werden über /api/documents?include_archived=false verlinkt;
+// Fotos und Anhänge sind niedrigschwellige Direkt-Uploads.
 
 import {
   api,
@@ -831,6 +834,228 @@ function renderPhotosBlock(campaign, photos, onUpload, onEditCaption, onDelete) 
   );
 }
 
+// ---- Block 0044 — Datei-Anhänge (PDF/CSV/Office/Bilder) ---------------
+
+// Akzeptierte Typen — Endungen (zuverlässiger über Betriebssysteme) plus
+// Bild-MIME-Typen. Muss zur Server-Whitelist in
+// ``services/storage_validation.py`` passen.
+const ATTACHMENT_ACCEPT =
+  ".pdf,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx," +
+  "image/png,image/jpeg,image/gif,image/webp";
+
+const ATTACHMENT_TYPE_LABELS = {
+  "application/pdf": "PDF",
+  "text/csv": "CSV",
+  "application/csv": "CSV",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "Word",
+  "application/msword": "Word",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "Excel",
+  "application/vnd.ms-excel": "Excel",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "PowerPoint",
+  "application/vnd.ms-powerpoint": "PowerPoint",
+  "image/png": "Bild",
+  "image/jpeg": "Bild",
+  "image/gif": "Bild",
+  "image/webp": "Bild",
+};
+
+function attachmentTypeLabel(mime) {
+  return ATTACHMENT_TYPE_LABELS[mime] || mime || "Datei";
+}
+
+function renderAttachmentUploadDialog(campaignId, onSuccess, onCancel) {
+  const fileInput = h("input", {
+    type: "file",
+    accept: ATTACHMENT_ACCEPT,
+    required: true,
+  });
+  const descriptionInput = h("textarea", {
+    rows: "2",
+    placeholder: "Beschreibung (optional)",
+  });
+  const errorBox = h("p", { class: "error", style: "display:none" }, "");
+  const statusBox = h("p", { class: "muted", style: "display:none" }, "Lade hoch …");
+  const submitBtn = h("button", { type: "submit" }, "Hochladen");
+
+  async function onSubmit(ev) {
+    ev.preventDefault();
+    errorBox.style.display = "none";
+    if (!fileInput.files.length) {
+      errorBox.textContent = "Bitte eine Datei wählen.";
+      errorBox.style.display = "";
+      return;
+    }
+    submitBtn.disabled = true;
+    statusBox.style.display = "";
+    try {
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+      const desc = (descriptionInput.value || "").trim();
+      if (desc) formData.append("description", desc);
+
+      const csrf = (document.cookie.match(/(?:^|;\s*)ref4ep_csrf=([^;]+)/) || [])[1];
+      const response = await fetch(`/api/campaigns/${campaignId}/attachments`, {
+        method: "POST",
+        body: formData,
+        credentials: "same-origin",
+        headers: csrf ? { "X-CSRF-Token": decodeURIComponent(csrf) } : {},
+      });
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message = payload?.detail?.error?.message || `HTTP ${response.status}`;
+        throw new Error(message);
+      }
+      onSuccess(payload);
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.style.display = "";
+    } finally {
+      submitBtn.disabled = false;
+      statusBox.style.display = "none";
+    }
+  }
+
+  return h(
+    "form",
+    { class: "stacked", onsubmit: onSubmit, enctype: "multipart/form-data" },
+    h(
+      "p",
+      { class: "muted" },
+      "Erlaubt: PDF, CSV, Office (Word/Excel/PowerPoint) und Bilder. Max. 100 MB.",
+    ),
+    h("label", {}, "Datei", fileInput),
+    h("label", {}, "Beschreibung", descriptionInput),
+    statusBox,
+    errorBox,
+    h(
+      "div",
+      { class: "form-actions" },
+      submitBtn,
+      h("button", { type: "button", onclick: onCancel }, "Abbrechen"),
+    ),
+  );
+}
+
+function renderAttachmentDescriptionEditDialog(campaignId, attachment, onSaved, onCancel) {
+  const descriptionInput = h(
+    "textarea",
+    { rows: "3", placeholder: "Beschreibung" },
+    attachment.description || "",
+  );
+  const errorBox = h("p", { class: "error", style: "display:none" }, "");
+  async function onSubmit(ev) {
+    ev.preventDefault();
+    errorBox.style.display = "none";
+    try {
+      await api("PATCH", `/api/campaigns/${campaignId}/attachments/${attachment.id}`, {
+        description: nullIfBlank(descriptionInput.value),
+      });
+      onSaved();
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.style.display = "";
+    }
+  }
+  return h(
+    "form",
+    { class: "stacked", onsubmit: onSubmit },
+    h("label", {}, "Beschreibung", descriptionInput),
+    errorBox,
+    h(
+      "div",
+      { class: "form-actions" },
+      h("button", { type: "submit" }, "Speichern"),
+      h("button", { type: "button", onclick: onCancel }, "Abbrechen"),
+    ),
+  );
+}
+
+function renderAttachmentCard(campaignId, attachment, onEditDescription, onDelete) {
+  const downloadHref = `/api/campaigns/${campaignId}/attachments/${attachment.id}/download`;
+  const meta = [
+    attachment.uploaded_by.display_name,
+    formatDateTime(attachment.created_at),
+    formatBytes(attachment.file_size_bytes),
+  ].join(" · ");
+
+  const typeBadge = h(
+    "span",
+    { class: "campaign-attachment-type-badge" },
+    attachmentTypeLabel(attachment.mime_type),
+  );
+
+  const actions = [];
+  if (attachment.can_edit) {
+    actions.push(
+      h(
+        "button",
+        { type: "button", class: "linklike", onclick: () => onEditDescription(attachment) },
+        "Beschreibung bearbeiten …",
+      ),
+      h(
+        "button",
+        { type: "button", class: "linklike danger", onclick: () => onDelete(attachment) },
+        "löschen",
+      ),
+    );
+  }
+
+  return h(
+    "article",
+    { class: "campaign-document-card" },
+    h(
+      "div",
+      { class: "campaign-document-head" },
+      typeBadge,
+      h(
+        "a",
+        { class: "campaign-document-title", href: downloadHref, target: "_blank", rel: "noopener" },
+        attachment.original_filename,
+      ),
+    ),
+    attachment.description
+      ? h("div", { class: "campaign-document-meta preserve-line" }, attachment.description)
+      : null,
+    h("div", { class: "campaign-document-meta muted" }, meta),
+    actions.length ? h("div", { class: "form-actions" }, ...actions) : null,
+  );
+}
+
+function renderAttachmentsBlock(campaign, attachments, onUpload, onEditDescription, onDelete) {
+  const heading = h(
+    "div",
+    { class: "section-header" },
+    h("h2", {}, "Anhänge"),
+    campaign.can_upload_attachment
+      ? h("button", { type: "button", onclick: onUpload }, "Datei hochladen …")
+      : null,
+  );
+  if (!attachments.length) {
+    return h(
+      "section",
+      { class: "campaign-section" },
+      heading,
+      renderEmpty("Noch keine Dateien zur Kampagne hochgeladen."),
+    );
+  }
+  return h(
+    "section",
+    { class: "campaign-section" },
+    heading,
+    h(
+      "div",
+      { class: "campaign-document-grid" },
+      ...attachments.map((a) =>
+        renderAttachmentCard(campaign.id, a, onEditDescription, onDelete),
+      ),
+    ),
+  );
+}
+
 // ---- Block 0029 — Kampagnennotizen + Mini-Markdown ---------------------
 
 // Reine Vanilla-JS-Implementierung. Kein npm, keine externe Library.
@@ -1283,14 +1508,16 @@ export async function render(container, ctx) {
   let documents = [];
   let photos = [];
   let notes = [];
+  let attachments = [];
   try {
-    [campaign, workpackages, persons, documents, photos, notes] = await Promise.all([
+    [campaign, workpackages, persons, documents, photos, notes, attachments] = await Promise.all([
       api("GET", `/api/campaigns/${campaignId}`),
       api("GET", "/api/workpackages"),
       api("GET", "/api/persons"),
       api("GET", "/api/documents?include_archived=false").catch(() => []),
       api("GET", `/api/campaigns/${campaignId}/photos`).catch(() => []),
       api("GET", `/api/campaigns/${campaignId}/notes`).catch(() => []),
+      api("GET", `/api/campaigns/${campaignId}/attachments`).catch(() => []),
     ]);
   } catch (err) {
     appendChildren(container, pageHeader("Testkampagne"), renderError(err));
@@ -1306,10 +1533,11 @@ export async function render(container, ctx) {
   }
   async function reload() {
     try {
-      [campaign, photos, notes] = await Promise.all([
+      [campaign, photos, notes, attachments] = await Promise.all([
         api("GET", `/api/campaigns/${campaignId}`),
         api("GET", `/api/campaigns/${campaignId}/photos`).catch(() => []),
         api("GET", `/api/campaigns/${campaignId}/notes`).catch(() => []),
+        api("GET", `/api/campaigns/${campaignId}/attachments`).catch(() => []),
       ]);
     } catch (err) {
       appendChildren(container, pageHeader("Testkampagne"), renderError(err));
@@ -1440,6 +1668,42 @@ export async function render(container, ctx) {
       alert(err.message);
     }
   }
+  function onUploadAttachment() {
+    showDialog(
+      "Datei hochladen",
+      renderAttachmentUploadDialog(
+        campaignId,
+        () => {
+          clearDialog();
+          reload();
+        },
+        clearDialog,
+      ),
+    );
+  }
+  function onEditAttachmentDescription(attachment) {
+    showDialog(
+      "Beschreibung bearbeiten",
+      renderAttachmentDescriptionEditDialog(
+        campaignId,
+        attachment,
+        () => {
+          clearDialog();
+          reload();
+        },
+        clearDialog,
+      ),
+    );
+  }
+  async function onDeleteAttachment(attachment) {
+    if (!confirm(`„${attachment.original_filename}" wirklich löschen?`)) return;
+    try {
+      await api("DELETE", `/api/campaigns/${campaignId}/attachments/${attachment.id}`);
+      reload();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
   async function onCreateNote(body) {
     await api("POST", `/api/campaigns/${campaignId}/notes`, { body_md: body });
     await reload();
@@ -1503,6 +1767,13 @@ export async function render(container, ctx) {
       renderFactualBlock(campaign),
       renderWpsBlock(campaign),
       renderPhotosBlock(campaign, photos, onUploadPhoto, onEditPhotoCaption, onDeletePhoto),
+      renderAttachmentsBlock(
+        campaign,
+        attachments,
+        onUploadAttachment,
+        onEditAttachmentDescription,
+        onDeleteAttachment,
+      ),
       renderNotesBlock(campaign, notes, onCreateNote, onEditNote, onDeleteNote),
       renderParticipantsBlock(
         campaign,

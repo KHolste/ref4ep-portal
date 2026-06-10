@@ -195,9 +195,7 @@ class TestCampaignAttachmentService:
                 thumbnail_storage_key = compute_attachment_thumbnail_storage_key(
                     campaign_id, attachment_id
                 )
-                thumb_write = self.storage.put_stream(
-                    thumbnail_storage_key, BytesIO(thumb_bytes)
-                )
+                thumb_write = self.storage.put_stream(thumbnail_storage_key, BytesIO(thumb_bytes))
                 thumbnail_mime_type = thumb_mime
                 thumbnail_size_bytes = thumb_write.file_size_bytes
             except ThumbnailError as exc:

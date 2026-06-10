@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0023_library_section_themes"
+CURRENT_HEAD = "0024_test_campaign_attachments"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -672,8 +672,10 @@ def test_test_campaign_participant_has_surrogate_id(tmp_db_path: Path) -> None:
     assert ("campaign_id", "person_id") in pairs
 
 
-def test_no_test_campaign_upload_or_file_table(tmp_db_path: Path) -> None:
-    """Block 0022 baut keinen eigenen Datei-/Upload-Pfad für Kampagnen."""
+def test_no_adhoc_test_campaign_file_table(tmp_db_path: Path) -> None:
+    """Block 0022 führte keinen Datei-Pfad ein; Block 0044 ergänzt
+    bewusst ``test_campaign_attachment`` (siehe eigener Testblock unten).
+    Ad-hoc-Namen außerhalb dieser Konvention bleiben verboten."""
     db_url = f"sqlite:///{tmp_db_path}"
     command.upgrade(_make_config(db_url), "head")
     inspector = inspect(create_engine(db_url))
@@ -681,7 +683,6 @@ def test_no_test_campaign_upload_or_file_table(tmp_db_path: Path) -> None:
     for forbidden in (
         "test_campaign_file",
         "test_campaign_upload",
-        "test_campaign_attachment",
         "campaign_file",
     ):
         assert forbidden not in tables
@@ -1484,3 +1485,51 @@ def test_downgrade_to_0022_rejects_new_library_sections(tmp_db_path: Path) -> No
             assert "constraint" in str(exc).lower() or "CHECK" in str(exc).upper()
         else:
             raise AssertionError("CHECK-Constraint hätte 'round_robin' ablehnen müssen.")
+
+
+# ---- Block 0044 — Datei-Anhänge für Testkampagnen --------------------
+
+
+TEST_CAMPAIGN_ATTACHMENT_COLUMNS = {
+    "id",
+    "campaign_id",
+    "uploaded_by_person_id",
+    "storage_key",
+    "original_filename",
+    "mime_type",
+    "file_size_bytes",
+    "sha256",
+    "description",
+    "thumbnail_storage_key",
+    "thumbnail_mime_type",
+    "thumbnail_size_bytes",
+    "created_at",
+    "updated_at",
+    "is_deleted",
+}
+
+
+def test_test_campaign_attachment_table_exists(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    inspector = inspect(create_engine(db_url))
+    assert "test_campaign_attachment" in set(inspector.get_table_names())
+    cols = {c["name"] for c in inspector.get_columns("test_campaign_attachment")}
+    assert TEST_CAMPAIGN_ATTACHMENT_COLUMNS == cols
+
+
+def test_test_campaign_attachment_has_fks(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    fks = inspect(create_engine(db_url)).get_foreign_keys("test_campaign_attachment")
+    referred = {fk.get("referred_table") for fk in fks}
+    assert {"test_campaign", "person"}.issubset(referred)
+
+
+def test_downgrade_to_0023_drops_attachment_table(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0023_library_section_themes")
+    inspector = inspect(create_engine(db_url))
+    assert "test_campaign_attachment" not in set(inspector.get_table_names())

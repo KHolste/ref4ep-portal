@@ -1367,6 +1367,18 @@ tr.row-released {
   white-space: nowrap;
 }
 
+/* ---- Datei-Anhänge für Testkampagnen (Block 0044) ------------------- */
+
+.campaign-attachment-type-badge {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  background: #d6e4f5;
+  color: #1c2c4c;
+  white-space: nowrap;
+}
+
 /* ---- Foto-Galerie für Testkampagnen (Block 0028) -------------------- */
 
 .campaign-photo-grid {

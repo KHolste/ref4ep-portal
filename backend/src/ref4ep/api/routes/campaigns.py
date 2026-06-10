@@ -952,12 +952,8 @@ def _attachment_service(
     return TestCampaignAttachmentService(session, auth=auth, audit=audit, storage=storage)
 
 
-def _attachment_out(
-    attachment: TestCampaignAttachment, auth: AuthContext
-) -> CampaignAttachmentOut:
-    can_edit = (
-        auth.platform_role == "admin" or auth.person_id == attachment.uploaded_by_person_id
-    )
+def _attachment_out(attachment: TestCampaignAttachment, auth: AuthContext) -> CampaignAttachmentOut:
+    can_edit = auth.platform_role == "admin" or auth.person_id == attachment.uploaded_by_person_id
     return CampaignAttachmentOut(
         id=attachment.id,
         original_filename=attachment.original_filename,
