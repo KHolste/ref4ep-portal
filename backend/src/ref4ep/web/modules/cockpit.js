@@ -164,6 +164,54 @@ function renderKpiStrip(myCockpit, projectCockpit) {
   );
 }
 
+// ---- Hero-Überblick (rechte Kopfspalte) -------------------------------
+//
+// Kompakte Gesundheits-Zusammenfassung mit farbcodierten Status-Punkten.
+// Nutzt dieselben bereits geladenen Quellen wie der KPI-Streifen — keine
+// zusätzliche fachliche Logik, kein zusätzlicher API-Aufruf.
+
+function heroSummaryItem(tone, value, label) {
+  return h(
+    "li",
+    { class: "cockpit-hero-summary-item" },
+    h("span", { class: `cockpit-status-dot cockpit-status-dot--${tone}` }, ""),
+    h("span", { class: "cockpit-hero-summary-value" }, String(value)),
+    h("span", { class: "cockpit-hero-summary-label" }, label),
+  );
+}
+
+function renderHeroSummary(myCockpit, projectCockpit) {
+  const my = myCockpit || {};
+  const proj = projectCockpit || {};
+  const overdueActions = (my.my_overdue_actions || []).length;
+  const wpsWithIssues = (proj.workpackages_with_open_issues || []).length;
+  const overdueMs = (proj.overdue_milestones || []).length;
+  return h(
+    "div",
+    { class: "cockpit-hero-summary-inner" },
+    h("div", { class: "cockpit-hero-summary-title" }, "Projektüberblick"),
+    h(
+      "ul",
+      { class: "cockpit-hero-summary-list" },
+      heroSummaryItem(
+        overdueActions > 0 ? "err" : "ok",
+        overdueActions,
+        "überfällige Aufgaben",
+      ),
+      heroSummaryItem(
+        wpsWithIssues > 0 ? "warn" : "ok",
+        wpsWithIssues,
+        "WPs mit offenen Punkten",
+      ),
+      heroSummaryItem(
+        overdueMs > 0 ? "err" : "ok",
+        overdueMs,
+        "überfällige Meilensteine",
+      ),
+    ),
+  );
+}
+
 // ---- „Mein Bereich" — kompakt -----------------------------------------
 
 function roleBadge(wpRole) {
@@ -369,10 +417,16 @@ function renderMyArea(myCockpit) {
     h("h2", { class: "cockpit-section-title" }, "Mein Bereich"),
     h(
       "div",
-      { class: "my-area-grid" },
+      { class: "my-area-grid cockpit-work-grid" },
+      // Breite, prominente Hauptkarte links …
       renderMyWpCard(myCockpit),
-      renderMyActionsCard(myCockpit),
-      renderMyMeetingsCard(myCockpit),
+      // … Aufgaben + Meetings kompakt gestapelt in schmalerer Spalte rechts.
+      h(
+        "div",
+        { class: "cockpit-side-stack" },
+        renderMyActionsCard(myCockpit),
+        renderMyMeetingsCard(myCockpit),
+      ),
     ),
   );
 }
@@ -432,27 +486,53 @@ function renderActivityBox(entries, since) {
 
 // ---- Projekt-Cockpit (verdichtet) -------------------------------------
 
-// Ein Meilenstein als ruhige, lesbare Zeile: Titelzeile (Code + Titel),
-// darunter eine Meta-Zeile (Plandatum, Fälligkeit, WP), rechts der Status.
-// Gleiche Datenpunkte wie zuvor — nur klarere visuelle Trennung.
-function renderMilestoneItem(ms) {
+// Status → Tönung des Timeline-Markers. Überfällige werden im jeweiligen
+// Aufrufkontext rot übersteuert.
+const MS_DOT_TONE = {
+  achieved: "ok",
+  at_risk: "warn",
+  postponed: "neutral",
+  cancelled: "neutral",
+  planned: "info",
+};
+
+// Ein Meilenstein als Timeline-Eintrag: links ein Status-Marker auf der
+// vertikalen Schiene, in der Mitte Titel + Meta (Plandatum, Fälligkeit,
+// WP), rechts der Statusbadge. Gleiche Datenpunkte wie zuvor.
+function renderMilestoneItem(ms, overdue = false) {
+  const tone = overdue ? "err" : MS_DOT_TONE[ms.status] || "info";
   return h(
     "li",
     { class: "cockpit-milestone-item" },
+    h("span", { class: `cockpit-status-dot cockpit-status-dot--${tone}` }, ""),
     h(
       "div",
-      { class: "cockpit-milestone-main" },
-      h("span", { class: "cockpit-milestone-code" }, ms.code),
-      h("span", { class: "cockpit-milestone-title" }, ms.title),
-    ),
-    h(
-      "div",
-      { class: "cockpit-milestone-meta" },
-      h("span", {}, `Plandatum ${formatDate(ms.planned_date)}`),
-      h("span", { class: "cockpit-milestone-due" }, dueLabel(ms.days_to_planned)),
-      h("span", {}, "WP: ", wpLinkOrSpan(ms.workpackage_code, ms.workpackage_title || "")),
+      { class: "cockpit-milestone-body" },
+      h(
+        "div",
+        { class: "cockpit-milestone-main" },
+        h("span", { class: "cockpit-milestone-code" }, ms.code),
+        h("span", { class: "cockpit-milestone-title" }, ms.title),
+      ),
+      h(
+        "div",
+        { class: "cockpit-milestone-meta" },
+        h("span", {}, `Plandatum ${formatDate(ms.planned_date)}`),
+        h("span", { class: "cockpit-milestone-due" }, dueLabel(ms.days_to_planned)),
+        h("span", {}, "WP: ", wpLinkOrSpan(ms.workpackage_code, ms.workpackage_title || "")),
+      ),
     ),
     h("div", { class: "cockpit-milestone-status" }, msStatusBadge(ms.status)),
+  );
+}
+
+// Positiver, ruhiger Empty-State (grüner Marker) — für „nichts Negatives".
+function renderPositiveEmpty(text) {
+  return h(
+    "p",
+    { class: "cockpit-empty cockpit-empty--ok" },
+    h("span", { class: "cockpit-status-dot cockpit-status-dot--ok" }, ""),
+    text,
   );
 }
 
@@ -469,7 +549,11 @@ function renderUpcomingCard(milestones) {
     "section",
     { class: "cockpit-card" },
     h("h2", {}, "Nächste Meilensteine"),
-    h("ul", { class: "cockpit-milestone-list" }, ...milestones.map(renderMilestoneItem)),
+    h(
+      "ul",
+      { class: "cockpit-milestone-list" },
+      ...milestones.map((ms) => renderMilestoneItem(ms, false)),
+    ),
     h(
       "p",
       { class: "muted" },
@@ -484,14 +568,18 @@ function renderOverdueCard(milestones) {
       "section",
       { class: "cockpit-card" },
       h("h2", {}, "Überfällige Meilensteine"),
-      renderEmpty("Keine überfälligen Meilensteine."),
+      renderPositiveEmpty("Keine überfälligen Meilensteine."),
     );
   }
   return h(
     "section",
     { class: "cockpit-card danger" },
     h("h2", {}, "Überfällige Meilensteine"),
-    h("ul", { class: "cockpit-milestone-list" }, ...milestones.map(renderMilestoneItem)),
+    h(
+      "ul",
+      { class: "cockpit-milestone-list" },
+      ...milestones.map((ms) => renderMilestoneItem(ms, true)),
+    ),
   );
 }
 
@@ -841,28 +929,44 @@ function renderProjectCockpit(cockpit) {
 
 export async function render(container, ctx) {
   container.classList.add("page-wide");
+  // Cockpit nutzt eine breitere Desktop-Shell als die übrigen page-wide-
+  // Seiten — gescopt über ``main#app.cockpit-shell``, betrifft kein
+  // anderes Modul.
+  container.classList.add("cockpit-shell");
   const me = ctx.me;
   const isAdminView = effectivePlatformRole(me.person) === "admin";
 
-  const partnerLine = h(
-    "p",
-    { class: "page-meta" },
-    `Partner: ${me.person.partner.name} (${me.person.partner.short_name}) — `,
-    h(
-      "a",
-      { href: `/portal/partners/${me.person.partner.id}` },
-      "Stammdaten anzeigen / bearbeiten",
-    ),
-  );
+  const partner = me.person.partner;
   const greeting = pageHeader(
     `Willkommen, ${me.person.display_name}`,
     "Persönliche Sicht und aktuelle Projektkennzahlen — alles auf einer Seite.",
-    { meta: partnerLine },
   );
-  // Kopfzone: der Page-Header wird in eine ruhige Hero-Karte gefasst, damit
-  // Begrüßung, Projektkontext und Stammdaten-Link als zusammenhängender
-  // Block wirken und nicht verloren oben links stehen.
-  const hero = h("header", { class: "cockpit-hero" }, greeting);
+  // Stammdaten als kompakter Quick-Link statt zufälliger Fließtext.
+  const quickActions = h(
+    "div",
+    { class: "cockpit-quick-actions" },
+    h("span", { class: "cockpit-hero-partner" }, `${partner.name} (${partner.short_name})`),
+    h(
+      "a",
+      { class: "cockpit-quick-link", href: `/portal/partners/${partner.id}` },
+      "Stammdaten",
+    ),
+  );
+  // Rechte Hero-Spalte: kompakter Projektüberblick mit Live-Zahlen — wird
+  // nach dem Fetch gefüllt (nutzt dieselben Quellen wie der KPI-Streifen).
+  const heroSummarySlot = h(
+    "aside",
+    { class: "cockpit-hero-summary" },
+    renderLoading("Überblick wird geladen …"),
+  );
+  // Kopfzone: zweispaltige Hero-Karte (links Begrüßung/Kontext, rechts
+  // Überblick), damit der Kopf nicht leer wirkt und Desktop-Breite nutzt.
+  const hero = h(
+    "header",
+    { class: "cockpit-hero" },
+    h("div", { class: "cockpit-hero-main" }, greeting, quickActions),
+    heroSummarySlot,
+  );
 
   // Slots werden in einer Reihenfolge zusammengesteckt, die sich nach der
   // effektiven Plattformrolle richtet:
@@ -926,6 +1030,7 @@ export async function render(container, ctx) {
   // KPI-Streifen — wir zeigen ihn auch dann, wenn nur eine Quelle erreicht
   // wurde; fehlende Werte erscheinen als 0.
   kpiSlot.replaceChildren(renderKpiStrip(myCockpit, projectCockpit));
+  heroSummarySlot.replaceChildren(renderHeroSummary(myCockpit, projectCockpit));
 
   if (myCockpit) {
     myAreaSlot.replaceChildren(renderMyArea(myCockpit));

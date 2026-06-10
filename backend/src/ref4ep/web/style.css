@@ -4893,3 +4893,335 @@ main#app .cockpit-page .activity-box li:last-child {
     padding: var(--rds-space-5) var(--rds-space-4);
   }
 }
+
+/* =====================================================================
+ * COCKPIT-DASHBOARD — Phase 3 (Desktop-Wirkung + Farbakzente)
+ *
+ * Baut additiv auf Phase 2 auf und überschreibt einzelne Phase-2-Regeln
+ * per Quell-Reihenfolge (gleiche Spezifität, später im File). Weiterhin
+ * vollständig unter ``main#app .cockpit-page`` / ``.cockpit-shell``
+ * gescopt — keine globalen Nebenwirkungen, keine Klassennamen entfernt.
+ *
+ * Ziel: professionelles Desktop-Dashboard (1440–1920 px), seriös
+ * lebendige Farbpalette (Ref4EP-Blau + Teal/Amber/Grün/Rot als gezielte
+ * Akzente), klarere Hierarchie. Mobil weiterhin sauber gestapelt.
+ * ===================================================================== */
+
+/* ---- Akzentpalette (ergänzt RDS; nur im Cockpit verwendet) --------- */
+
+:root {
+  --rds-accent-teal: #1f7a8c; /* ruhiges Teal — aktive/neutrale Projektinfo */
+  --rds-accent-teal-soft: #e7f3f5;
+  --rds-accent-amber: #b7791f; /* warmes Gold/Amber — offene Punkte/Warnung */
+  --rds-accent-amber-soft: #fbf3df;
+  --rds-accent-green: #2f7a3a; /* dezentes Grün — OK/positiv */
+  --rds-accent-green-soft: #e6f1eb;
+  --rds-accent-red: #c0392b; /* gedämpftes Rot — nur kritisch/überfällig */
+  --rds-accent-red-soft: #fbe9e7;
+}
+
+/* ---- Breitere Desktop-Shell nur fürs Cockpit ---------------------- */
+
+main#app.cockpit-shell {
+  max-width: 1560px;
+}
+
+main#app .cockpit-page {
+  max-width: none;
+}
+
+/* ---- Hero: zweispaltig, dezenter Gradient + Akzentkante ----------- */
+
+main#app .cockpit-page .cockpit-hero {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--rds-space-5);
+  align-items: stretch;
+  background: linear-gradient(135deg, #ffffff 0%, var(--rds-accent-teal-soft) 100%);
+  border: 1px solid var(--rds-border);
+  border-left: 4px solid var(--rds-text-strong);
+  padding: var(--rds-space-6);
+}
+
+@media (min-width: 1000px) {
+  main#app .cockpit-page .cockpit-hero {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    align-items: center;
+  }
+}
+
+main#app .cockpit-page .cockpit-hero-main {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Quick-Actions: Partnername + Stammdaten als kleine Aktion. */
+main#app .cockpit-page .cockpit-quick-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--rds-space-3);
+  margin-top: var(--rds-space-4);
+}
+
+main#app .cockpit-page .cockpit-hero-partner {
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+}
+
+main#app .cockpit-page .cockpit-quick-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--rds-accent-teal);
+  background: #ffffff;
+  border: 1px solid var(--rds-border-strong);
+  border-radius: 999px;
+  text-decoration: none;
+  transition: border-color 0.12s ease, color 0.12s ease;
+}
+
+main#app .cockpit-page .cockpit-quick-link::after {
+  content: "↗";
+  font-size: 0.85em;
+}
+
+main#app .cockpit-page .cockpit-quick-link:hover,
+main#app .cockpit-page .cockpit-quick-link:focus-visible {
+  border-color: var(--rds-accent-teal);
+  color: var(--rds-text-strong);
+}
+
+/* Rechte Hero-Spalte: kompakter Projektüberblick. */
+main#app .cockpit-page .cockpit-hero-summary {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-md);
+  padding: var(--rds-space-4) var(--rds-space-5);
+}
+
+main#app .cockpit-page .cockpit-hero-summary-title {
+  margin-bottom: var(--rds-space-3);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--rds-text-muted);
+}
+
+main#app .cockpit-page .cockpit-hero-summary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rds-space-3);
+}
+
+main#app .cockpit-page .cockpit-hero-summary-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--rds-space-2);
+}
+
+main#app .cockpit-page .cockpit-hero-summary-value {
+  min-width: 1.6rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--rds-text-strong);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+main#app .cockpit-page .cockpit-hero-summary-label {
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+}
+
+/* ---- Status-Punkte (Hero-Überblick + Timeline) -------------------- */
+
+main#app .cockpit-page .cockpit-status-dot {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: var(--rds-text-subtle);
+  flex: none;
+}
+
+main#app .cockpit-page .cockpit-status-dot--ok {
+  background: var(--rds-accent-green);
+}
+main#app .cockpit-page .cockpit-status-dot--warn {
+  background: var(--rds-accent-amber);
+}
+main#app .cockpit-page .cockpit-status-dot--err {
+  background: var(--rds-accent-red);
+}
+main#app .cockpit-page .cockpit-status-dot--info {
+  background: var(--rds-accent-teal);
+}
+main#app .cockpit-page .cockpit-status-dot--neutral {
+  background: var(--rds-text-subtle);
+}
+
+/* ---- KPI-Zeile: echte Dashboard-Kacheln mit Farbakzenten ---------- */
+
+main#app .cockpit-page .cockpit-kpi {
+  min-height: 148px;
+  padding: var(--rds-space-5);
+  border-left: 1px solid var(--rds-border);
+  border-top: 4px solid var(--rds-accent-teal);
+}
+
+main#app .cockpit-page .cockpit-kpi-value {
+  font-size: 2.75rem;
+}
+
+/* Warn-KPI (z. B. „WPs mit offenen Punkten") — auffällig, aber seriös. */
+main#app .cockpit-page .cockpit-kpi-warning {
+  background: var(--rds-accent-amber-soft);
+  border-top-color: var(--rds-accent-amber);
+}
+main#app .cockpit-page .cockpit-kpi-warning .cockpit-kpi-value {
+  color: var(--rds-accent-amber);
+}
+
+/* Danger-KPI — nur echte kritische/überfällige Zustände. */
+main#app .cockpit-page .cockpit-kpi-danger {
+  background: var(--rds-accent-red-soft);
+  border-top-color: var(--rds-accent-red);
+}
+main#app .cockpit-page .cockpit-kpi-danger .cockpit-kpi-value {
+  color: var(--rds-accent-red);
+}
+
+main#app .cockpit-page a.cockpit-kpi-link:hover,
+main#app .cockpit-page a.cockpit-kpi-link:focus-visible {
+  border-top-color: var(--rds-text-strong);
+}
+
+/* ---- „Mein Bereich": asymmetrisches Arbeitsraster ----------------- */
+
+main#app .cockpit-page .my-area-grid.cockpit-work-grid {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1000px) {
+  main#app .cockpit-page .my-area-grid.cockpit-work-grid {
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+main#app .cockpit-page .cockpit-side-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rds-space-5);
+  min-width: 0;
+}
+
+/* Hauptkarte „Meine Arbeitspakete" etwas prominenter. */
+main#app .cockpit-page .cockpit-work-grid > .my-area-card:first-child > h3 {
+  font-size: 1.1rem;
+}
+
+/* ---- Meilenstein-Timeline mit vertikaler Schiene ------------------ */
+
+main#app .cockpit-page .cockpit-milestone-list {
+  position: relative;
+  list-style: none;
+  margin: var(--rds-space-3) 0 0;
+  padding: 0 0 0 var(--rds-space-2);
+}
+
+/* Vertikale Schiene hinter den Markern. */
+main#app .cockpit-page .cockpit-milestone-list::before {
+  content: "";
+  position: absolute;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  left: calc(var(--rds-space-2) + 0.3rem);
+  width: 2px;
+  background: var(--rds-divider);
+}
+
+main#app .cockpit-page .cockpit-milestone-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: var(--rds-space-3);
+  padding: var(--rds-space-3) 0;
+  border-bottom: 1px solid var(--rds-divider);
+}
+
+main#app .cockpit-page .cockpit-milestone-item:last-child {
+  border-bottom: none;
+}
+
+/* Marker sitzt auf der Schiene; weißer Ring blendet die Linie aus. */
+main#app .cockpit-page .cockpit-milestone-item > .cockpit-status-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-top: 0.3rem;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 0 0 3px var(--rds-surface-raised);
+}
+
+main#app .cockpit-page .cockpit-milestone-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rds-space-1);
+  min-width: 0;
+}
+
+main#app .cockpit-page .cockpit-milestone-main {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--rds-space-2);
+}
+
+main#app .cockpit-page .cockpit-milestone-status {
+  align-self: center;
+}
+
+/* ---- Positiver Empty-State (z. B. keine überfälligen Meilensteine) - */
+
+main#app .cockpit-page .cockpit-empty--ok {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rds-space-2);
+  font-style: normal;
+  text-align: center;
+  background: var(--rds-accent-green-soft);
+  border: 1px solid transparent;
+  border-radius: var(--rds-radius-md);
+  padding: var(--rds-space-4);
+  margin: var(--rds-space-2) 0;
+  font-size: var(--rds-fs-data);
+  color: var(--rds-accent-green);
+}
+
+/* ---- Mobile-Feinschliff (steht NACH den Phase-3-Basisregeln, damit
+ *      die Reduktionen auf kleinen Viewports zuverlässig greifen) ----- */
+
+@media (max-width: 640px) {
+  main#app .cockpit-page .cockpit-kpi {
+    min-height: 0;
+    padding: var(--rds-space-4);
+  }
+  main#app .cockpit-page .cockpit-kpi-value {
+    font-size: 1.95rem;
+  }
+  main#app .cockpit-page .cockpit-hero {
+    padding: var(--rds-space-5) var(--rds-space-4);
+  }
+  main#app .cockpit-page .cockpit-hero-summary {
+    padding: var(--rds-space-4);
+  }
+}
