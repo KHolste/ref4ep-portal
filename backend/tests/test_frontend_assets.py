@@ -3697,7 +3697,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0058"
+_NAV_PATCH_VERSION = "0059"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4368,10 +4368,13 @@ def test_library_page_subtle_background_layer_is_scoped_and_local() -> None:
     assert "main#app.project-library-page::before" in css
     start = css.index("main#app.project-library-page::before")
     block = css[start : css.index("}", start)]
-    # Hinter dem Inhalt, lokales Bild, helles Overlay.
+    # Hinter dem Inhalt, lokales Bild, sehr starkes helles Overlay
+    # (oben >= 0.94, weiter unten vollständig deckend -> Arbeitsfläche
+    # bleibt clean).
     assert "z-index: -1" in block
     assert 'url("/static/images/library-hero.jpg")' in block
-    assert "rgba(243, 245, 249, 0.88)" in block
+    assert "rgba(243, 245, 249, 0.95)" in block
+    assert "rgba(243, 245, 249, 1)" in block
     # Kein Fixed-Attachment (Mobile-sicher).
     assert "fixed" not in block
 
