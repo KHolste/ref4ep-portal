@@ -7166,7 +7166,7 @@ main#app.actions-page .actions-hero {
       rgba(16, 23, 40, 0.78) 48%,
       rgba(20, 30, 54, 0.58) 100%
     ),
-    #0d1321 url("/static/images/actions-hero.jpg") center / cover no-repeat;
+    #0d1321 url("/static/images/actions-hero-2.jpg") center / cover no-repeat;
 }
 
 /* Kommentare: ruhiges Galaxien-Motiv. */
@@ -7178,5 +7178,5 @@ main#app.comments-page .comments-hero {
       rgba(16, 23, 40, 0.78) 48%,
       rgba(20, 30, 54, 0.58) 100%
     ),
-    #0d1321 url("/static/images/comments-hero.jpg") center / cover no-repeat;
+    #0d1321 url("/static/images/comments-hero-2.jpg") center / cover no-repeat;
 }

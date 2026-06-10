@@ -3740,7 +3740,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0073"
+_NAV_PATCH_VERSION = "0074"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4486,8 +4486,8 @@ def test_remaining_sections_have_local_image_heroes() -> None:
     cases = {
         "workpackages-hero.jpg": "main#app.wp-overview-page .wp-overview-hero",
         "meetings-hero.jpg": "main#app.meetings-page .meetings-hero",
-        "actions-hero.jpg": "main#app.actions-page .actions-hero",
-        "comments-hero.jpg": "main#app.comments-page .comments-hero",
+        "actions-hero-2.jpg": "main#app.actions-page .actions-hero",
+        "comments-hero-2.jpg": "main#app.comments-page .comments-hero",
     }
     for image, selector in cases.items():
         assert selector in css, f"style.css sollte {selector!r} enthalten"
