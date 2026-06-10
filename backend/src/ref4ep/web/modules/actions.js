@@ -80,10 +80,15 @@ function rowFor(action, onChangeStatus) {
 
 export async function render(container, _ctx) {
   container.classList.add("page-wide");
+  container.classList.add("actions-page");
   const headerNodes = [
-    pageHeader(
-      "Aufgaben",
-      "Aufgaben aus den Meeting-Protokollen — gefiltert nach Person, Status und Arbeitspaket.",
+    h(
+      "header",
+      { class: "actions-hero" },
+      pageHeader(
+        "Aufgaben",
+        "Aufgaben aus den Meeting-Protokollen — gefiltert nach Person, Status und Arbeitspaket.",
+      ),
     ),
   ];
 

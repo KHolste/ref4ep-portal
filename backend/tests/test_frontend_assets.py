@@ -3740,7 +3740,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0066"
+_NAV_PATCH_VERSION = "0067"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4429,6 +4429,41 @@ def test_milestones_hero_uses_local_image_and_keeps_list() -> None:
     assert "function timelineItem" in body
     assert "linkedDocumentsSection" in body
     assert "/api/milestones/" in body
+
+
+def test_remaining_sections_have_local_image_heroes() -> None:
+    """Arbeitspakete, Meetings, Aufgaben und Kommentare nutzen denselben
+    dunklen Bild-Hero (lokale /static-Bilder), gescopt je Seite; Listen/
+    Aktionen bleiben erhalten und kein undefined-Renderpfad kehrt zurück."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    static_images = WEB_DIR.parent / "static" / "images"
+    cases = {
+        "workpackages-hero.jpg": "main#app.wp-overview-page .wp-overview-hero",
+        "meetings-hero.jpg": "main#app.meetings-page .meetings-hero",
+        "actions-hero.jpg": "main#app.actions-page .actions-hero",
+        "comments-hero.jpg": "main#app.comments-page .comments-hero",
+    }
+    for image, selector in cases.items():
+        assert selector in css, f"style.css sollte {selector!r} enthalten"
+        assert f'url("/static/images/{image}")' in css
+        assert (static_images / image).is_file(), f"Bild fehlt: {image}"
+    # Keine externen Assets im Stylesheet.
+    assert "http://" not in css
+    assert "https://" not in css
+
+    meetings = (MODULES_DIR / "meetings.js").read_text(encoding="utf-8")
+    assert 'classList.add("meetings-page")' in meetings
+    assert "meetings-hero" in meetings
+    # undefined-Renderpfad (headerNodes[1]) entfernt.
+    assert "headerNodes[1]" not in meetings
+
+    actions = (MODULES_DIR / "actions.js").read_text(encoding="utf-8")
+    assert 'classList.add("actions-page")' in actions
+    assert "actions-hero" in actions
+
+    comments = (MODULES_DIR / "document_comments.js").read_text(encoding="utf-8")
+    assert 'classList.add("comments-page")' in comments
+    assert "comments-hero" in comments
 
 
 def test_campaigns_hero_uses_local_image_and_keeps_controls() -> None:

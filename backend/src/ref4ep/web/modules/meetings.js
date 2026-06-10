@@ -160,6 +160,7 @@ function rowFor(meeting) {
 
 export async function render(container, _ctx) {
   container.classList.add("page-wide");
+  container.classList.add("meetings-page");
   const headerNodes = [
     pageHeader(
       "Meetings",
@@ -295,16 +296,18 @@ export async function render(container, _ctx) {
   }
   createBtn.addEventListener("click", openCreate);
 
-  const headerRow = h(
-    "div",
-    { class: "section-header" },
+  // Dunkler Bild-Hero mit Anlege-Aktion (Titel + Einleitung unverändert);
+  // headerNodes[0] ist der Page-Header. Kein zweiter, undefinierter
+  // Header-Knoten mehr im Output.
+  const heroBand = h(
+    "header",
+    { class: "meetings-hero" },
     headerNodes[0],
     createBtn,
   );
 
   container.replaceChildren(
-    headerRow,
-    headerNodes[1],
+    heroBand,
     filterBar,
     tableSlot,
     dialogSlot,

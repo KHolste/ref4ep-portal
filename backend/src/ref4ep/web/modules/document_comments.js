@@ -78,9 +78,21 @@ function renderTable(comments) {
   );
 }
 
-export async function render(container, _ctx) {
-  container.replaceChildren(
+function commentsHero() {
+  // Dunkler Bild-Hero (Deep-Space-Motiv) mit heller Schrift; Titel +
+  // Einleitung inhaltlich unverändert.
+  return h(
+    "header",
+    { class: "comments-hero" },
     pageHeader("Dokumentkommentare", "Globale Übersicht aller sichtbaren Kommentare"),
+  );
+}
+
+export async function render(container, _ctx) {
+  container.classList.add("page-wide");
+  container.classList.add("comments-page");
+  container.replaceChildren(
+    commentsHero(),
     renderLoading("Kommentare werden geladen …"),
   );
 
@@ -112,7 +124,7 @@ export async function render(container, _ctx) {
   statusSelect.addEventListener("change", reload);
 
   container.replaceChildren(
-    pageHeader("Dokumentkommentare", "Globale Übersicht aller sichtbaren Kommentare"),
+    commentsHero(),
     filterBar,
     tableContainer,
     crossNav(),

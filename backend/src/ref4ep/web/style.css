@@ -5246,13 +5246,24 @@ main#app.wp-overview-page {
 
 /* ---- Seitenkopf-Band (schlichter als Cockpit-Hero) ---------------- */
 
+/* Dunkler Bild-Hero mit Triebwerks-/Plasma-Motiv (RIT-Thruster,
+ * lokal /static/images/workpackages-hero.jpg) — passend zum
+ * Engineering-Charakter der Arbeitspakete. Kräftiges dunkles Overlay
+ * -> Motiv dezent, weisse Schrift lesbar. */
 main#app.wp-overview-page .wp-overview-hero {
-  background: linear-gradient(135deg, #ffffff 0%, var(--rds-accent-teal-soft) 100%);
-  border: 1px solid var(--rds-border);
-  border-left: 4px solid var(--rds-text-strong);
+  overflow: hidden;
+  color: #ffffff;
+  background:
+    linear-gradient(
+      100deg,
+      rgba(13, 19, 33, 0.92) 0%,
+      rgba(16, 23, 40, 0.8) 45%,
+      rgba(20, 30, 54, 0.55) 100%
+    ),
+    #0d1321 url("/static/images/workpackages-hero.jpg") center / cover no-repeat;
   border-radius: var(--rds-radius-lg);
-  box-shadow: var(--rds-shadow-sm);
-  padding: var(--rds-space-5) var(--rds-space-6);
+  box-shadow: var(--rds-shadow-md);
+  padding: var(--rds-space-6);
   margin-bottom: var(--rds-space-6);
 }
 
@@ -5263,10 +5274,16 @@ main#app.wp-overview-page .wp-overview-hero .page-header {
 }
 
 main#app.wp-overview-page .wp-overview-hero .page-title {
-  font-size: 1.5rem;
+  font-size: 1.7rem;
+  color: #ffffff;
 }
 
-/* Stat-Chips */
+main#app.wp-overview-page .wp-overview-hero .page-subtitle {
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 75ch;
+}
+
+/* Stat-Chips: halbtransparent/glasig auf dem dunklen Hero. */
 main#app.wp-overview-page .wp-overview-summary {
   display: flex;
   flex-wrap: wrap;
@@ -5279,20 +5296,20 @@ main#app.wp-overview-page .wp-stat {
   align-items: baseline;
   gap: 0.4rem;
   padding: 0.3rem 0.8rem;
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid var(--rds-border);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.24);
   border-radius: 999px;
 }
 
 main#app.wp-overview-page .wp-stat-value {
   font-weight: 700;
-  color: var(--rds-text-strong);
+  color: #ffffff;
   font-variant-numeric: tabular-nums lining-nums;
 }
 
 main#app.wp-overview-page .wp-stat-label {
   font-size: var(--rds-fs-meta);
-  color: var(--rds-text-muted);
+  color: rgba(255, 255, 255, 0.78);
 }
 
 /* ---- Filter-Card --------------------------------------------------- */
@@ -7028,4 +7045,107 @@ main#app.milestones-page .milestones-hero .page-title {
 main#app.milestones-page .milestones-hero .page-subtitle {
   color: rgba(255, 255, 255, 0.82);
   max-width: 75ch;
+}
+
+/* =====================================================================
+ * ZUSAMMENARBEIT — Bild-Heroes (Phase 15)
+ *
+ * Meetings, Aufgaben und Kommentare bekommen denselben dunklen Bild-Hero
+ * wie die übrigen Seiten — mit on-brand Deep-Space-/Mission-Motiven
+ * (lokal unter /static/images/*). Kräftiges dunkles Overlay -> dezent,
+ * weisse Schrift lesbar. Je Seite gescopt; Listen/Filter/Dialoge
+ * unverändert. Keine externen Assets.
+ * ===================================================================== */
+
+/* Gemeinsame Hero-Basis je Seitentyp (Bild via eigener Regel). */
+main#app.meetings-page .meetings-hero,
+main#app.actions-page .actions-hero,
+main#app.comments-page .comments-hero {
+  overflow: hidden;
+  color: #ffffff;
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-md);
+  padding: var(--rds-space-6);
+  margin-bottom: var(--rds-space-5);
+}
+
+main#app.meetings-page .meetings-hero .page-header,
+main#app.actions-page .actions-hero .page-header,
+main#app.comments-page .comments-hero .page-header {
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+main#app.meetings-page .meetings-hero .page-title,
+main#app.actions-page .actions-hero .page-title,
+main#app.comments-page .comments-hero .page-title {
+  font-size: 1.7rem;
+  color: #ffffff;
+}
+
+main#app.meetings-page .meetings-hero .page-subtitle,
+main#app.actions-page .actions-hero .page-subtitle,
+main#app.comments-page .comments-hero .page-subtitle {
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 75ch;
+}
+
+/* Meetings: Satellit-/Mission-Motiv; Anlege-Button rechts als heller
+ * Primärbutton, Titel/Text links. */
+main#app.meetings-page .meetings-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--rds-space-4);
+  background:
+    linear-gradient(
+      105deg,
+      rgba(13, 19, 33, 0.9) 0%,
+      rgba(16, 23, 40, 0.78) 48%,
+      rgba(20, 30, 54, 0.55) 100%
+    ),
+    #0d1321 url("/static/images/meetings-hero.jpg") center / cover no-repeat;
+}
+
+main#app.meetings-page .meetings-hero > button {
+  flex: none;
+  padding: 0.5rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--rds-text-strong);
+  background: #ffffff;
+  border: 1px solid #ffffff;
+  border-radius: var(--rds-radius-sm);
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+main#app.meetings-page .meetings-hero > button:hover {
+  background: rgba(255, 255, 255, 0.86);
+}
+
+/* Aufgaben: Deep-Space-Nebel-Motiv. */
+main#app.actions-page .actions-hero {
+  background:
+    linear-gradient(
+      105deg,
+      rgba(13, 19, 33, 0.9) 0%,
+      rgba(16, 23, 40, 0.78) 48%,
+      rgba(20, 30, 54, 0.58) 100%
+    ),
+    #0d1321 url("/static/images/actions-hero.jpg") center / cover no-repeat;
+}
+
+/* Kommentare: ruhiges Galaxien-Motiv. */
+main#app.comments-page .comments-hero {
+  background:
+    linear-gradient(
+      105deg,
+      rgba(13, 19, 33, 0.9) 0%,
+      rgba(16, 23, 40, 0.78) 48%,
+      rgba(20, 30, 54, 0.58) 100%
+    ),
+    #0d1321 url("/static/images/comments-hero.jpg") center / cover no-repeat;
 }
