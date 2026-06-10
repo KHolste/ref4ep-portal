@@ -3697,7 +3697,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0062"
+_NAV_PATCH_VERSION = "0063"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4286,6 +4286,28 @@ def test_app_shell_v2_css_hardens_hidden_attribute() -> None:
     assert ".app-shell" in css
     assert ".app-sidebar" in css
     assert ".app-sidebar #nav-main a.active" in css
+
+
+def test_sidebar_polish_depth_groups_and_active_pill() -> None:
+    """Sidebar-Polish: mehr Tiefe (Schatten an der Sidebar), klarere
+    Gruppen (Trenner + Akzentpunkt) und eine teal-getönte aktive Pill —
+    alles gescopt. Der [hidden]-Härtungsschutz bleibt bestehen."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Tiefe: Sidebar-Block hat einen box-shadow.
+    sb = css[css.index(".app-sidebar {") :]
+    sb = sb[: sb.index("}")]
+    assert "box-shadow" in sb
+    # Gruppen-Trenner + Akzentpunkt.
+    assert ".app-sidebar .nav-group:not(:first-child)" in css
+    assert ".app-sidebar .nav-group-title::before" in css
+    # Aktive Pill teal-getönt, mit teal Linksakzent.
+    act = css.index(".app-sidebar #nav-main a.active {")
+    act_block = css[act : css.index("}", act)]
+    assert "rgba(31, 122, 140" in act_block
+    assert "border-left-color: var(--rds-accent-teal)" in act_block
+    # [hidden]-Härtung weiterhin vorhanden (Rollen-Gating geschützt).
+    assert "[hidden] {" in css
+    assert "display: none !important;" in css
 
 
 def test_app_js_unhides_lead_and_admin_groups_behind_gate() -> None:
