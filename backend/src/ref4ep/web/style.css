@@ -2663,18 +2663,24 @@ button.button-compact {
  * ===================================================================== */
 
 :root {
-  /* Konsortiumstaugliche, ruhige Farb-/Maße-Token. */
-  --cockpit-card-radius: 8px;
-  --cockpit-card-bg: #ffffff;
-  --cockpit-card-border: #e2e8f1;
+  /* Konsortiumstaugliche, ruhige Farb-/Maße-Token.
+   *
+   * Konsolidierung (Phase-1-Polish): Farb-/Radius-Token verweisen jetzt
+   * auf das Research-Portal-Design-System (``--rds-*``) als einzige
+   * Wahrheitsquelle, statt eigene Hex-Werte zu duplizieren. Schatten-,
+   * Padding- und Numerik-Token bleiben literal (kein 1:1-RDS-Pendant
+   * bzw. werttest-geschützt). Token-Namen bleiben unverändert. */
+  --cockpit-card-radius: var(--rds-radius-lg);
+  --cockpit-card-bg: var(--rds-surface-raised);
+  --cockpit-card-border: var(--rds-border);
   --cockpit-card-shadow: 0 1px 2px rgba(28, 44, 76, 0.04),
     0 1px 3px rgba(28, 44, 76, 0.04);
   --cockpit-card-shadow-hover: 0 1px 4px rgba(28, 44, 76, 0.08),
     0 2px 6px rgba(28, 44, 76, 0.06);
   --cockpit-card-padding: 1rem 1.15rem;
-  --cockpit-divider: #eef2f7;
-  --cockpit-text-muted: #5a6070;
-  --cockpit-text-strong: #1c2c4c;
+  --cockpit-divider: var(--rds-divider);
+  --cockpit-text-muted: var(--rds-text-muted);
+  --cockpit-text-strong: var(--rds-text-strong);
   --cockpit-numeric-feature: "tnum" 1, "lnum" 1;
 }
 
@@ -2736,8 +2742,12 @@ main#app .my-area-card.danger {
 main#app .cockpit-kpi {
   border-radius: var(--cockpit-card-radius);
   border-color: var(--cockpit-card-border);
+  /* Crisper, aber ruhiger Hairline-Akzent oben — gibt der Kachel mehr
+   * Prägnanz ohne buntes Dashboard-Gefühl. Problem-Kacheln tönen den
+   * Akzent (siehe unten). */
+  border-top: 2px solid var(--rds-border-strong);
   box-shadow: var(--cockpit-card-shadow);
-  padding: 0.85rem 1rem 0.95rem;
+  padding: 0.9rem 1rem 1rem;
   transition: box-shadow 0.15s ease, transform 0.15s ease,
     background-color 0.15s ease;
 }
@@ -2757,10 +2767,14 @@ main#app .cockpit-kpi-value {
 }
 
 main#app .cockpit-kpi-label {
-  margin-top: 0.3rem;
-  font-size: 0.85rem;
   color: var(--cockpit-text-muted);
-  letter-spacing: 0.005em;
+  margin-top: 0.35rem;
+  /* Ruhiges, professionelles KPI-Label: klein, getrackt, in Versalien
+   * — klarere Hierarchie unter der prägnanten Zahl. */
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 main#app .cockpit-kpi-cta {
@@ -2786,6 +2800,16 @@ main#app .cockpit-kpi:not(.cockpit-kpi-danger):not(.cockpit-kpi-warning)
 /* Warning-Karte ruhiger akzentuiert. */
 main#app .cockpit-kpi-warning {
   background: #fffaf0;
+}
+
+/* Problem-Kacheln tönen den oberen Hairline-Akzent in der ruhigen
+ * RDS-Statuspalette — dezentes, professionelles Signal statt Vollfläche. */
+main#app .cockpit-kpi-warning {
+  border-top-color: var(--rds-status-warn-fg);
+}
+
+main#app .cockpit-kpi-danger {
+  border-top-color: var(--rds-status-err-fg);
 }
 
 /* ---- Status-Counts-Reihe typografisch entschärfen ------------------ */
@@ -3005,20 +3029,25 @@ main#app.page-wide > h2 {
  * ===================================================================== */
 
 :root {
-  /* Portalweite Design-Tokens — gleichen die Cockpit-Tokens und stehen
-   * allen Modulen zur Verfügung. Tests verifizieren ihre Existenz. */
-  --portal-card-radius: 8px;
-  --portal-card-bg: #ffffff;
-  --portal-card-border: #e2e8f1;
+  /* Portalweite Design-Tokens — stehen allen Modulen zur Verfügung.
+   * Tests verifizieren ihre Existenz.
+   *
+   * Konsolidierung (Phase-1-Polish): Farb-/Radius-/Soft-Flächen-Token
+   * verweisen auf das RDS (``--rds-*``) als einzige Wahrheitsquelle.
+   * Schatten-/Padding-/Numerik-Token bleiben literal (Schatten ist
+   * werttest-geschützt). Token-Namen bleiben unverändert. */
+  --portal-card-radius: var(--rds-radius-lg);
+  --portal-card-bg: var(--rds-surface-raised);
+  --portal-card-border: var(--rds-border);
   --portal-card-shadow: 0 1px 2px rgba(28, 44, 76, 0.04),
     0 1px 3px rgba(28, 44, 76, 0.04);
   --portal-card-shadow-hover: 0 1px 4px rgba(28, 44, 76, 0.08),
     0 2px 6px rgba(28, 44, 76, 0.06);
   --portal-card-padding: 1rem 1.15rem;
-  --portal-divider: #eef2f7;
-  --portal-text-muted: #5a6070;
-  --portal-text-strong: #1c2c4c;
-  --portal-bg-soft: #f5f7fb;
+  --portal-divider: var(--rds-divider);
+  --portal-text-muted: var(--rds-text-muted);
+  --portal-text-strong: var(--rds-text-strong);
+  --portal-bg-soft: var(--rds-surface-soft);
   --portal-numeric-feature: "tnum" 1, "lnum" 1;
 }
 
