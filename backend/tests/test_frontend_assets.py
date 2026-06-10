@@ -3697,7 +3697,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0054"
+_NAV_PATCH_VERSION = "0055"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4301,3 +4301,22 @@ def test_app_js_unhides_lead_and_admin_groups_behind_gate() -> None:
     )
     # Leitungs-Gruppe hängt an der WP-/Partnerlead-Bedingung (vor dem Gate).
     assert body.index('"nav-group-lead"') < guard
+
+
+def test_app_shell_main_area_left_aligned_and_wide() -> None:
+    """Layout-Fix App-Shell v2: Der Hauptbereich ist im Sidebar-Layout
+    linksbündig (kein zentriertes ``margin: 0 auto``-Inselverhalten) und
+    breite ``page-wide``-Seiten (Kalender, Meilensteine, Meetings, …)
+    nutzen die volle Arbeitsfläche (1560px) wie die modernisierten
+    Module."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert ".app-shell > main#app {" in css
+    start = css.index(".app-shell > main#app {")
+    block = css[start : css.index("}", start)]
+    assert "margin: 0;" in block
+    assert ".app-shell > main#app.page-wide {" in css
+    pw_start = css.index(".app-shell > main#app.page-wide {")
+    pw_block = css[pw_start : css.index("}", pw_start)]
+    assert "max-width: 1560px" in pw_block
+    # Die alte breitere Variante bleibt als Basisregel erhalten.
+    assert "main#app.page-wide" in css

@@ -6299,9 +6299,26 @@ main#app.campaigns-page .campaign-status-badge--neutral {
 
 /* ``main#app`` bleibt der Modul-Container; die Module steuern Breite
  * und Klassen weiterhin selbst. Wir geben der Zelle nur einen sicheren
- * Mindestschrumpf, damit breite Inhalte nicht überlaufen. */
+ * Mindestschrumpf, damit breite Inhalte nicht überlaufen.
+ *
+ * Layout-Fix (App-Shell v2): Der Hauptbereich wird LINKSBÜNDIG im
+ * Arbeitsbereich ausgerichtet (``margin: 0`` statt des alten
+ * ``margin: 0 auto``). Sonst sitzt ein gekappter Inhalt (z. B. 1280er
+ * ``page-wide``) als schmale, scheinbar nach rechts verschobene Insel
+ * zentriert in der breiten Zelle rechts der Sidebar. */
 .app-shell > main#app {
   min-width: 0;
+  margin: 0;
+}
+
+/* Breite Arbeitsseiten (``page-wide``: Kalender, Meilensteine, Meetings,
+ * Aufgaben, Detail-/Adminseiten) nutzen im Sidebar-Layout dieselbe volle
+ * Arbeitsfläche wie die bereits modernisierten 1560er-Module — sie
+ * wirken dann nicht mehr zu schmal. Die Modul-eigenen 1560er-Wrapper
+ * (Cockpit/Arbeitspakete/Projektbibliothek/Testkampagnen) bleiben dabei
+ * unverändert (gleicher Wert, höhere Spezifität). */
+.app-shell > main#app.page-wide {
+  max-width: 1560px;
 }
 
 /* ---- Sidebar -------------------------------------------------------- */
