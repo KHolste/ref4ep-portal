@@ -3740,7 +3740,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0068"
+_NAV_PATCH_VERSION = "0069"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4436,10 +4436,10 @@ def test_global_background_is_local_subtle_and_safe() -> None:
     sehr starkem hellem Overlay; Sidebar/Topbar-Flächen und die
     [hidden]-Härtung bleiben unangetastet."""
     css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
-    # Lokales Bild als body-Hintergrund, unter sehr starkem hellem
-    # Overlay (>= 0.93 oben) -> dezent.
+    # Lokales Bild als body-Hintergrund, unter starkem hellem Overlay
+    # (0.86 oben) -> sichtbar, aber dezent.
     assert 'url("/static/images/global-background.jpg")' in css
-    assert "rgba(245, 248, 252, 0.93)" in css
+    assert "rgba(245, 248, 252, 0.86)" in css
     # Beide gehören zu einer body-Hintergrundregel.
     gb = css.index('url("/static/images/global-background.jpg")')
     assert css.rfind("body {", 0, gb) != -1

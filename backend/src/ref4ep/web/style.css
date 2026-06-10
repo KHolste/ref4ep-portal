@@ -5848,19 +5848,20 @@ main#app.project-library-page .library-doc-meta {
 
 /* ---- App-Fläche: ruhige Tiefe statt flacher Einheitsfarbe ---------- */
 
-/* Globaler App-Hintergrund (Test): ein ruhiges, abstraktes Ref4EP-Blau-
- * Motiv unter einem SEHR starken hellen Overlay (>=0.93 Alpha) -> nur
- * eine dezente Atmosphäre, keine Posterwirkung, Arbeitsfläche bleibt
- * hell und lesbar. Liegt auf ``body``; Sidebar/Topbar haben eigene
+/* Globaler App-Hintergrund: ein ruhiges, abstraktes Ref4EP-Blau-Motiv
+ * unter einem starken hellen Overlay (0.86 oben .. 0.92 unten) -> in
+ * freien Arbeitsflächen/Zwischenräumen sichtbar, aber dezent, keine
+ * Posterwirkung, Arbeitsfläche bleibt hell und lesbar. Liegt auf
+ * ``body``; Sidebar/Topbar haben eigene
  * deckende dunkle Flächen und bleiben unbeeinflusst, Content-Cards sind
  * opak und damit voll lesbar. Bild lokal unter /static/images. */
 body {
   background:
     linear-gradient(
       180deg,
-      rgba(245, 248, 252, 0.93) 0%,
-      rgba(243, 245, 249, 0.95) 58%,
-      rgba(243, 245, 249, 0.96) 100%
+      rgba(245, 248, 252, 0.86) 0%,
+      rgba(243, 245, 249, 0.9) 58%,
+      rgba(243, 245, 249, 0.92) 100%
     ),
     url("/static/images/global-background.jpg") center / cover no-repeat fixed;
   background-color: var(--rds-surface-canvas);
