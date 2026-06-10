@@ -12,7 +12,7 @@ import { api, getAdminViewMode, setAdminViewMode } from "/portal/common.js";
 // common.js oder einem Modul (web/modules/*.js) hochgezogen werden;
 // der Asset-Test ``test_index_html_uses_cache_buster_for_app_js_and_style_css``
 // erzwingt das Mitwachsen.
-export const ASSET_VERSION = "0053";
+export const ASSET_VERSION = "0054";
 
 const ROUTES = [
   { pattern: /^\/portal\/?$/, module: "cockpit" },
@@ -186,11 +186,17 @@ function applyRoleVisibility() {
     (r) => r.role === "partner_lead",
   );
   if (effectiveAdmin || isAnyWpLead || isAnyPartnerLead) {
-    const lead = document.getElementById("nav-lead-team");
-    if (lead) lead.hidden = false;
+    // App-Shell v2: Sichtbar werden die Gruppe „Leitung" UND ihr Eintrag.
+    // Die Gruppenüberschrift erscheint nur, weil der Wrapper entblendet
+    // wird — bleibt der Wrapper hidden, bleibt auch die Überschrift weg.
+    for (const id of ["nav-group-lead", "nav-lead-team"]) {
+      const el = document.getElementById(id);
+      if (el) el.hidden = false;
+    }
   }
   if (!effectiveAdmin) return;
   for (const id of [
+    "nav-group-admin",
     "nav-admin-spacer",
     "nav-admin-label",
     "nav-admin-users",

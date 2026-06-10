@@ -6263,3 +6263,149 @@ main#app.campaigns-page .campaign-status-badge--neutral {
     margin-left: 0;
   }
 }
+
+/* =====================================================================
+ * APP-SHELL v2 — linke Sidebar-Navigation + schlanke Topbar (Phase 7)
+ *
+ * Struktureller UI-Schritt: die Reiterleiste wandert aus der Topbar in
+ * eine linke Sidebar mit Gruppen. Keine fachliche/Routen-/Permission-
+ * Änderung. Rollen-Gating bleibt: Admin-/Leitungs-Gruppen + -Einträge
+ * sind in index.html ``hidden`` und werden nur von ``applyRoleVisibility``
+ * entblendet.
+ *
+ * WICHTIG: Damit Sidebar-display-Regeln das ``hidden``-Attribut NICHT
+ * erneut aushebeln (Regression aus Phase 5), erzwingt die folgende Regel
+ * robustes Ausblenden. Reines UI-Gating — Backend bleibt maßgeblich.
+ * ===================================================================== */
+
+[hidden] {
+  display: none !important;
+}
+
+/* ---- Schlanke Topbar (nur Brand + Userbereich) -------------------- */
+
+.portal-header {
+  padding: 0.55rem 1.5rem;
+}
+
+/* ---- Shell-Raster: Sidebar links, Inhalt rechts ------------------- */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  align-items: stretch;
+  min-height: calc(100vh - 3.25rem);
+}
+
+/* ``main#app`` bleibt der Modul-Container; die Module steuern Breite
+ * und Klassen weiterhin selbst. Wir geben der Zelle nur einen sicheren
+ * Mindestschrumpf, damit breite Inhalte nicht überlaufen. */
+.app-shell > main#app {
+  min-width: 0;
+}
+
+/* ---- Sidebar -------------------------------------------------------- */
+
+.app-sidebar {
+  background: linear-gradient(180deg, #16233f 0%, #1c2c4c 100%);
+  color: rgba(255, 255, 255, 0.82);
+  padding: var(--rds-space-4) var(--rds-space-3);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.app-sidebar #nav-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rds-space-5);
+  position: sticky;
+  top: var(--rds-space-4);
+}
+
+.app-sidebar .nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.app-sidebar .nav-group-title {
+  margin: 0 0 var(--rds-space-1);
+  padding: 0 0.7rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.app-sidebar #nav-main a {
+  display: block;
+  padding: 0.46rem 0.7rem;
+  border-radius: var(--rds-radius-md);
+  color: rgba(255, 255, 255, 0.82);
+  text-decoration: none;
+  font-size: 0.92rem;
+  border-left: 3px solid transparent;
+  transition: background-color 0.12s ease, color 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.app-sidebar #nav-main a:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.app-sidebar #nav-main a.active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border-left-color: var(--rds-accent-teal);
+  font-weight: 600;
+}
+
+/* Der Admin-Trenner ist ein Topbar-Relikt — in der Sidebar nicht nötig. */
+.app-sidebar .nav-admin-spacer {
+  display: none;
+}
+
+/* ---- Mobile/schmal: Sidebar als kompakte Chip-Leiste oben --------- */
+
+@media (max-width: 900px) {
+  .app-shell {
+    display: block;
+    min-height: 0;
+  }
+  .app-sidebar {
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: var(--rds-space-3) var(--rds-space-4);
+  }
+  .app-sidebar #nav-main {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  /* Gruppen auf Mobil flach in die Chip-Reihe einreihen, Titel weg. */
+  .app-sidebar .nav-group {
+    display: contents;
+  }
+  .app-sidebar .nav-group-title {
+    display: none;
+  }
+  .app-sidebar #nav-main a {
+    border-left: none;
+  }
+  .app-sidebar #nav-main a.active {
+    box-shadow: inset 0 -2px 0 var(--rds-accent-teal);
+  }
+}
+
+/* ---- Druck: Sidebar ausblenden, Inhalt voll ----------------------- */
+
+@media print {
+  .app-sidebar {
+    display: none !important;
+  }
+  .app-shell {
+    display: block;
+  }
+}

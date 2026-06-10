@@ -4,40 +4,64 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Ref4EP-Portal</title>
-    <link rel="stylesheet" href="/portal/style.css?v=0053" />
+    <link rel="stylesheet" href="/portal/style.css?v=0054" />
     <link rel="icon" href="/static/favicon.ico" />
   </head>
   <body>
     <header class="portal-header">
       <a href="/portal/" class="brand">Ref4EP-Portal</a>
-      <nav id="nav-main">
-        <a href="/portal/" data-route="cockpit">Cockpit</a>
-        <a href="/portal/workpackages" data-route="workpackages">Arbeitspakete</a>
-        <a href="/portal/milestones" data-route="milestones">Meilensteine</a>
-        <a href="/portal/gantt" data-route="gantt">Zeitplan</a>
-        <a href="/portal/meetings" data-route="meetings">Meetings</a>
-        <a href="/portal/actions" data-route="actions">Aufgaben</a>
-        <a href="/portal/document-comments" data-route="document_comments">Kommentare</a>
-        <a href="/portal/library" data-route="project_library">Projektbibliothek</a>
-        <a href="/portal/campaigns" data-route="campaigns">Testkampagnen</a>
-        <a href="/portal/calendar" data-route="calendar">Kalender</a>
-        <a href="/portal/lead/team" data-route="lead_team" id="nav-lead-team" hidden>Mein Team</a>
-        <a href="/portal/account" data-route="account">Konto</a>
-        <span id="nav-admin-spacer" class="nav-admin-spacer" hidden aria-hidden="true"></span>
-        <span id="nav-admin-label" class="nav-admin-label" hidden>Admin</span>
-        <a href="/portal/admin/users" data-route="admin_users" id="nav-admin-users" hidden>Personen</a>
-        <a href="/portal/admin/partners" data-route="admin_partners" id="nav-admin-partners" hidden>Partner</a>
-        <a href="/portal/admin/audit" data-route="audit" id="nav-admin-audit" hidden>Audit</a>
-        <a href="/portal/admin/system" data-route="system_status" id="nav-admin-system" hidden>System</a>
-      </nav>
       <div class="user" id="nav-user"></div>
     </header>
     <div id="admin-view-banner" class="admin-view-banner" role="status" hidden>
       Nutzeransicht aktiv — Serverrechte bleiben unverändert.
     </div>
-    <main id="app">
-      <p>Lade …</p>
-    </main>
-    <script type="module" src="/portal/app.js?v=0053"></script>
+    <div class="app-shell">
+      <aside class="app-sidebar">
+        <nav id="nav-main" aria-label="Hauptnavigation">
+          <div class="nav-group">
+            <div class="nav-group-title">Übersicht</div>
+            <a href="/portal/" data-route="cockpit">Cockpit</a>
+          </div>
+          <div class="nav-group">
+            <div class="nav-group-title">Projektarbeit</div>
+            <a href="/portal/workpackages" data-route="workpackages">Arbeitspakete</a>
+            <a href="/portal/milestones" data-route="milestones">Meilensteine</a>
+            <a href="/portal/gantt" data-route="gantt">Zeitplan</a>
+            <a href="/portal/calendar" data-route="calendar">Kalender</a>
+          </div>
+          <div class="nav-group">
+            <div class="nav-group-title">Zusammenarbeit</div>
+            <a href="/portal/meetings" data-route="meetings">Meetings</a>
+            <a href="/portal/actions" data-route="actions">Aufgaben</a>
+            <a href="/portal/document-comments" data-route="document_comments">Kommentare</a>
+          </div>
+          <div class="nav-group">
+            <div class="nav-group-title">Daten &amp; Kampagnen</div>
+            <a href="/portal/library" data-route="project_library">Projektbibliothek</a>
+            <a href="/portal/campaigns" data-route="campaigns">Testkampagnen</a>
+          </div>
+          <div class="nav-group">
+            <div class="nav-group-title">Konto</div>
+            <a href="/portal/account" data-route="account">Konto</a>
+          </div>
+          <div class="nav-group" id="nav-group-lead" hidden>
+            <div class="nav-group-title">Leitung</div>
+            <a href="/portal/lead/team" data-route="lead_team" id="nav-lead-team" hidden>Mein Team</a>
+          </div>
+          <div class="nav-group" id="nav-group-admin" hidden>
+            <div class="nav-group-title nav-admin-label" id="nav-admin-label" hidden>Admin</div>
+            <span id="nav-admin-spacer" class="nav-admin-spacer" hidden aria-hidden="true"></span>
+            <a href="/portal/admin/users" data-route="admin_users" id="nav-admin-users" hidden>Personen</a>
+            <a href="/portal/admin/partners" data-route="admin_partners" id="nav-admin-partners" hidden>Partner</a>
+            <a href="/portal/admin/audit" data-route="audit" id="nav-admin-audit" hidden>Audit</a>
+            <a href="/portal/admin/system" data-route="system_status" id="nav-admin-system" hidden>System</a>
+          </div>
+        </nav>
+      </aside>
+      <main id="app">
+        <p>Lade …</p>
+      </main>
+    </div>
+    <script type="module" src="/portal/app.js?v=0054"></script>
   </body>
 </html>

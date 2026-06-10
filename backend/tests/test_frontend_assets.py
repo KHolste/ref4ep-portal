@@ -3697,7 +3697,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0053"
+_NAV_PATCH_VERSION = "0054"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4240,3 +4240,64 @@ def test_campaigns_page_styles_present_and_scoped() -> None:
         "main#app.campaigns-page .campaign-status-badge--ok",
     ):
         assert needle in css, f"style.css sollte {needle!r} enthalten"
+
+
+# ---- App-Shell v2: Sidebar-Navigation + Rollen-Gating --------------
+
+
+def test_app_shell_v2_sidebar_structure_and_groups() -> None:
+    """index.html nutzt die Shell mit linker Sidebar; alle vorgesehenen
+    Navigationsgruppen sind vorhanden, ``#nav-main`` bleibt erhalten."""
+    html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    assert 'class="app-shell"' in html
+    assert 'class="app-sidebar"' in html
+    assert 'id="nav-main"' in html
+    for title in (
+        "Übersicht",
+        "Projektarbeit",
+        "Zusammenarbeit",
+        "Daten &amp; Kampagnen",
+        "Konto",
+        "Leitung",
+        "Admin",
+    ):
+        assert f">{title}<" in html, f"Sidebar-Gruppe {title!r} fehlt"
+
+
+def test_app_shell_v2_role_groups_hidden_by_default() -> None:
+    """Die Gruppen-Wrapper für Leitung und Administration sind in der
+    ausgelieferten HTML standardmäßig ``hidden`` — nur ``app.js`` blendet
+    sie rollenabhängig ein."""
+    html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    for gid in ("nav-group-lead", "nav-group-admin"):
+        line = next((ln for ln in html.splitlines() if f'id="{gid}"' in ln), None)
+        assert line is not None, f"{gid} fehlt in index.html"
+        assert "hidden" in line, f"{gid} sollte standardmäßig hidden sein"
+
+
+def test_app_shell_v2_css_hardens_hidden_attribute() -> None:
+    """Die Sidebar setzt ``display``-Regeln auf Nav-Links; ein robuster
+    ``[hidden]``-Override muss verhindern, dass ausgeblendete Admin-/
+    Leitungs-Einträge dennoch erscheinen (Regression-Schutz)."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert "[hidden] {" in css
+    assert "display: none !important;" in css
+    # Sidebar-Grundgerüst vorhanden.
+    assert ".app-shell" in css
+    assert ".app-sidebar" in css
+    assert ".app-sidebar #nav-main a.active" in css
+
+
+def test_app_js_unhides_lead_and_admin_groups_behind_gate() -> None:
+    """``applyRoleVisibility`` blendet die Gruppen-Wrapper ein — die
+    Admin-Gruppe erst NACH dem ``effectiveAdmin``-Gate, die Leitungs-
+    Gruppe an dieselbe Bedingung wie ``nav-lead-team`` gebunden."""
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    assert '"nav-group-lead"' in body
+    assert '"nav-group-admin"' in body
+    guard = body.index("if (!effectiveAdmin) return;")
+    assert guard < body.index('"nav-group-admin"'), (
+        "Admin-Gruppe wird vor dem effectiveAdmin-Gate eingeblendet."
+    )
+    # Leitungs-Gruppe hängt an der WP-/Partnerlead-Bedingung (vor dem Gate).
+    assert body.index('"nav-group-lead"') < guard
