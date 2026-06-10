@@ -5753,6 +5753,8 @@ body {
   align-items: center;
   font-size: 1.15rem;
   letter-spacing: -0.01em;
+  white-space: nowrap;
+  flex: none;
 }
 
 /* Reine CSS-Wortmarke (kein externes Icon): kleines Teal-Quadrat. */
@@ -5794,6 +5796,17 @@ body {
   box-shadow: inset 0 -2px 0 var(--rds-accent-teal);
 }
 
+/* WICHTIG: Das ``display: inline-block`` der Nav-Pills überschreibt
+ * sonst das HTML-Attribut ``hidden`` (UA-Regel ``[hidden]{display:none}``
+ * hat geringere Spezifität). Ohne diesen Override würden die per
+ * ``applyRoleVisibility`` ausgeblendeten Admin-/Lead-Reiter für ALLE
+ * Nutzer erscheinen. Rollen-Gating bleibt die Backend-Permission;
+ * dies ist reines UI-Gating. */
+.portal-header nav a[hidden],
+.portal-header nav span[hidden] {
+  display: none;
+}
+
 .portal-header nav .nav-admin-label {
   opacity: 0.7;
 }
@@ -5802,6 +5815,8 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
+  flex: none;
+  white-space: nowrap;
 }
 
 .portal-header .user .linklike {

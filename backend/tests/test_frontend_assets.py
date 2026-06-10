@@ -3697,7 +3697,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0051"
+_NAV_PATCH_VERSION = "0052"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4144,3 +4144,67 @@ def test_calendar_module_uses_local_helpers_and_keeps_month_grid_range() -> None
     assert "formatLocalDate" in body
     # Der gerade korrigierte Rasterbereich darf nicht regressieren.
     assert "function monthGridRange" in body
+
+
+# ---- Rollen-Sichtbarkeit der Navigation + Testkampagnen-undefined-Fix
+
+
+def test_nav_pills_do_not_override_hidden_attribute() -> None:
+    """Die Nav-Pills setzen ``display: inline-block`` auf die Links; das
+    überschreibt sonst das HTML-``hidden``-Attribut, sodass per
+    ``applyRoleVisibility`` ausgeblendete Admin-/Lead-Reiter für ALLE
+    sichtbar würden. Ein expliziter ``[hidden]``-Override muss das
+    verhindern."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert ".portal-header nav a[hidden]" in css
+    assert ".portal-header nav span[hidden]" in css
+    # Der Override muss tatsächlich ausblenden.
+    start = css.index(".portal-header nav a[hidden]")
+    block = css[start : css.index("}", start)]
+    assert "display: none" in block
+
+
+def test_index_html_admin_nav_items_hidden_by_default() -> None:
+    """Admin-Reiter (Personen/Partner/Audit/System) und der Admin-Trenner/
+    das Admin-Label sind in der ausgelieferten HTML standardmäßig
+    ``hidden`` — nur ``app.js`` blendet sie für echte Admins ein."""
+    body = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    for nav_id in (
+        "nav-admin-users",
+        "nav-admin-partners",
+        "nav-admin-audit",
+        "nav-admin-system",
+        "nav-admin-spacer",
+        "nav-admin-label",
+        "nav-lead-team",
+    ):
+        line = next((ln for ln in body.splitlines() if nav_id in ln), None)
+        assert line is not None, f"{nav_id} fehlt in index.html"
+        assert "hidden" in line, f"{nav_id} sollte standardmäßig hidden sein"
+
+
+def test_app_js_unhides_admin_nav_only_for_effective_admin() -> None:
+    """``applyRoleVisibility`` darf die Admin-Reiter erst nach dem
+    ``effectiveAdmin``-Gate einblenden — normale Member sehen sie nicht.
+    Der Reihenfolge-Wächter prüft, dass das ``if (!effectiveAdmin)
+    return;`` VOR dem Einblenden der Admin-IDs steht."""
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    assert "applyRoleVisibility" in body
+    assert "effectiveAdmin" in body
+    guard = body.index("if (!effectiveAdmin) return;")
+    admin_users = body.index('"nav-admin-users"')
+    assert guard < admin_users, (
+        "Admin-Reiter werden eingeblendet, bevor das effectiveAdmin-Gate greift."
+    )
+    # WP-Lead-/Partnerlead-Gate für „Mein Team" bleibt erhalten.
+    assert "isAnyWpLead" in body
+    assert "isAnyPartnerLead" in body
+
+
+def test_campaigns_list_has_no_dangling_undefined_header_node() -> None:
+    """Regression: ``campaigns.js`` übergab ``headerNodes[1]`` (==
+    ``undefined``) an ``replaceChildren``, was als sichtbarer Text
+    „undefined" oberhalb der Filter erschien. Der dangling-Verweis darf
+    nicht zurückkehren."""
+    body = (MODULES_DIR / "campaigns.js").read_text(encoding="utf-8")
+    assert "headerNodes[1]" not in body

@@ -317,10 +317,14 @@ export async function render(container, _ctx) {
   }
   createBtn.addEventListener("click", openCreate);
 
+  // ``headerNodes`` enthält genau einen Knoten (pageHeader mit Titel +
+  // Unterzeile); er sitzt bereits in ``headerRow``. Ein früherer Verweis
+  // auf einen zweiten, nicht existierenden Listeneintrag war ``undefined``
+  // und wurde von ``replaceChildren`` als sichtbarer Text „undefined"
+  // gerendert — daher hier bewusst nur ``headerRow``.
   const headerRow = h("div", { class: "section-header" }, headerNodes[0], createBtn);
   container.replaceChildren(
     headerRow,
-    headerNodes[1],
     filterBar,
     tableSlot,
     dialogSlot,
