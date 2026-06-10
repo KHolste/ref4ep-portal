@@ -3697,7 +3697,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0055"
+_NAV_PATCH_VERSION = "0056"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4301,6 +4301,47 @@ def test_app_js_unhides_lead_and_admin_groups_behind_gate() -> None:
     )
     # Leitungs-Gruppe hängt an der WP-/Partnerlead-Bedingung (vor dem Gate).
     assert body.index('"nav-group-lead"') < guard
+
+
+def test_calendar_pilot_uses_page_shell_hero_and_panel() -> None:
+    """Kalender-Design-Pilot: eigener Wrapper ``calendar-page`` plus
+    Hero-Kopfband und helles Arbeits-Panel. Bestehende Kalenderfunktionen
+    (monthGridRange, Legende) bleiben erhalten."""
+    body = (MODULES_DIR / "calendar.js").read_text(encoding="utf-8")
+    assert 'classList.add("calendar-page")' in body
+    assert "calendar-hero" in body
+    assert "calendar-panel" in body
+    # Logik unangetastet.
+    assert "monthGridRange" in body
+    assert "renderTypeLegend" in body
+
+
+def test_calendar_pilot_styles_present_and_scoped() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for needle in (
+        "main#app.calendar-page .calendar-hero",
+        "main#app.calendar-page .calendar-panel",
+        "main#app.calendar-page .calendar-cell",
+        "main#app.calendar-page .calendar-event-milestone",
+        "main#app.calendar-page .calendar-legend-item",
+    ):
+        assert needle in css, f"style.css sollte {needle!r} enthalten"
+
+
+def test_calendar_pilot_background_image_is_local_and_no_external_assets() -> None:
+    """Falls ein Hintergrundbild genutzt wird, muss es lokal über den
+    ``/static``-Mount kommen — keine externen Bild-/Font-/CDN-Quellen."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Genutztes Motiv zeigt auf den lokalen Static-Pfad.
+    assert 'url("/static/images/calendar-hero.jpg")' in css
+    # Keine externen Ressourcen im Stylesheet.
+    assert "url(http" not in css.replace(" ", "")
+    assert "http://" not in css
+    assert "https://" not in css
+    assert "@import" not in css
+    # Das referenzierte Bild liegt im ausgelieferten Static-Verzeichnis.
+    img = WEB_DIR.parent / "static" / "images" / "calendar-hero.jpg"
+    assert img.is_file(), f"Hintergrundbild fehlt: {img}"
 
 
 def test_app_shell_main_area_left_aligned_and_wide() -> None:

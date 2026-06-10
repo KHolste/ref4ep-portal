@@ -383,6 +383,9 @@ function renderTypeLegend() {
 
 export async function render(container, _ctx) {
   container.classList.add("page-wide");
+  // Design-Pilot: eigene moderne Kalender-Shell (gescopt unter
+  // ``main#app.calendar-page``). Kein Logik-/Routen-Umbau.
+  container.classList.add("calendar-page");
   const today = new Date();
   let viewDate = startOfMonth(today);
   const typeFilter = h(
@@ -529,16 +532,27 @@ export async function render(container, _ctx) {
 
   appendChildren(
     container,
-    pageHeader(
-      "Kalender",
-      "Gemeinsame Kalenderansicht für Meetings, Testkampagnen, Meilensteine und " +
-        "Aufgaben mit Frist. Bearbeitet werden die Einträge weiterhin auf der jeweiligen Detailseite.",
+    // Kopfband mit dezentem Technik-/EP-Motiv und heller Schrift; darunter
+    // die Monatsnavigation als Toolbar.
+    h(
+      "header",
+      { class: "calendar-hero" },
+      pageHeader(
+        "Kalender",
+        "Gemeinsame Kalenderansicht für Meetings, Testkampagnen, Meilensteine und " +
+          "Aufgaben mit Frist. Bearbeitet werden die Einträge weiterhin auf der jeweiligen Detailseite.",
+      ),
+      navBar,
     ),
-    navBar,
-    filterBox,
-    renderTypeLegend(),
-    calendarSlot,
-    agendaSlot,
+    // Helles Arbeits-Panel mit Filter, Legende, Monatsraster und Agenda.
+    h(
+      "div",
+      { class: "calendar-panel" },
+      filterBox,
+      renderTypeLegend(),
+      calendarSlot,
+      agendaSlot,
+    ),
     crossNav(),
   );
 

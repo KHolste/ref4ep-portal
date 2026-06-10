@@ -6426,3 +6426,267 @@ main#app.campaigns-page .campaign-status-badge--neutral {
     display: block;
   }
 }
+
+/* =====================================================================
+ * KALENDER — Design-Pilot (Phase 8)
+ *
+ * Macht aus der Tabellenoptik ein modernes Kalender-Board: dunkles
+ * Kopfband mit dezentem Technik-/EP-Motiv (lokales Static-Asset), helles
+ * glasiges Arbeits-Panel, weiche Rasterlinien, Event-Chips als farbige
+ * Karten, Chip-Legende. ALLE Regeln eng unter ``main#app.calendar-page``
+ * gescopt — keine globalen Nebenwirkungen, keine Klassen entfernt, keine
+ * Kalenderlogik geändert. Reused: RDS-Tokens + Akzentpalette.
+ *
+ * Bild: /static/images/calendar-hero.jpg (lokal ausgeliefert über den
+ * /static-Mount; aus pics/A_European_powerhouse.jpg kopiert). Stark
+ * abgedunkelt per Gradient-Maske -> dezent, Lesbarkeit gewahrt.
+ * ===================================================================== */
+
+/* ---- Kopfband mit Motiv + heller Schrift -------------------------- */
+
+main#app.calendar-page .calendar-hero {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: var(--rds-space-5);
+  padding: var(--rds-space-6) var(--rds-space-6) var(--rds-space-5);
+  border-radius: var(--rds-radius-lg);
+  color: #ffffff;
+  background:
+    linear-gradient(
+      105deg,
+      rgba(13, 19, 33, 0.94) 0%,
+      rgba(16, 23, 40, 0.82) 48%,
+      rgba(28, 44, 76, 0.55) 100%
+    ),
+    #0d1321 url("/static/images/calendar-hero.jpg") center right / cover
+      no-repeat;
+  box-shadow: var(--rds-shadow-md);
+}
+
+main#app.calendar-page .calendar-hero .page-header {
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+main#app.calendar-page .calendar-hero .page-title {
+  color: #ffffff;
+}
+
+main#app.calendar-page .calendar-hero .page-subtitle {
+  color: rgba(255, 255, 255, 0.78);
+  max-width: 70ch;
+}
+
+/* Monatsnavigation als Toolbar auf dem dunklen Kopfband. */
+main#app.calendar-page .calendar-hero .calendar-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--rds-space-3);
+  margin-top: var(--rds-space-4);
+}
+
+main#app.calendar-page .calendar-hero .calendar-month-label {
+  margin: 0 var(--rds-space-2);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+main#app.calendar-page .calendar-hero .calendar-nav button {
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--rds-radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+main#app.calendar-page .calendar-hero .calendar-nav button:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+main#app.calendar-page .calendar-hero .calendar-nav-today {
+  background: var(--rds-accent-teal);
+  border-color: var(--rds-accent-teal);
+}
+
+/* ---- Helles, leicht glasiges Arbeits-Panel ------------------------ */
+
+main#app.calendar-page .calendar-panel {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-md);
+  padding: var(--rds-space-6);
+}
+
+/* ---- Kalender-Board: weiche Linien, ruhige Zellen ----------------- */
+
+main#app.calendar-page .calendar-grid,
+main#app.calendar-page .calendar-grid-head {
+  gap: 1px;
+  background: var(--rds-divider);
+  border: 1px solid var(--rds-border);
+}
+
+main#app.calendar-page .calendar-grid-head {
+  border-bottom: none;
+  border-radius: var(--rds-radius-md) var(--rds-radius-md) 0 0;
+}
+
+main#app.calendar-page .calendar-grid {
+  border-top: none;
+  border-radius: 0 0 var(--rds-radius-md) var(--rds-radius-md);
+}
+
+main#app.calendar-page .calendar-weekday {
+  background: var(--rds-surface-soft);
+  padding: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--rds-text-muted);
+}
+
+main#app.calendar-page .calendar-cell {
+  background: var(--rds-surface-raised);
+  min-height: 132px;
+  padding: 0.45rem 0.5rem;
+  gap: 0.25rem;
+}
+
+main#app.calendar-page .calendar-cell-other-month {
+  background: var(--rds-surface-soft);
+}
+
+main#app.calendar-page .calendar-cell-other-month .calendar-day-number {
+  color: var(--rds-text-subtle);
+  opacity: 0.55;
+}
+
+main#app.calendar-page .calendar-cell-today {
+  background: var(--rds-accent-teal-soft);
+  box-shadow: inset 0 0 0 1px var(--rds-accent-teal);
+}
+
+main#app.calendar-page .calendar-day-number {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--rds-text-strong);
+}
+
+main#app.calendar-page .calendar-cell-today .calendar-day-number {
+  color: var(--rds-accent-teal);
+}
+
+/* ---- Event-Chips als farbige Mini-Karten -------------------------- */
+
+main#app.calendar-page .calendar-event {
+  border-radius: var(--rds-radius-sm);
+  border-left-width: 3px;
+  padding: 0.22rem 0.45rem;
+  box-shadow: var(--rds-shadow-sm);
+}
+
+main#app.calendar-page .calendar-event-meeting {
+  background: var(--rds-status-info-bg);
+  border-left-color: var(--rds-status-info-fg);
+  color: var(--rds-status-info-fg);
+}
+
+main#app.calendar-page .calendar-event-campaign {
+  background: var(--rds-accent-teal-soft);
+  border-left-color: var(--rds-accent-teal);
+  color: #14525d;
+}
+
+main#app.calendar-page .calendar-event-milestone {
+  background: var(--rds-status-warn-bg);
+  border-left-color: var(--rds-accent-amber);
+  color: var(--rds-status-warn-fg);
+}
+
+main#app.calendar-page .calendar-event-action {
+  background: var(--rds-status-neutral-bg);
+  border-left-color: var(--rds-text-subtle);
+  color: var(--rds-status-neutral-fg);
+}
+
+main#app.calendar-page .calendar-event-overdue {
+  background: var(--rds-status-err-bg);
+  border-left-color: var(--rds-accent-red);
+  color: var(--rds-status-err-fg);
+}
+
+/* ---- Chip-Legende -------------------------------------------------- */
+
+main#app.calendar-page .calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--rds-space-2) var(--rds-space-3);
+  margin: 0 0 var(--rds-space-4);
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+main#app.calendar-page .calendar-legend-title {
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+}
+
+main#app.calendar-page .calendar-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: var(--rds-surface-soft);
+  border: 1px solid var(--rds-border);
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text);
+}
+
+/* ---- Agenda ruhiger -------------------------------------------------*/
+
+main#app.calendar-page .calendar-agenda-section {
+  margin-top: var(--rds-space-6);
+}
+
+main#app.calendar-page .calendar-agenda-section > h2 {
+  margin: 0 0 var(--rds-space-3);
+  padding-bottom: var(--rds-space-2);
+  border-bottom: 1px solid var(--rds-divider);
+  font-size: var(--rds-fs-card-title);
+  font-weight: 600;
+  color: var(--rds-text-strong);
+}
+
+main#app.calendar-page .calendar-agenda-item {
+  border-bottom: 1px solid var(--rds-divider);
+}
+
+/* ---- Schmale Breiten: Board horizontal scrollbar (Fallback) ------- */
+
+@media (max-width: 700px) {
+  main#app.calendar-page .calendar-hero {
+    padding: var(--rds-space-5) var(--rds-space-4);
+  }
+  main#app.calendar-page .calendar-panel {
+    padding: var(--rds-space-4);
+  }
+  main#app.calendar-page .calendar-grid-slot {
+    overflow-x: auto;
+  }
+  main#app.calendar-page .calendar-grid,
+  main#app.calendar-page .calendar-grid-head {
+    min-width: 640px;
+  }
+}
