@@ -2811,6 +2811,26 @@ def test_gantt_timeline_board_polish_scoped() -> None:
     assert "stroke-dasharray" in body
 
 
+def test_gantt_axis_labels_are_thinned_by_available_width() -> None:
+    """Die Zeitachse dünnt Labels nach verfügbarer Monatsbreite aus
+    (jeder Monat / Quartal / Jahr), damit der Jahres-/Gesamtmodus nicht
+    überfüllt — reine Anzeige-Heuristik, keine Datums-/Datenlogik.
+    Achsen-/Heute-Elemente bleiben erhalten."""
+    body = (MODULES_DIR / "gantt.js").read_text(encoding="utf-8")
+    # Ausdünnungslogik vorhanden.
+    assert "labelEvery" in body
+    assert "MIN_LABEL_PX" in body
+    # Quartals-/Jahresgrenzen werden erkannt.
+    assert "isQuarter" in body
+    assert "isYear" in body
+    # Achsen-Label-Klasse + Heute-Label bleiben.
+    assert "gantt-axis-label" in body
+    assert "heute" in body
+    # Datums-/Fensterberechnung wurde NICHT angefasst.
+    assert "computeVisibleWindow" in body
+    assert "computeWpBars" in body
+
+
 def test_gantt_module_exists_and_uses_svg() -> None:
     """Block 0026: Gantt-Modul rendert SVG aus /api/gantt-Daten."""
     path = MODULES_DIR / "gantt.js"
@@ -3720,7 +3740,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0064"
+_NAV_PATCH_VERSION = "0065"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:

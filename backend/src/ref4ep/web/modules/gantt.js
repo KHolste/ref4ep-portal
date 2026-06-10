@@ -324,31 +324,58 @@ function renderBoard(board, mode, containerWidth) {
     "aria-label": "Projekt-Timeline",
   });
 
-  // Hintergrund + Achse: Monatsmarken.
+  // Hintergrund + Achse: Monatsmarken (Linie je Monat) + AUSGEDÜNNTE
+  // Labels. Die Labeldichte richtet sich nach der verfügbaren Pixel-
+  // breite pro Monat, damit die Achse im Jahres-/Gesamtmodus nicht
+  // überfüllt. Reine Anzeige-Heuristik — keine Änderung an den Datums-/
+  // Datenberechnungen (Fenster, Balken, pxPerDay bleiben unangetastet).
+  const monthPx = pxPerDay * 30.4;
+  const MIN_LABEL_PX = 46;
+  // Label-Schritt in Monaten: 1 (jeder Monat), 3 (Quartal) oder 12 (Jahr).
+  let labelEvery = 1;
+  if (monthPx < MIN_LABEL_PX) labelEvery = monthPx * 3 >= MIN_LABEL_PX ? 3 : 12;
+
   let cursor = firstOfMonth(windowStart);
   while (cursor <= windowEnd) {
     const x = xOfDate(cursor);
+    const month = cursor.getUTCMonth();
+    const isQuarter = month % 3 === 0;
+    const isYear = month === 0;
+    // Quartals-/Jahresgrenzen dezent kräftiger markieren; Monatslinien
+    // sehr hell, damit das Raster ruhig bleibt.
     root.append(
       svg("line", {
         x1: x,
         x2: x,
         y1: HEADER_HEIGHT - 8,
         y2: totalHeight - 10,
-        stroke: "#e0e0e0",
-        "stroke-width": 1,
+        stroke: isYear ? "#c7d0dd" : isQuarter ? "#d7deea" : "#eaeef4",
+        "stroke-width": isYear ? 1.5 : 1,
+        class: "gantt-axis-tick",
       }),
-      svg(
-        "text",
-        {
-          x: x + 2,
-          y: HEADER_HEIGHT - 14,
-          class: "gantt-axis-label",
-          "font-size": fontSizes.axis,
-          fill: "#555",
-        },
-        shortMonthLabel(cursor),
-      ),
     );
+    // Label nur an den gewählten Marken — und nur, wenn es nicht am
+    // rechten Rand abgeschnitten würde.
+    const showLabel =
+      labelEvery === 1 ? true : labelEvery === 3 ? isQuarter : isYear;
+    if (showLabel) {
+      const label = shortMonthLabel(cursor);
+      if (x + estimateTextWidth(label, fontSizes.axis) <= totalWidth - 4) {
+        root.append(
+          svg(
+            "text",
+            {
+              x: x + 3,
+              y: HEADER_HEIGHT - 16,
+              class: "gantt-axis-label",
+              "font-size": fontSizes.axis,
+              fill: "#5a6070",
+            },
+            label,
+          ),
+        );
+      }
+    }
     cursor = addMonths(cursor, 1);
   }
 
