@@ -5225,3 +5225,494 @@ main#app .cockpit-page .cockpit-empty--ok {
     padding: var(--rds-space-4);
   }
 }
+
+/* =====================================================================
+ * MODUL-POLISH — Arbeitspakete + Projektbibliothek (Phase 4)
+ *
+ * Überträgt das Cockpit-Designsystem (RDS-Tokens + Akzentpalette aus
+ * Phase 3) auf zwei weitere Module. Alle Regeln sind eng auf die
+ * jeweilige Modul-Wrapper-Klasse gescopt:
+ *   - ``main#app.wp-overview-page``       (Arbeitspakete)
+ *   - ``main#app.project-library-page``   (Projektbibliothek)
+ * Keine globalen Overrides, keine Klassennamen entfernt; bestehende
+ * Funktionalität/Strings bleiben unangetastet.
+ * ===================================================================== */
+
+/* =========================== Arbeitspakete ========================== */
+
+main#app.wp-overview-page {
+  max-width: 1560px;
+}
+
+/* ---- Seitenkopf-Band (schlichter als Cockpit-Hero) ---------------- */
+
+main#app.wp-overview-page .wp-overview-hero {
+  background: linear-gradient(135deg, #ffffff 0%, var(--rds-accent-teal-soft) 100%);
+  border: 1px solid var(--rds-border);
+  border-left: 4px solid var(--rds-text-strong);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-sm);
+  padding: var(--rds-space-5) var(--rds-space-6);
+  margin-bottom: var(--rds-space-6);
+}
+
+main#app.wp-overview-page .wp-overview-hero .page-header {
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+main#app.wp-overview-page .wp-overview-hero .page-title {
+  font-size: 1.5rem;
+}
+
+/* Stat-Chips */
+main#app.wp-overview-page .wp-overview-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rds-space-3);
+  margin: var(--rds-space-4) 0 0;
+}
+
+main#app.wp-overview-page .wp-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.3rem 0.8rem;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid var(--rds-border);
+  border-radius: 999px;
+}
+
+main#app.wp-overview-page .wp-stat-value {
+  font-weight: 700;
+  color: var(--rds-text-strong);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+main#app.wp-overview-page .wp-stat-label {
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+}
+
+/* ---- Filter-Card --------------------------------------------------- */
+
+main#app.wp-overview-page .wp-filterbox {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--rds-space-4);
+  background: var(--rds-surface-raised);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-sm);
+  padding: var(--rds-space-4) var(--rds-space-5);
+  margin-bottom: var(--rds-space-6);
+}
+
+main#app.wp-overview-page .wp-filterbox legend {
+  width: 100%;
+  margin: 0 0 var(--rds-space-1);
+  padding: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--rds-text-muted);
+}
+
+main#app.wp-overview-page .wp-filterbox label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+}
+
+main#app.wp-overview-page .wp-filterbox label.checkbox-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+main#app.wp-overview-page .wp-filterbox input,
+main#app.wp-overview-page .wp-filterbox select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--rds-border-strong);
+  border-radius: var(--rds-radius-sm);
+  background: #ffffff;
+}
+
+main#app.wp-overview-page .wp-filter-reset {
+  margin-left: auto;
+  align-self: end;
+}
+
+/* ---- Karten-Grid + Karten ----------------------------------------- */
+
+main#app.wp-overview-page .wp-card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--rds-space-5);
+  margin: 0;
+}
+
+@media (min-width: 720px) {
+  main#app.wp-overview-page .wp-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  main#app.wp-overview-page .wp-card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+main#app.wp-overview-page .wp-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--rds-surface-raised);
+  border: 1px solid var(--rds-border);
+  border-top: 3px solid var(--rds-accent-teal);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-sm);
+  padding: var(--rds-space-5);
+}
+
+/* „Meine" WPs dezent grün markiert. */
+main#app.wp-overview-page .wp-card-mine {
+  border-top-color: var(--rds-accent-green);
+}
+
+main#app.wp-overview-page .wp-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rds-space-2);
+}
+
+main#app.wp-overview-page .wp-card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  overflow-wrap: anywhere;
+}
+
+main#app.wp-overview-page .wp-card-title a {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--rds-link);
+  text-decoration: none;
+}
+
+main#app.wp-overview-page .wp-card-title a:hover {
+  text-decoration: underline;
+}
+
+main#app.wp-overview-page .wp-lead-badge {
+  flex: none;
+  padding: 0.1rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 999px;
+  background: var(--rds-accent-teal-soft);
+  color: var(--rds-accent-teal);
+  white-space: nowrap;
+}
+
+main#app.wp-overview-page .wp-card-meta {
+  margin: var(--rds-space-1) 0 var(--rds-space-3);
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+}
+
+/* Unterpakete als ruhige Liste mit Trennern. */
+main#app.wp-overview-page .wp-subpackage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--rds-divider);
+}
+
+main#app.wp-overview-page .wp-subpackage-item {
+  padding: var(--rds-space-2) 0;
+  border-bottom: 1px solid var(--rds-divider);
+  font-size: var(--rds-fs-data);
+}
+
+main#app.wp-overview-page .wp-subpackage-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 600;
+  color: var(--rds-link);
+  text-decoration: none;
+}
+
+main#app.wp-overview-page .wp-subpackage-mine {
+  border-left: 2px solid var(--rds-accent-green);
+  padding-left: var(--rds-space-2);
+}
+
+main#app.wp-overview-page .wp-subpackage-mine-marker {
+  color: var(--rds-accent-green);
+  font-weight: 600;
+}
+
+main#app.wp-overview-page .wp-subpackage-more > summary {
+  padding: var(--rds-space-2) 0;
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-strong);
+  cursor: pointer;
+}
+
+/* Footer-Link unten rechts, Karten unten bündig. */
+main#app.wp-overview-page .wp-card-footer {
+  margin-top: auto;
+  padding-top: var(--rds-space-3);
+  text-align: right;
+}
+
+main#app.wp-overview-page .wp-card-footer a {
+  font-size: var(--rds-fs-meta);
+  font-weight: 600;
+  color: var(--rds-link);
+  text-decoration: none;
+}
+
+main#app.wp-overview-page .wp-card-footer a:hover {
+  text-decoration: underline;
+}
+
+/* ========================= Projektbibliothek ======================= */
+
+main#app.project-library-page {
+  max-width: 1560px;
+}
+
+/* ---- Seitenkopf mit Upload als Primäraktion ----------------------- */
+
+main#app.project-library-page .library-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--rds-space-4);
+  background: linear-gradient(135deg, #ffffff 0%, var(--rds-accent-teal-soft) 100%);
+  border: 1px solid var(--rds-border);
+  border-left: 4px solid var(--rds-text-strong);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-sm);
+  padding: var(--rds-space-5) var(--rds-space-6);
+  margin-bottom: var(--rds-space-6);
+}
+
+main#app.project-library-page .library-hero .page-header {
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+main#app.project-library-page .library-hero .page-title {
+  font-size: 1.5rem;
+}
+
+main#app.project-library-page .library-hero .actions {
+  margin: 0;
+}
+
+main#app.project-library-page .library-hero .actions button {
+  padding: 0.5rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--rds-text-strong);
+  border: 1px solid var(--rds-text-strong);
+  border-radius: var(--rds-radius-sm);
+  cursor: pointer;
+}
+
+main#app.project-library-page .library-hero .actions button:hover {
+  background: #16233f;
+}
+
+/* ---- Kategorie-Kacheln -------------------------------------------- */
+
+main#app.project-library-page .library-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: var(--rds-space-3);
+  margin-bottom: var(--rds-space-6);
+}
+
+main#app.project-library-page .library-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rds-space-1);
+  text-align: left;
+  cursor: pointer;
+  background: var(--rds-surface-raised);
+  border: 1px solid var(--rds-border);
+  border-left: 3px solid var(--rds-border-strong);
+  border-radius: var(--rds-radius-md);
+  padding: var(--rds-space-4);
+  transition: box-shadow 0.12s ease, border-color 0.12s ease,
+    transform 0.12s ease;
+}
+
+main#app.project-library-page .library-tile:hover {
+  box-shadow: var(--rds-shadow-md);
+  border-left-color: var(--rds-accent-teal);
+  transform: translateY(-1px);
+}
+
+main#app.project-library-page .library-tile.active {
+  border-color: var(--rds-accent-teal);
+  border-left-color: var(--rds-accent-teal);
+  background: var(--rds-accent-teal-soft);
+}
+
+main#app.project-library-page .library-tile-all {
+  border-left-color: var(--rds-text-strong);
+}
+
+main#app.project-library-page .library-tile-all.active {
+  border-color: var(--rds-text-strong);
+  border-left-color: var(--rds-text-strong);
+  background: var(--rds-surface-strong);
+}
+
+main#app.project-library-page .library-tile-title {
+  font-weight: 600;
+  color: var(--rds-text-strong);
+}
+
+main#app.project-library-page .library-tile-description {
+  font-size: var(--rds-fs-meta);
+  line-height: 1.45;
+}
+
+main#app.project-library-page .library-tile-hint {
+  font-size: 0.72rem;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+/* ---- Filter-Card --------------------------------------------------- */
+
+main#app.project-library-page .library-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--rds-space-4);
+  background: var(--rds-surface-raised);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-sm);
+  padding: var(--rds-space-4) var(--rds-space-5);
+  margin-bottom: var(--rds-space-6);
+}
+
+main#app.project-library-page .library-filter-bar label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+}
+
+main#app.project-library-page .library-filter-bar label.checkbox-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+main#app.project-library-page .library-filter-bar input,
+main#app.project-library-page .library-filter-bar select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--rds-border-strong);
+  border-radius: var(--rds-radius-sm);
+  background: #ffffff;
+}
+
+/* ---- Dokumentliste ------------------------------------------------- */
+
+main#app.project-library-page .library-doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rds-space-3);
+}
+
+main#app.project-library-page .library-doc-card {
+  background: var(--rds-surface-raised);
+  border: 1px solid var(--rds-border);
+  border-left: 3px solid var(--rds-accent-teal);
+  border-radius: var(--rds-radius-md);
+  box-shadow: var(--rds-shadow-sm);
+  padding: var(--rds-space-4) var(--rds-space-5);
+}
+
+main#app.project-library-page .library-doc-title {
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--rds-text-strong);
+  text-decoration: none;
+}
+
+main#app.project-library-page .library-doc-title:hover {
+  text-decoration: underline;
+}
+
+main#app.project-library-page .library-doc-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rds-space-2);
+  margin: var(--rds-space-2) 0;
+}
+
+main#app.project-library-page .library-badge {
+  padding: 0.1rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border-radius: 999px;
+  background: var(--rds-status-neutral-bg);
+  color: var(--rds-status-neutral-fg);
+  white-space: nowrap;
+}
+
+main#app.project-library-page .library-badge--ok {
+  background: var(--rds-status-ok-bg);
+  color: var(--rds-status-ok-fg);
+}
+
+main#app.project-library-page .library-badge--warn {
+  background: var(--rds-status-warn-bg);
+  color: var(--rds-status-warn-fg);
+}
+
+main#app.project-library-page .library-badge--info {
+  background: var(--rds-status-info-bg);
+  color: var(--rds-status-info-fg);
+}
+
+main#app.project-library-page .library-badge--section {
+  background: var(--rds-accent-teal-soft);
+  color: var(--rds-accent-teal);
+}
+
+main#app.project-library-page .library-doc-meta {
+  margin-top: var(--rds-space-1);
+  font-size: var(--rds-fs-meta);
+}
+
+/* ---- Mobile-Feinschliff beider Module ----------------------------- */
+
+@media (max-width: 640px) {
+  main#app.wp-overview-page .wp-overview-hero,
+  main#app.project-library-page .library-hero {
+    padding: var(--rds-space-5) var(--rds-space-4);
+  }
+  main#app.wp-overview-page .wp-filter-reset {
+    margin-left: 0;
+  }
+}

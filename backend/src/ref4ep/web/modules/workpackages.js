@@ -124,16 +124,29 @@ function applyFilters({ tops, groupedSubs }, { search, lead, mineOnly, mineSet }
 
 function renderSummary({ tops, groupedSubs, total, mineCount, mineAvailable }) {
   const subTotal = total - tops.length;
-  const parts = [
-    `${total} Arbeitspakete`,
-    `${tops.length} Haupt-WPs`,
-    `${subTotal} Unterpakete`,
+  void groupedSubs; // (Subgruppen-Map nur zur API-Symmetrie übergeben.)
+  // Vorhandene Zahlen als kompakte Stat-Chips darstellen — keine neue
+  // fachliche Berechnung, nur bessere Darstellung.
+  const stats = [
+    { value: total, label: "Arbeitspakete" },
+    { value: tops.length, label: "Haupt-WPs" },
+    { value: subTotal, label: "Unterpakete" },
   ];
   if (mineAvailable) {
-    parts.push(`${mineCount} meiner WPs`);
+    stats.push({ value: mineCount, label: "meiner WPs" });
   }
-  void groupedSubs; // (Subgruppen-Map nur zur API-Symmetrie übergeben.)
-  return h("p", { class: "wp-overview-summary muted" }, parts.join(" · "));
+  return h(
+    "div",
+    { class: "wp-overview-summary" },
+    ...stats.map((s) =>
+      h(
+        "span",
+        { class: "wp-stat" },
+        h("span", { class: "wp-stat-value" }, String(s.value)),
+        h("span", { class: "wp-stat-label" }, s.label),
+      ),
+    ),
+  );
 }
 
 function renderFilterBox({
@@ -292,6 +305,8 @@ function renderGrid(filtered, mineSet, originalGrouped) {
 
 export async function render(container, ctx) {
   container.classList.add("page-wide");
+  // Modul-Scope für den Designsystem-Polish (gleiches Niveau wie Cockpit).
+  container.classList.add("wp-overview-page");
   const headerNodes = [
     pageHeader(
       "Arbeitspakete",
@@ -391,8 +406,9 @@ export async function render(container, ctx) {
 
   appendChildren(
     container,
-    ...headerNodes,
-    summaryNode,
+    // Ruhiger Seitenkopf: Titel/Unterzeile + Stat-Chips als ein Band
+    // (an die Cockpit-Hero angelehnt, aber schlichter).
+    h("section", { class: "wp-overview-hero" }, ...headerNodes, summaryNode),
     filterBox,
     gridSlot,
     crossNav("/portal/workpackages"),

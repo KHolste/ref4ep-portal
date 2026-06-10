@@ -211,19 +211,28 @@ function renderTileGrid(activeKey, onPick) {
   );
 }
 
+function libBadge(text, tone) {
+  return h("span", { class: `library-badge library-badge--${tone}` }, text);
+}
+
 function renderDocumentCard(doc) {
   const sectionLabel = doc.library_section ? SECTION_LABELS[doc.library_section] : null;
   const wpLabel = doc.workpackage_code
     ? `${doc.workpackage_code}${doc.workpackage_title ? " — " + doc.workpackage_title : ""}`
     : "ohne Arbeitspaketbezug";
-  const meta = [
-    sectionLabel ? `Bereich: ${sectionLabel}` : null,
-    `Typ: ${DOC_TYPE_LABELS[doc.document_type] || doc.document_type || "—"}`,
-    `Status: ${STATUS_LABELS[doc.status] || doc.status}`,
-    `Sichtbarkeit: ${VISIBILITY_LABELS[doc.visibility] || doc.visibility}`,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  // Status/Sichtbarkeit/Bereich/Typ als Badges statt als ein langer
+  // Fließtext — gleiche Informationen, klarere Struktur.
+  const statusTone =
+    doc.status === "released" ? "ok" : doc.status === "in_review" ? "warn" : "neutral";
+  const badges = [
+    libBadge(STATUS_LABELS[doc.status] || doc.status, statusTone),
+    libBadge(
+      VISIBILITY_LABELS[doc.visibility] || doc.visibility,
+      doc.visibility === "public" ? "info" : "neutral",
+    ),
+    sectionLabel ? libBadge(sectionLabel, "section") : null,
+    libBadge(`Typ: ${DOC_TYPE_LABELS[doc.document_type] || doc.document_type || "—"}`, "neutral"),
+  ].filter(Boolean);
   return h(
     "article",
     { class: "library-doc-card" },
@@ -232,7 +241,7 @@ function renderDocumentCard(doc) {
       { class: "library-doc-title", href: `/portal/documents/${doc.id}` },
       doc.title,
     ),
-    h("div", { class: "library-doc-meta muted" }, meta),
+    h("div", { class: "library-doc-badges" }, ...badges),
     h("div", { class: "library-doc-meta muted" }, wpLabel),
     h(
       "div",
@@ -356,6 +365,8 @@ function renderUploadDialog(onSaved, onCancel) {
 
 export async function render(container, ctx) {
   container.classList.add("page-wide");
+  // Modul-Scope für den Designsystem-Polish (gleiches Niveau wie Cockpit).
+  container.classList.add("project-library-page");
 
   const state = {
     section: null, // null = alle
@@ -529,11 +540,20 @@ export async function render(container, ctx) {
 
   appendChildren(
     container,
-    pageHeader(
-      "Projektbibliothek",
-      "Zentrale Übersicht über Projektunterlagen, Arbeitspaket-Dokumente, Literatur, Vorträge und weitere freigegebene Dokumente.",
+    // Ruhiger Seitenkopf mit Upload als klare Primäraktion rechts.
+    h(
+      "header",
+      { class: "library-hero" },
+      h(
+        "div",
+        { class: "library-hero-main" },
+        pageHeader(
+          "Projektbibliothek",
+          "Zentrale Übersicht über Projektunterlagen, Arbeitspaket-Dokumente, Literatur, Vorträge und weitere freigegebene Dokumente.",
+        ),
+      ),
+      actionBar,
     ),
-    actionBar,
     tileSlot,
     filterBar,
     listSlot,
