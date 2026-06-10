@@ -6237,9 +6237,15 @@ main#app.campaigns-page .campaign-filterbox {
 }
 
 main#app.campaigns-page .campaign-filterbox legend {
+  /* ``float`` nimmt die Legende aus dem speziellen UA-„rendered legend"-
+   * Layout (Titel sitzt sonst mittig auf der oberen Rahmenkante und ragt
+   * aus der weißen Karte heraus). Als normales, volle-Breite-Element
+   * sitzt der Titel sauber INNERHALB der Karte, eigene Zeile über den
+   * Select-Feldern. Nur diese Filterbox-Legende; Header/Cards unberührt. */
+  float: left;
   width: 100%;
   padding: 0;
-  margin-bottom: var(--rds-space-1);
+  margin: 0 0 var(--rds-space-2);
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
