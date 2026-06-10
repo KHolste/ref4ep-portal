@@ -3740,7 +3740,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0072"
+_NAV_PATCH_VERSION = "0073"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4569,6 +4569,31 @@ def test_library_tiles_have_interactive_polish_scoped() -> None:
     body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
     assert "library-tile" in body
     assert "<img" not in body
+
+
+def test_filterbox_legend_fix_is_generic_for_all_filterboxes() -> None:
+    """Der „legend sitzt im Kasten"-Fix gilt generisch für alle
+    Filterbox-Varianten (eine gemeinsame Regel mit float/width), nicht
+    nur für die Kampagnen-Filterbox."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Gemeinsame Regel deckt alle Filterbox-Klassen ab.
+    assert "main#app .filterbox legend," in css
+    anchor = css.index("main#app .filterbox legend,")
+    block = css[anchor : css.index("}", anchor)]
+    for cls in (
+        ".meeting-filterbox legend",
+        ".campaign-filterbox legend",
+        ".calendar-filterbox legend",
+        ".wp-filterbox legend",
+    ):
+        assert cls in block, f"Filterbox {cls!r} fehlt in der gemeinsamen Regel"
+    assert "float: left" in block
+    assert "width: 100%" in block
+    # Der frühere campaign-spezifische float-Einzelfix ist aufgeräumt
+    # (keine eigene float-Deklaration mehr — der Fix kommt generisch):
+    camp = css.index("main#app.campaigns-page .campaign-filterbox legend {")
+    camp_block = css[camp : css.index("}", camp)]
+    assert "float: left" not in camp_block
 
 
 def test_library_tiles_have_warm_accent_rotation_scoped() -> None:

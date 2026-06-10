@@ -3246,6 +3246,17 @@ main#app .meeting-filterbox legend,
 main#app .campaign-filterbox legend,
 main#app .calendar-filterbox legend,
 main#app .wp-filterbox legend {
+  /* GENERISCHER Fix für alle ``fieldset``-Filterboxen: Ein ``<legend>``
+   * wird vom Browser sonst mittig auf die obere Rahmenkante gesetzt und
+   * ragt aus der weißen Karte heraus. ``float: left`` nimmt die Legende
+   * aus diesem UA-„rendered legend"-Sonderlayout — als normales Element
+   * voller Breite sitzt der Titel INNERHALB der Karte, in einer eigenen
+   * Zeile über den Filterelementen (alle Filterboxen sind flex/wrap,
+   * daher kein Overlap). Gilt nur für ``.filterbox``-Komponenten —
+   * normale Formulare/Cards/Header bleiben unberührt. */
+  float: left;
+  width: 100%;
+  margin: 0 0 var(--rds-space-2);
   font-size: 0.78rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -6237,18 +6248,12 @@ main#app.campaigns-page .campaign-filterbox {
 }
 
 main#app.campaigns-page .campaign-filterbox legend {
-  /* ``float`` nimmt die Legende aus dem speziellen UA-„rendered legend"-
-   * Layout (Titel sitzt sonst mittig auf der oberen Rahmenkante und ragt
-   * aus der weißen Karte heraus). Als normales, volle-Breite-Element
-   * sitzt der Titel sauber INNERHALB der Karte, eigene Zeile über den
-   * Select-Feldern. Nur diese Filterbox-Legende; Header/Cards unberührt. */
-  float: left;
-  width: 100%;
+  /* Der „legend sitzt im Kasten"-Fix (float/width) ist jetzt generisch
+   * für alle Filterboxen (siehe ``main#app .filterbox legend`` oben).
+   * Hier bleiben nur die kampagnenspezifischen Typo-Feinheiten. */
   padding: 0;
-  margin: 0 0 var(--rds-space-2);
   font-size: 0.7rem;
   font-weight: 700;
-  text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--rds-text-muted);
 }
