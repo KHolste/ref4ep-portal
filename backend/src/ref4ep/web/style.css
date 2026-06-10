@@ -5716,3 +5716,242 @@ main#app.project-library-page .library-doc-meta {
     margin-left: 0;
   }
 }
+
+/* =====================================================================
+ * GLOBAL APP-SHELL POLISH (Phase 5)
+ *
+ * Verbessert die GLOBALE visuelle Basis (Hintergrund, Topbar,
+ * Navigation, Standard-Buttons/-Links/-Filter/-Empty-States) — wirkt
+ * auf ALLE Seiten. Bewusst am Dateiende: gleiche Spezifität wie die
+ * früheren Basisregeln → gewinnt per Quell-Reihenfolge. Modul-Styles
+ * (Cockpit/Arbeitspakete/Projektbibliothek) haben höhere Spezifität
+ * (Wrapper-Klasse) und behalten ihren Vorrang — sie werden NICHT
+ * überschrieben. Keine Klassennamen entfernt, keine externen Assets.
+ *
+ * Reused: RDS-Tokens + Akzentpalette (Teal/Amber/Grün/Rot) aus Phase 3.
+ * ===================================================================== */
+
+/* ---- App-Fläche: ruhige Tiefe statt flacher Einheitsfarbe ---------- */
+
+body {
+  background: linear-gradient(180deg, #f5f8fc 0%, var(--rds-surface-canvas) 58%)
+    no-repeat fixed;
+  background-color: var(--rds-surface-canvas);
+}
+
+/* ---- Topbar: dezenter dunkler Gradient + mehr Raum ----------------- */
+
+.portal-header {
+  gap: 1.25rem;
+  padding: 0.7rem 1.75rem;
+  background: linear-gradient(115deg, #16233f 0%, #1c2c4c 58%, #233a62 100%);
+  box-shadow: 0 2px 10px rgba(16, 23, 40, 0.18);
+}
+
+.portal-header .brand {
+  display: inline-flex;
+  align-items: center;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+}
+
+/* Reine CSS-Wortmarke (kein externes Icon): kleines Teal-Quadrat. */
+.portal-header .brand::before {
+  content: "";
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-right: 0.55rem;
+  border-radius: 2px;
+  background: var(--rds-accent-teal);
+}
+
+/* ---- Navigation: ruhige Pills mit Teal-Aktiv-Akzent ---------------- */
+/* Nav bleibt Inline-Fluss (Admin-Trenner ist inline-block) — nur die
+ * Links werden zu Inline-Block-Pills. */
+
+.portal-header nav a {
+  display: inline-block;
+  margin-right: 0.12rem;
+  padding: 0.34rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  opacity: 1;
+  color: rgba(255, 255, 255, 0.82);
+  vertical-align: middle;
+  transition: background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.portal-header nav a:hover {
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.portal-header nav a.active {
+  text-decoration: none;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.13);
+  box-shadow: inset 0 -2px 0 var(--rds-accent-teal);
+}
+
+.portal-header nav .nav-admin-label {
+  opacity: 0.7;
+}
+
+.portal-header .user {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.portal-header .user .linklike {
+  text-decoration: none;
+  opacity: 0.9;
+}
+
+.portal-header .user .linklike:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+/* ---- Inhalts-Links: Ref4EP-Blau statt Browser-Purple --------------- */
+/* Modul-Links mit eigener Farbe (Karten-Titel, Mono-Codes, Quick-Links)
+ * sind spezifischer und bleiben unberührt. */
+
+main#app a,
+main#app a:visited {
+  color: var(--rds-link);
+}
+
+main#app a:hover {
+  color: var(--rds-text-strong);
+}
+
+/* ---- Standard-Buttons modernisieren -------------------------------- */
+
+button.button-primary,
+button.button-secondary,
+button.button-danger,
+button.button-compact {
+  border-radius: var(--rds-radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.5rem 0.95rem;
+  transition: background-color 0.12s ease, border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+button.button-primary {
+  background: var(--rds-text-strong);
+  border-color: var(--rds-text-strong);
+}
+
+button.button-primary:hover {
+  background: #243a62;
+}
+
+button.button-secondary {
+  color: var(--rds-text-strong);
+  border-color: var(--rds-border-strong);
+}
+
+button.button-secondary:hover {
+  background: var(--rds-surface-soft);
+  border-color: var(--rds-text-strong);
+}
+
+button.button-compact {
+  padding: 0.25rem 0.6rem;
+}
+
+/* Primäraktionsleiste (z. B. „… anlegen/hochladen") moderner. */
+main#app .actions button,
+main#app .actions a.button-like {
+  border-radius: var(--rds-radius-sm);
+  padding: 0.5rem 0.95rem;
+  font-weight: 600;
+  background: var(--rds-text-strong);
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+main#app .actions button:hover {
+  background: #243a62;
+}
+
+main#app .actions a.button-like {
+  background: #ffffff;
+  color: var(--rds-text-strong);
+  border: 1px solid var(--rds-border-strong);
+}
+
+/* ---- Sichtbarer Fokus-Ring (A11y) für interaktive Elemente -------- */
+
+main#app a:focus-visible,
+main#app button:focus-visible,
+main#app input:focus-visible,
+main#app select:focus-visible,
+main#app textarea:focus-visible {
+  outline: 2px solid var(--rds-link);
+  outline-offset: 1px;
+  border-radius: var(--rds-radius-sm);
+}
+
+/* ---- Universelle Filter-Box als ruhige Card ----------------------- */
+/* Greift in Modulen OHNE eigene Filter-Card (Meetings, Aufgaben,
+ * Kalender). Module mit eigenem Filter (Arbeitspakete/Bibliothek) sind
+ * spezifischer und behalten ihr Layout. */
+
+.filterbox {
+  gap: var(--rds-space-3) var(--rds-space-4);
+  margin: 0.5rem 0 1.25rem;
+  padding: var(--rds-space-4) var(--rds-space-5);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-lg);
+  background: var(--rds-surface-raised);
+  box-shadow: var(--rds-shadow-sm);
+}
+
+.filterbox legend {
+  padding: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--rds-text-muted);
+}
+
+.filterbox input[type="text"],
+.filterbox input[type="search"],
+.filterbox input[type="date"],
+.filterbox select {
+  border: 1px solid var(--rds-border-strong);
+  border-radius: var(--rds-radius-sm);
+}
+
+/* ---- Standardformulare (.stacked) — konsistente Felder ------------ */
+
+main#app .stacked input[type="text"],
+main#app .stacked input[type="search"],
+main#app .stacked input[type="email"],
+main#app .stacked input[type="password"],
+main#app .stacked input[type="date"],
+main#app .stacked input[type="number"],
+main#app .stacked input[type="datetime-local"],
+main#app .stacked select,
+main#app .stacked textarea {
+  border: 1px solid var(--rds-border-strong);
+  border-radius: var(--rds-radius-sm);
+}
+
+/* ---- Generische Empty-States ruhiger ------------------------------ */
+/* Modul-spezifische Empty-States (z. B. .cockpit-page .empty) sind
+ * spezifischer und bleiben unberührt. */
+
+main#app .empty {
+  font-style: normal;
+  color: var(--rds-text-muted);
+  background: var(--rds-surface-soft);
+  border: 1px dashed var(--rds-border);
+  border-radius: var(--rds-radius-md);
+  padding: var(--rds-space-4);
+}
