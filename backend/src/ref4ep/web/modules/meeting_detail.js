@@ -113,6 +113,32 @@ function renderEditMeetingForm(meeting, workpackages, onSaved, onCancel) {
     ),
   );
   const locationInput = h("input", { type: "text", value: meeting.location || "" });
+  // Wiederholung (V1): vorbelegt mit dem aktuellen Wert; Serie als Ganzes.
+  const recurrenceSelect = h(
+    "select",
+    {},
+    ...[
+      ["none", "Keine Wiederholung"],
+      ["weekly", "Wöchentlich"],
+      ["biweekly", "Alle 2 Wochen"],
+      ["monthly", "Monatlich"],
+    ].map(([v, l]) =>
+      h(
+        "option",
+        { value: v, ...((meeting.recurrence_rule || "none") === v ? { selected: "" } : {}) },
+        l,
+      ),
+    ),
+  );
+  const recurrenceUntilInput = h("input", {
+    type: "date",
+    value: meeting.recurrence_until || "",
+  });
+  const recurrenceHelp = h(
+    "small",
+    { class: "field-hint" },
+    "Enddatum nur bei Wiederholung nötig. Eine Serie wird als Ganzes bearbeitet/gelöscht.",
+  );
   const summaryInput = h("textarea", { rows: "3" }, meeting.summary || "");
   const extraInput = h("input", {
     type: "text",
@@ -139,6 +165,21 @@ function renderEditMeetingForm(meeting, workpackages, onSaved, onCancel) {
   async function onSubmit(ev) {
     ev.preventDefault();
     errorBox.style.display = "none";
+    const recurrence = recurrenceSelect.value;
+    const until = recurrence === "none" ? null : nullIfBlank(recurrenceUntilInput.value);
+    if (recurrence !== "none") {
+      if (!until) {
+        errorBox.textContent = "Bei einer Wiederholung bitte ein Enddatum angeben.";
+        errorBox.style.display = "";
+        return;
+      }
+      const startDate = (startsAtInput.value || "").slice(0, 10);
+      if (startDate && until <= startDate) {
+        errorBox.textContent = "Das Wiederholungs-Enddatum muss nach dem Startdatum liegen.";
+        errorBox.style.display = "";
+        return;
+      }
+    }
     const payload = {
       title: titleInput.value,
       starts_at: localInputToPayload(startsAtInput.value),
@@ -147,6 +188,8 @@ function renderEditMeetingForm(meeting, workpackages, onSaved, onCancel) {
       category: categorySelect.value,
       status: statusSelect.value,
       location: nullIfBlank(locationInput.value),
+      recurrence_rule: recurrence,
+      recurrence_until: until,
       summary: nullIfBlank(summaryInput.value),
       extra_participants: nullIfBlank(extraInput.value),
       workpackage_ids: selectedWpIds(),
@@ -170,6 +213,8 @@ function renderEditMeetingForm(meeting, workpackages, onSaved, onCancel) {
     h("label", {}, "Kategorie", categorySelect),
     h("label", {}, "Status", statusSelect),
     h("label", {}, "Ort / Online-Link", locationInput),
+    h("label", {}, "Wiederholung", recurrenceSelect),
+    h("label", {}, "Wiederholung bis (optional)", recurrenceUntilInput, recurrenceHelp),
     h("label", {}, "Zusammenfassung", summaryInput),
     h("label", {}, "Zusätzliche Teilnehmende", extraInput),
     h(

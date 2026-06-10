@@ -3740,7 +3740,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0071"
+_NAV_PATCH_VERSION = "0072"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -3769,6 +3769,16 @@ def test_meeting_create_dialog_has_recurrence_fields() -> None:
     # Auswahl mindestens keine/weekly/biweekly/monthly.
     for value in ('value: "none"', 'value: "weekly"', 'value: "biweekly"', 'value: "monthly"'):
         assert value in body, f"Wiederholungs-Option {value!r} fehlt"
+
+
+def test_meeting_detail_edit_form_has_recurrence_fields() -> None:
+    """Block 0052: Auch das Detail-Bearbeitungsformular bietet
+    Wiederholung + Enddatum und sendet die Felder im PATCH mit."""
+    body = (MODULES_DIR / "meeting_detail.js").read_text(encoding="utf-8")
+    assert "Wiederholung" in body
+    assert "recurrence_rule" in body
+    assert "recurrence_until" in body
+    assert "recurrenceSelect" in body
 
 
 def _extract_nav_hrefs(html: str) -> list[str]:
