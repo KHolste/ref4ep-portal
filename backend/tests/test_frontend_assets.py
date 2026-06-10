@@ -3697,7 +3697,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0052"
+_NAV_PATCH_VERSION = "0053"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4208,3 +4208,35 @@ def test_campaigns_list_has_no_dangling_undefined_header_node() -> None:
     nicht zurückkehren."""
     body = (MODULES_DIR / "campaigns.js").read_text(encoding="utf-8")
     assert "headerNodes[1]" not in body
+
+
+# ---- Testkampagnen-Seite: Angleichung an das Designsystem -----------
+
+
+def test_campaigns_page_uses_design_system_wrapper_and_hero() -> None:
+    """Die Testkampagnen-Liste nutzt die Modul-Wrapper-Klasse, ein
+    Kopfband mit integrierter Primäraktion und behält Filter/Karten/
+    pageHeader. Reiner Polish — Funktion bleibt erhalten."""
+    body = (MODULES_DIR / "campaigns.js").read_text(encoding="utf-8")
+    assert 'classList.add("campaigns-page")' in body
+    assert "campaigns-hero" in body
+    # Primäraktion + Titel bleiben.
+    assert "Testkampagne anlegen" in body
+    assert '"Testkampagnen"' in body
+    # Stat-Chips nur aus vorhandenen Daten (keine neue Berechnung/API).
+    assert "renderCampaignStats" in body
+    assert "documents_count" in body
+
+
+def test_campaigns_page_styles_present_and_scoped() -> None:
+    """Die neuen Testkampagnen-Styles existieren und sind eng unter
+    ``main#app.campaigns-page`` gescopt (keine globalen Overrides)."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for needle in (
+        "main#app.campaigns-page",
+        "main#app.campaigns-page .campaigns-hero",
+        "main#app.campaigns-page .campaign-stat",
+        "main#app.campaigns-page .campaign-card",
+        "main#app.campaigns-page .campaign-status-badge--ok",
+    ):
+        assert needle in css, f"style.css sollte {needle!r} enthalten"

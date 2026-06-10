@@ -5970,3 +5970,296 @@ main#app .empty {
   border-radius: var(--rds-radius-md);
   padding: var(--rds-space-4);
 }
+
+/* =====================================================================
+ * MODUL-POLISH — Testkampagnen (Phase 6)
+ *
+ * Gleicht die Testkampagnen-Liste an Cockpit/Arbeitspakete/
+ * Projektbibliothek an. Alle Regeln eng unter ``main#app.campaigns-page``
+ * gescopt — keine globalen Nebenwirkungen, keine Klassennamen entfernt,
+ * keine fachliche/Permission-/Routen-Änderung. Reused: RDS-Tokens +
+ * Akzentpalette aus Phase 3.
+ * ===================================================================== */
+
+main#app.campaigns-page {
+  max-width: 1560px;
+}
+
+/* ---- Kopfband mit integrierter Primäraktion ----------------------- */
+
+main#app.campaigns-page .campaigns-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--rds-space-4);
+  background: linear-gradient(135deg, #ffffff 0%, var(--rds-accent-teal-soft) 100%);
+  border: 1px solid var(--rds-border);
+  border-left: 4px solid var(--rds-text-strong);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-sm);
+  padding: var(--rds-space-5) var(--rds-space-6);
+  margin-bottom: var(--rds-space-6);
+}
+
+main#app.campaigns-page .campaigns-hero-main {
+  min-width: 0;
+}
+
+main#app.campaigns-page .campaigns-hero .page-header {
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+main#app.campaigns-page .campaigns-hero .page-title {
+  font-size: 1.5rem;
+}
+
+main#app.campaigns-page .campaigns-hero-actions {
+  flex: none;
+}
+
+main#app.campaigns-page .campaigns-hero-actions button {
+  padding: 0.5rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--rds-text-strong);
+  border: 1px solid var(--rds-text-strong);
+  border-radius: var(--rds-radius-sm);
+  cursor: pointer;
+}
+
+main#app.campaigns-page .campaigns-hero-actions button:hover {
+  background: #243a62;
+}
+
+/* Stat-Chips */
+main#app.campaigns-page .campaigns-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rds-space-3);
+  margin-top: var(--rds-space-4);
+}
+
+main#app.campaigns-page .campaign-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.3rem 0.8rem;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid var(--rds-border);
+  border-radius: 999px;
+}
+
+main#app.campaigns-page .campaign-stat-value {
+  font-weight: 700;
+  color: var(--rds-text-strong);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+main#app.campaigns-page .campaign-stat-label {
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+}
+
+/* ---- Filter-Card --------------------------------------------------- */
+
+main#app.campaigns-page .campaign-filterbox {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--rds-space-3) var(--rds-space-4);
+  background: var(--rds-surface-raised);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-sm);
+  padding: var(--rds-space-4) var(--rds-space-5);
+  margin: 0 0 var(--rds-space-6);
+}
+
+main#app.campaigns-page .campaign-filterbox legend {
+  width: 100%;
+  padding: 0;
+  margin-bottom: var(--rds-space-1);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--rds-text-muted);
+}
+
+main#app.campaigns-page .campaign-filterbox input,
+main#app.campaigns-page .campaign-filterbox select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--rds-border-strong);
+  border-radius: var(--rds-radius-sm);
+  background: #ffffff;
+}
+
+main#app.campaigns-page .campaign-filterbox button {
+  padding: 0.42rem 0.95rem;
+  font-weight: 600;
+  border-radius: var(--rds-radius-sm);
+  border: 1px solid var(--rds-text-strong);
+  background: var(--rds-text-strong);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+main#app.campaigns-page .campaign-filterbox button.secondary {
+  background: #ffffff;
+  color: var(--rds-text-strong);
+  border-color: var(--rds-border-strong);
+}
+
+main#app.campaigns-page .campaign-filter-reset {
+  margin-left: auto;
+}
+
+/* ---- Kampagnenkarten ----------------------------------------------- */
+
+main#app.campaigns-page .campaign-card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--rds-space-5);
+  margin: 0;
+}
+
+@media (min-width: 720px) {
+  main#app.campaigns-page .campaign-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  main#app.campaigns-page .campaign-card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Grid-Items (role=listitem-Wrapper) füllen die Spaltenhöhe. */
+main#app.campaigns-page .campaign-card-grid > [role="listitem"] {
+  display: flex;
+}
+
+main#app.campaigns-page .campaign-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: var(--rds-surface-raised);
+  border: 1px solid var(--rds-border);
+  border-top: 3px solid var(--rds-accent-teal);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-sm);
+  padding: var(--rds-space-5);
+}
+
+main#app.campaigns-page .campaign-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rds-space-2);
+}
+
+main#app.campaigns-page .campaign-card-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 600;
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+}
+
+main#app.campaigns-page .campaign-card-title {
+  margin: var(--rds-space-2) 0 var(--rds-space-3);
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  overflow-wrap: anywhere;
+}
+
+main#app.campaigns-page .campaign-card-title a {
+  color: var(--rds-text-strong);
+  text-decoration: none;
+}
+
+main#app.campaigns-page .campaign-card-title a:hover {
+  text-decoration: underline;
+}
+
+/* Metadaten als ruhiges Key-Value-Grid. */
+main#app.campaigns-page .campaign-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--rds-space-1) var(--rds-space-3);
+  margin: 0;
+  font-size: var(--rds-fs-data);
+}
+
+main#app.campaigns-page .campaign-meta-row {
+  display: contents;
+}
+
+main#app.campaigns-page .campaign-meta-label {
+  color: var(--rds-text-muted);
+  font-size: var(--rds-fs-meta);
+}
+
+main#app.campaigns-page .campaign-meta-value {
+  color: var(--rds-text);
+  overflow-wrap: anywhere;
+}
+
+main#app.campaigns-page .campaign-card-footer {
+  margin-top: auto;
+  padding-top: var(--rds-space-4);
+  text-align: right;
+}
+
+main#app.campaigns-page .campaign-card-footer a {
+  font-size: var(--rds-fs-meta);
+  font-weight: 600;
+  color: var(--rds-link);
+  text-decoration: none;
+}
+
+main#app.campaigns-page .campaign-card-footer a:hover {
+  text-decoration: underline;
+}
+
+/* ---- Statusbadge-Töne (Basis .badge liefert Radius/Größe) --------- */
+
+main#app.campaigns-page .campaign-status-badge--info {
+  background: var(--rds-status-info-bg);
+  color: var(--rds-status-info-fg);
+}
+
+main#app.campaigns-page .campaign-status-badge--ok {
+  background: var(--rds-status-ok-bg);
+  color: var(--rds-status-ok-fg);
+}
+
+main#app.campaigns-page .campaign-status-badge--warn {
+  background: var(--rds-status-warn-bg);
+  color: var(--rds-status-warn-fg);
+}
+
+main#app.campaigns-page .campaign-status-badge--neutral {
+  background: var(--rds-status-neutral-bg);
+  color: var(--rds-status-neutral-fg);
+}
+
+/* ---- Mobile-Feinschliff ------------------------------------------- */
+
+@media (max-width: 640px) {
+  main#app.campaigns-page .campaigns-hero {
+    padding: var(--rds-space-5) var(--rds-space-4);
+  }
+  main#app.campaigns-page .campaigns-hero-actions,
+  main#app.campaigns-page .campaigns-hero-actions button {
+    width: 100%;
+  }
+  main#app.campaigns-page .campaign-filter-reset {
+    margin-left: 0;
+  }
+}

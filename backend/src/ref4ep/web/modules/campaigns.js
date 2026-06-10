@@ -51,8 +51,26 @@ function nullIfBlank(value) {
   return v === "" ? null : v;
 }
 
+// Status → ruhiger Farbton (gleiche Logik wie im restlichen
+// Designsystem): geplant/aktiv = teal (info), abgeschlossen = grün (ok),
+// verschoben = amber (warn), abgebrochen = neutral. Kein grelles Rot.
+const STATUS_TONE = {
+  planned: "info",
+  preparing: "info",
+  running: "info",
+  completed: "ok",
+  evaluated: "ok",
+  postponed: "warn",
+  cancelled: "neutral",
+};
+
 function statusBadge(status) {
-  return h("span", { class: "badge" }, STATUS_LABELS[status] || status);
+  const tone = STATUS_TONE[status] || "neutral";
+  return h(
+    "span",
+    { class: `badge campaign-status-badge campaign-status-badge--${tone}` },
+    STATUS_LABELS[status] || status,
+  );
 }
 
 function metaRow(label, value) {
@@ -61,6 +79,35 @@ function metaRow(label, value) {
     { class: "campaign-meta-row" },
     h("span", { class: "campaign-meta-label" }, label),
     h("span", { class: "campaign-meta-value" }, value || "—"),
+  );
+}
+
+// Kompakte Stat-Chips aus bereits geladenen Listendaten — keine neue
+// fachliche Berechnung, keine zusätzliche API-Abfrage.
+function renderCampaignStats(campaigns) {
+  const total = campaigns.length;
+  const running = campaigns.filter((c) => c.status === "running").length;
+  const planned = campaigns.filter(
+    (c) => c.status === "planned" || c.status === "preparing",
+  ).length;
+  const completed = campaigns.filter(
+    (c) => c.status === "completed" || c.status === "evaluated",
+  ).length;
+  const docs = campaigns.reduce((sum, c) => sum + (c.documents_count || 0), 0);
+  const stats = [
+    { value: total, label: total === 1 ? "Kampagne" : "Kampagnen" },
+    { value: running, label: "laufend" },
+    { value: planned, label: "geplant" },
+    { value: completed, label: "abgeschlossen" },
+    { value: docs, label: docs === 1 ? "Dokument" : "Dokumente" },
+  ];
+  return stats.map((s) =>
+    h(
+      "span",
+      { class: "campaign-stat" },
+      h("span", { class: "campaign-stat-value" }, String(s.value)),
+      h("span", { class: "campaign-stat-label" }, s.label),
+    ),
   );
 }
 
@@ -195,6 +242,9 @@ function renderCreateDialog(workpackages, onSaved, onCancel) {
 
 export async function render(container, _ctx) {
   container.classList.add("page-wide");
+  // Modul-Scope für den Designsystem-Polish (gleiche Shell wie
+  // Cockpit/Arbeitspakete/Projektbibliothek).
+  container.classList.add("campaigns-page");
   const headerNodes = [
     pageHeader(
       "Testkampagnen",
@@ -221,6 +271,11 @@ export async function render(container, _ctx) {
   });
   const qFilter = h("input", { type: "text", placeholder: "Suche in Code/Titel/Facility" });
   const refreshBtn = h("button", { type: "button" }, "Filtern");
+  const resetBtn = h(
+    "button",
+    { type: "button", class: "secondary campaign-filter-reset" },
+    "Zurücksetzen",
+  );
   const filterBar = h(
     "fieldset",
     { class: "campaign-filterbox meeting-filterbox filterbox" },
@@ -230,11 +285,14 @@ export async function render(container, _ctx) {
     wpFilter,
     qFilter,
     refreshBtn,
+    resetBtn,
   );
 
   const dialogSlot = h("div", {});
   const tableSlot = h("div", {}, renderLoading("Testkampagnen werden geladen …"));
   const createBtn = h("button", { type: "button" }, "Testkampagne anlegen …");
+  // Stat-Chips im Kopfband — werden nach jedem Laden gefüllt/geleert.
+  const statsSlot = h("div", { class: "campaigns-stats" });
 
   function clearDialog() {
     dialogSlot.replaceChildren();
@@ -256,6 +314,7 @@ export async function render(container, _ctx) {
       return;
     }
     if (!campaigns.length) {
+      statsSlot.replaceChildren();
       const filtersActive =
         statusFilter.value ||
         categoryFilter.value ||
@@ -279,6 +338,7 @@ export async function render(container, _ctx) {
       );
       return;
     }
+    statsSlot.replaceChildren(...renderCampaignStats(campaigns));
     // Karten-Grid statt Tabelle — bessere Lesbarkeit für lange Titel
     // und effizientere Bildschirmbreiten-Nutzung.
     const grid = h(
@@ -289,6 +349,13 @@ export async function render(container, _ctx) {
     tableSlot.replaceChildren(grid);
   }
   refreshBtn.addEventListener("click", refresh);
+  resetBtn.addEventListener("click", () => {
+    statusFilter.value = "";
+    categoryFilter.value = "";
+    wpFilter.value = "";
+    qFilter.value = "";
+    refresh();
+  });
 
   async function openCreate() {
     dialogSlot.replaceChildren(renderLoading("Arbeitspakete werden geladen …"));
@@ -317,18 +384,18 @@ export async function render(container, _ctx) {
   }
   createBtn.addEventListener("click", openCreate);
 
-  // ``headerNodes`` enthält genau einen Knoten (pageHeader mit Titel +
-  // Unterzeile); er sitzt bereits in ``headerRow``. Ein früherer Verweis
-  // auf einen zweiten, nicht existierenden Listeneintrag war ``undefined``
-  // und wurde von ``replaceChildren`` als sichtbarer Text „undefined"
-  // gerendert — daher hier bewusst nur ``headerRow``.
-  const headerRow = h("div", { class: "section-header" }, headerNodes[0], createBtn);
-  container.replaceChildren(
-    headerRow,
-    filterBar,
-    tableSlot,
-    dialogSlot,
-    crossNav(),
+  // Kopfband analog zu Arbeitspakete/Projektbibliothek: links Titel/
+  // Unterzeile + Stat-Chips, rechts die Primäraktion „… anlegen".
+  // ``headerNodes`` enthält genau EINEN Knoten (pageHeader); ein früherer
+  // Verweis auf einen zweiten, nicht existierenden Listeneintrag war
+  // ``undefined`` und wurde als sichtbarer Text gerendert — daher hier
+  // bewusst nur ``headerNodes[0]``.
+  const hero = h(
+    "header",
+    { class: "campaigns-hero" },
+    h("div", { class: "campaigns-hero-main" }, headerNodes[0], statsSlot),
+    h("div", { class: "campaigns-hero-actions" }, createBtn),
   );
+  container.replaceChildren(hero, filterBar, tableSlot, dialogSlot, crossNav());
   await refresh();
 }
