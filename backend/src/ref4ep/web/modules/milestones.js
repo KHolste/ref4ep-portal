@@ -328,6 +328,9 @@ function timelineItem(milestone, linkedDocs, onEdit, onLink, onChanged) {
 
 export async function render(container, _ctx) {
   container.classList.add("page-wide");
+  // Modul-Scope für den Hero-Polish (gleicher Stil wie Kalender/
+  // Bibliothek/Testkampagnen). Kein Logik-/Routen-Umbau.
+  container.classList.add("milestones-page");
   const dialogContainer = h("div", {});
   const modalContainer = h("div", {});
   let modalKeyHandler = null;
@@ -380,10 +383,16 @@ export async function render(container, _ctx) {
   }
 
   function header() {
+    // Dunkler Bild-Hero (Gipfel-/Meilenstein-Motiv) mit heller Schrift;
+    // der Page-Header bleibt inhaltlich unverändert (Titel + Einleitung).
     return [
-      pageHeader(
-        "Meilensteine",
-        "Projekt-Meilensteine aus dem Antrag. Meilensteine mit Arbeitspaketbezug können von Admins und dem jeweiligen WP-Lead bearbeitet werden. Übergreifende Projektmeilensteine können nur von Admins bearbeitet werden.",
+      h(
+        "header",
+        { class: "milestones-hero" },
+        pageHeader(
+          "Meilensteine",
+          "Projekt-Meilensteine aus dem Antrag. Meilensteine mit Arbeitspaketbezug können von Admins und dem jeweiligen WP-Lead bearbeitet werden. Übergreifende Projektmeilensteine können nur von Admins bearbeitet werden.",
+        ),
       ),
     ];
   }

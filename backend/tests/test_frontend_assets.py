@@ -3740,7 +3740,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0065"
+_NAV_PATCH_VERSION = "0066"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4407,6 +4407,28 @@ def test_calendar_pilot_background_image_is_local_and_no_external_assets() -> No
     # Das referenzierte Bild liegt im ausgelieferten Static-Verzeichnis.
     img = WEB_DIR.parent / "static" / "images" / "calendar-hero.jpg"
     assert img.is_file(), f"Hintergrundbild fehlt: {img}"
+
+
+def test_milestones_hero_uses_local_image_and_keeps_list() -> None:
+    """Meilenstein-Hero nutzt ein lokales Gipfel-/Meilenstein-Motiv über
+    den /static-Mount (kein externes Bild); Timeline-Liste, Status und
+    Dokumentverknüpfungen bleiben funktional erhalten."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert 'url("/static/images/milestones-hero.jpg")' in css
+    assert "main#app.milestones-page .milestones-hero" in css
+    hero = css[css.index("main#app.milestones-page .milestones-hero {") :]
+    hero = hero[: hero.index("}")]
+    assert "rgba(13, 19, 33" in hero  # dunkles Overlay
+    # Bild liegt im ausgelieferten Static-Verzeichnis.
+    img = WEB_DIR.parent / "static" / "images" / "milestones-hero.jpg"
+    assert img.is_file(), f"Meilenstein-Hero-Bild fehlt: {img}"
+    # Modul-seitig: Hero + Timeline/Doku-Verknüpfung unveraendert.
+    body = (MODULES_DIR / "milestones.js").read_text(encoding="utf-8")
+    assert 'classList.add("milestones-page")' in body
+    assert "milestones-hero" in body
+    assert "function timelineItem" in body
+    assert "linkedDocumentsSection" in body
+    assert "/api/milestones/" in body
 
 
 def test_campaigns_hero_uses_local_image_and_keeps_controls() -> None:

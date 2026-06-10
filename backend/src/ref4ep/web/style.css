@@ -6986,3 +6986,46 @@ main#app.gantt-page .gantt-wp-bar-sub {
 main#app.gantt-page .gantt-wp-bar-top {
   fill: #5f6b80;
 }
+
+/* =====================================================================
+ * MEILENSTEINE — Bild-Hero (Phase 14)
+ *
+ * Dunkler Bild-Hero mit Gipfel-/Meilenstein-Motiv (lokal unter
+ * /static/images/milestones-hero.jpg). Kräftiges dunkles Overlay über
+ * dem hellen Foto (Himmel/Schnee) -> dezent, weisse Schrift lesbar.
+ * Gescopt unter main#app.milestones-page; Timeline-Liste, Status und
+ * Dokumentverknüpfungen bleiben unveraendert. Keine externen Assets.
+ * ===================================================================== */
+
+main#app.milestones-page .milestones-hero {
+  overflow: hidden;
+  color: #ffffff;
+  background:
+    linear-gradient(
+      110deg,
+      rgba(13, 19, 33, 0.9) 0%,
+      rgba(16, 23, 40, 0.78) 42%,
+      rgba(20, 30, 54, 0.6) 100%
+    ),
+    #0d1321 url("/static/images/milestones-hero.jpg") center / cover no-repeat;
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-md);
+  padding: var(--rds-space-6);
+  margin-bottom: var(--rds-space-5);
+}
+
+main#app.milestones-page .milestones-hero .page-header {
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+main#app.milestones-page .milestones-hero .page-title {
+  font-size: 1.7rem;
+  color: #ffffff;
+}
+
+main#app.milestones-page .milestones-hero .page-subtitle {
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 75ch;
+}
