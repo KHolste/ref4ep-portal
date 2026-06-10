@@ -3740,7 +3740,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0067"
+_NAV_PATCH_VERSION = "0068"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4429,6 +4429,30 @@ def test_milestones_hero_uses_local_image_and_keeps_list() -> None:
     assert "function timelineItem" in body
     assert "linkedDocumentsSection" in body
     assert "/api/milestones/" in body
+
+
+def test_global_background_is_local_subtle_and_safe() -> None:
+    """Globaler App-Hintergrund (Test): lokales Bild auf ``body`` unter
+    sehr starkem hellem Overlay; Sidebar/Topbar-Flächen und die
+    [hidden]-Härtung bleiben unangetastet."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Lokales Bild als body-Hintergrund, unter sehr starkem hellem
+    # Overlay (>= 0.93 oben) -> dezent.
+    assert 'url("/static/images/global-background.jpg")' in css
+    assert "rgba(245, 248, 252, 0.93)" in css
+    # Beide gehören zu einer body-Hintergrundregel.
+    gb = css.index('url("/static/images/global-background.jpg")')
+    assert css.rfind("body {", 0, gb) != -1
+    # Datei existiert im Static-Verzeichnis.
+    img = WEB_DIR.parent / "static" / "images" / "global-background.jpg"
+    assert img.is_file(), f"globales Hintergrundbild fehlt: {img}"
+    # Keine externen Assets.
+    assert "http://" not in css
+    assert "https://" not in css
+    # Sidebar behält ihre eigene dunkle Fläche; [hidden] bleibt gehärtet.
+    assert ".app-sidebar {" in css
+    assert "[hidden] {" in css
+    assert "display: none !important;" in css
 
 
 def test_remaining_sections_have_local_image_heroes() -> None:
