@@ -5491,19 +5491,35 @@ main#app.project-library-page {
 
 /* ---- Seitenkopf mit Upload als Primäraktion ----------------------- */
 
+/* Dunkler Bild-Hero mit Bibliotheks-/Archivmotiv. Das warme Holzbild
+ * wird durch ein kräftiges blaues Overlay in die Ref4EP-Farbwelt
+ * eingebettet (dezent, Lesbarkeit gewahrt). Bild liegt lokal unter
+ * /static/images/library-hero.jpg. Bewusst anders als der Kalender-Hero
+ * (Motiv, Gradientwinkel, heller Upload-Button rechts statt Nav-Toolbar). */
 main#app.project-library-page .library-hero {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--rds-space-4);
-  background: linear-gradient(135deg, #ffffff 0%, var(--rds-accent-teal-soft) 100%);
-  border: 1px solid var(--rds-border);
-  border-left: 4px solid var(--rds-text-strong);
+  overflow: hidden;
+  color: #ffffff;
+  background:
+    linear-gradient(
+      115deg,
+      rgba(13, 19, 33, 0.92) 0%,
+      rgba(20, 30, 54, 0.82) 45%,
+      rgba(28, 44, 76, 0.62) 100%
+    ),
+    #0d1321 url("/static/images/library-hero.jpg") center / cover no-repeat;
   border-radius: var(--rds-radius-lg);
-  box-shadow: var(--rds-shadow-sm);
-  padding: var(--rds-space-5) var(--rds-space-6);
+  box-shadow: var(--rds-shadow-md);
+  padding: var(--rds-space-8) var(--rds-space-6) var(--rds-space-6);
   margin-bottom: var(--rds-space-6);
+}
+
+main#app.project-library-page .library-hero .library-hero-main {
+  min-width: 0;
 }
 
 main#app.project-library-page .library-hero .page-header {
@@ -5513,26 +5529,35 @@ main#app.project-library-page .library-hero .page-header {
 }
 
 main#app.project-library-page .library-hero .page-title {
-  font-size: 1.5rem;
+  font-size: 1.7rem;
+  color: #ffffff;
+}
+
+main#app.project-library-page .library-hero .page-subtitle {
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 70ch;
 }
 
 main#app.project-library-page .library-hero .actions {
   margin: 0;
+  flex: none;
 }
 
+/* Heller Primär-Button auf dunklem Hero — klar als Upload-Aktion. */
 main#app.project-library-page .library-hero .actions button {
   padding: 0.5rem 1.1rem;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #ffffff;
-  background: var(--rds-text-strong);
-  border: 1px solid var(--rds-text-strong);
+  color: var(--rds-text-strong);
+  background: #ffffff;
+  border: 1px solid #ffffff;
   border-radius: var(--rds-radius-sm);
   cursor: pointer;
+  transition: background-color 0.12s ease;
 }
 
 main#app.project-library-page .library-hero .actions button:hover {
-  background: #16233f;
+  background: rgba(255, 255, 255, 0.86);
 }
 
 /* ---- Kategorie-Kacheln -------------------------------------------- */

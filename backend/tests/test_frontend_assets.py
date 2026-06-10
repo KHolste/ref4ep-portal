@@ -3697,7 +3697,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0056"
+_NAV_PATCH_VERSION = "0057"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4342,6 +4342,22 @@ def test_calendar_pilot_background_image_is_local_and_no_external_assets() -> No
     # Das referenzierte Bild liegt im ausgelieferten Static-Verzeichnis.
     img = WEB_DIR.parent / "static" / "images" / "calendar-hero.jpg"
     assert img.is_file(), f"Hintergrundbild fehlt: {img}"
+
+
+def test_library_hero_uses_local_image_and_keeps_upload() -> None:
+    """Projektbibliothek-Hero nutzt ein lokales Bibliotheksmotiv über den
+    ``/static``-Mount (kein externes Bild) und behält die Upload-Aktion."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert 'url("/static/images/library-hero.jpg")' in css
+    # Heller Upload-Button auf dem dunklen Hero bleibt definiert.
+    assert "main#app.project-library-page .library-hero .actions button" in css
+    # Bild liegt im ausgelieferten Static-Verzeichnis.
+    img = WEB_DIR.parent / "static" / "images" / "library-hero.jpg"
+    assert img.is_file(), f"Bibliotheks-Hero-Bild fehlt: {img}"
+    # Upload-Funktion im Modul unverändert vorhanden.
+    body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
+    assert "const actionBar = isLoggedIn" in body
+    assert "library-hero" in body
 
 
 def test_app_shell_main_area_left_aligned_and_wide() -> None:
