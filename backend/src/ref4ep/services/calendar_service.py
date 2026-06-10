@@ -37,12 +37,13 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from ref4ep.domain.models import (
+    MEETING_RECURRENCE_LABELS_DE,
     Meeting,
     MeetingAction,
     MeetingParticipant,
@@ -120,6 +121,69 @@ def _format_date_de(d: date) -> str:
 
 def _wp_codes_from_links(links: Iterable) -> list[str]:
     return sorted(link.workpackage.code for link in links if link.workpackage is not None)
+
+
+# --------------------------------------------------------------------------- #
+# Wiederholungen (Block 0052 — V1)                                            #
+# --------------------------------------------------------------------------- #
+
+# Sicherheits-Backstop gegen Endlosschleifen. Die Expansion ist ohnehin
+# durch das abgefragte Fenster UND ``recurrence_until`` begrenzt; dieser
+# Deckel greift nur bei kaputten Daten.
+_MAX_OCCURRENCES = 750
+
+
+def expand_recurrence_dates(
+    base_date: date,
+    rule: str,
+    until: date,
+    *,
+    window_from: date,
+    window_to: date,
+) -> list[date]:
+    """Konkrete Vorkommen einer Serie INNERHALB des Fensters.
+
+    Erzeugt nur Termine im Bereich ``[window_from, window_to]`` und nie
+    nach ``until`` — die Expansion ist damit doppelt begrenzt (Fenster +
+    Serienende) und kann keine unbegrenzte Liste liefern.
+
+    - ``weekly`` / ``biweekly``: Schrittweite 7 bzw. 14 Tage ab dem
+      Startdatum.
+    - ``monthly``: gleicher Kalendertag je Monat. Monate ohne diesen Tag
+      (z. B. der 31. im Februar) werden übersprungen — kein Ausweichen
+      auf einen Nachbartag.
+    """
+    out: list[date] = []
+    if rule in ("weekly", "biweekly"):
+        step = 7 if rule == "weekly" else 14
+        for n in range(_MAX_OCCURRENCES):
+            occ = base_date + timedelta(days=step * n)
+            if occ > until or occ > window_to:
+                break
+            if occ >= window_from:
+                out.append(occ)
+        return out
+    if rule == "monthly":
+        for n in range(_MAX_OCCURRENCES):
+            year = base_date.year + (base_date.month - 1 + n) // 12
+            month = (base_date.month - 1 + n) % 12 + 1
+            # Jeder Tag eines Monats liegt >= dem Monatsersten; sobald der
+            # Monatserste sowohl ``until`` als auch das Fensterende
+            # überschreitet, kann kein weiteres Vorkommen mehr passen.
+            month_first = date(year, month, 1)
+            if month_first > until or month_first > window_to:
+                break
+            try:
+                occ = date(year, month, base_date.day)
+            except ValueError:
+                continue  # diesen Monat gibt es den Tag nicht → überspringen
+            if occ > until or occ > window_to:
+                break
+            if occ >= window_from:
+                out.append(occ)
+        return out
+    # ``none`` oder unbekannt → keine Expansion.
+    return []
 
 
 # --------------------------------------------------------------------------- #
@@ -240,14 +304,22 @@ class CalendarService:
     ) -> list[CalendarEvent]:
         from_dt = _start_of_day(from_)
         to_dt = _end_of_day(to)
-        # Range-Overlap auf datetime-Spalten:
-        #   meeting.starts_at <= to_dt
-        #   AND COALESCE(meeting.ends_at, meeting.starts_at) >= from_dt
+        # Range-Overlap auf datetime-Spalten. Zwei Fälle:
+        #   - Einmalige Termine (recurrence_rule == 'none'): wie bisher
+        #     COALESCE(ends_at, starts_at) >= from_dt.
+        #   - Serien (recurrence_rule != 'none'): die Serie überlappt das
+        #     Fenster, wenn ihr Beginn nicht nach ``to`` liegt UND ihr
+        #     Ende (recurrence_until) nicht vor ``from`` liegt. Die
+        #     konkreten Vorkommen werden danach in Python expandiert.
         stmt = select(Meeting).where(
             Meeting.starts_at <= to_dt,
             or_(
-                Meeting.ends_at.is_(None) & (Meeting.starts_at >= from_dt),
-                Meeting.ends_at >= from_dt,
+                (Meeting.recurrence_rule == "none")
+                & or_(
+                    Meeting.ends_at.is_(None) & (Meeting.starts_at >= from_dt),
+                    Meeting.ends_at >= from_dt,
+                ),
+                (Meeting.recurrence_rule != "none") & (Meeting.recurrence_until >= from_),
             ),
         )
         if wp_filter_id is not None:
@@ -282,27 +354,73 @@ class CalendarService:
         out: list[CalendarEvent] = []
         for m in self.session.scalars(stmt):
             wp_codes = _wp_codes_from_links(m.workpackage_links)
-            description_parts: list[str] = []
-            if m.location:
-                description_parts.append(f"Ort: {m.location}")
-            if m.ends_at:
-                description_parts.append(f"Ende: {m.ends_at.strftime('%d.%m.%Y %H:%M')}")
-            out.append(
-                CalendarEvent(
-                    id=f"meeting:{m.id}",
-                    source_id=m.id,
-                    type="meeting",
-                    title=m.title,
-                    starts_at=_strip_tzinfo(m.starts_at),
-                    ends_at=_strip_tzinfo(m.ends_at),
-                    all_day=False,
-                    status=m.status,
-                    workpackage_codes=wp_codes,
-                    link=f"/portal/meetings/{m.id}",
-                    description=" · ".join(description_parts) or None,
-                    is_overdue=False,
+            base_start = _strip_tzinfo(m.starts_at)
+            base_end = _strip_tzinfo(m.ends_at)
+            recurring = m.recurrence_rule not in (None, "none") and m.recurrence_until is not None
+
+            if not recurring:
+                description_parts: list[str] = []
+                if m.location:
+                    description_parts.append(f"Ort: {m.location}")
+                if base_end:
+                    description_parts.append(f"Ende: {base_end.strftime('%d.%m.%Y %H:%M')}")
+                out.append(
+                    CalendarEvent(
+                        id=f"meeting:{m.id}",
+                        source_id=m.id,
+                        type="meeting",
+                        title=m.title,
+                        starts_at=base_start,
+                        ends_at=base_end,
+                        all_day=False,
+                        status=m.status,
+                        workpackage_codes=wp_codes,
+                        link=f"/portal/meetings/{m.id}",
+                        description=" · ".join(description_parts) or None,
+                        is_overdue=False,
+                    )
                 )
+                continue
+
+            # Serie: konkrete Vorkommen NUR im abgefragten Fenster erzeugen.
+            duration = (base_end - base_start) if base_end else None
+            series_note = (
+                f"Serie: {MEETING_RECURRENCE_LABELS_DE.get(m.recurrence_rule, m.recurrence_rule)}"
+                f" bis {_format_date_de(m.recurrence_until)}"
             )
+            for occ_date in expand_recurrence_dates(
+                base_start.date(),
+                m.recurrence_rule,
+                m.recurrence_until,
+                window_from=from_,
+                window_to=to,
+            ):
+                occ_start = datetime.combine(occ_date, base_start.time())
+                occ_end = (occ_start + duration) if duration is not None else None
+                description_parts = []
+                if m.location:
+                    description_parts.append(f"Ort: {m.location}")
+                if occ_end:
+                    description_parts.append(f"Ende: {occ_end.strftime('%d.%m.%Y %H:%M')}")
+                description_parts.append(series_note)
+                out.append(
+                    CalendarEvent(
+                        # Pro Vorkommen eindeutige ID (gleiche source_id);
+                        # die UI rendert so mehrere konkrete Termine einer Serie.
+                        id=f"meeting:{m.id}:{occ_date.isoformat()}",
+                        source_id=m.id,
+                        type="meeting",
+                        title=m.title,
+                        starts_at=occ_start,
+                        ends_at=occ_end,
+                        all_day=False,
+                        status=m.status,
+                        workpackage_codes=wp_codes,
+                        link=f"/portal/meetings/{m.id}",
+                        description=" · ".join(description_parts) or None,
+                        is_overdue=False,
+                    )
+                )
         return out
 
     # ---- Quelle: Testkampagnen -----------------------------------------

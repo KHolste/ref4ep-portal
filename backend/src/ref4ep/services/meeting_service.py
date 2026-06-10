@@ -42,6 +42,7 @@ from ref4ep.domain.models import (
     MEETING_DECISION_STATUSES,
     MEETING_DOCUMENT_LABELS,
     MEETING_FORMATS,
+    MEETING_RECURRENCE_RULES,
     MEETING_STATUSES,
     Document,
     Meeting,
@@ -184,6 +185,32 @@ class MeetingService:
         if status not in MEETING_STATUSES:
             raise ValueError(f"status: ungültiger Wert {status!r}")
 
+    @staticmethod
+    def _coerce_recurrence(
+        rule: str | None,
+        until: date | None,
+        *,
+        start_date: date,
+    ) -> tuple[str, date | None]:
+        """Validiert und normalisiert die Wiederholungsangaben.
+
+        - Ohne Wiederholung (``none``/None) gibt es kein Enddatum
+          (etwaiges ``until`` wird verworfen).
+        - Mit Wiederholung ist ``until`` Pflicht und muss NACH dem
+          Startdatum liegen — so entstehen keine leeren oder
+          unbegrenzten Serien.
+        """
+        effective = rule or "none"
+        if effective not in MEETING_RECURRENCE_RULES:
+            raise ValueError(f"recurrence_rule: ungültiger Wert {rule!r}")
+        if effective == "none":
+            return "none", None
+        if until is None:
+            raise ValueError("recurrence_until ist bei einer Wiederholung erforderlich.")
+        if until <= start_date:
+            raise ValueError("recurrence_until muss nach dem Startdatum liegen.")
+        return effective, until
+
     def create_meeting(
         self,
         *,
@@ -194,6 +221,8 @@ class MeetingService:
         location: str | None = None,
         category: str = "other",
         status: str = "planned",
+        recurrence_rule: str = "none",
+        recurrence_until: date | None = None,
         summary: str | None = None,
         extra_participants: str | None = None,
         workpackage_ids: list[str] | None = None,
@@ -206,6 +235,9 @@ class MeetingService:
                 "Nur Admin oder WP-Lead der genannten Arbeitspakete darf ein Meeting anlegen."
             )
         self._validate_meeting_fields(format_=format_, category=category, status=status)
+        rule, until = self._coerce_recurrence(
+            recurrence_rule, recurrence_until, start_date=starts_at.date()
+        )
         meeting = Meeting(
             title=title.strip(),
             starts_at=starts_at,
@@ -214,6 +246,8 @@ class MeetingService:
             location=normalise_text(location),
             category=category,
             status=status,
+            recurrence_rule=rule,
+            recurrence_until=until,
             summary=normalise_text(summary),
             extra_participants=normalise_text(extra_participants),
             created_by_id=self.person_id,
@@ -298,6 +332,20 @@ class MeetingService:
             if key == "status" and value is not None and value not in MEETING_STATUSES:
                 raise ValueError(f"status: ungültiger Wert {raw!r}")
             setattr(meeting, key, value)
+
+        # Wiederholung wird gesondert behandelt (zwei abhängige Felder +
+        # Bezug zum — ggf. soeben geänderten — Startdatum). Wir validieren,
+        # wenn der Aufrufer Wiederholungsfelder anfasst ODER wenn eine
+        # bestehende Serie durch eine Startverschiebung neu zu prüfen ist.
+        touches_recurrence = "recurrence_rule" in fields or "recurrence_until" in fields
+        if touches_recurrence or (meeting.recurrence_rule != "none" and "starts_at" in fields):
+            rule, until = self._coerce_recurrence(
+                fields.get("recurrence_rule", meeting.recurrence_rule),
+                fields.get("recurrence_until", meeting.recurrence_until),
+                start_date=meeting.starts_at.date(),
+            )
+            meeting.recurrence_rule = rule
+            meeting.recurrence_until = until
         self.session.flush()
 
         after = self._meeting_snapshot(meeting)
@@ -342,6 +390,10 @@ class MeetingService:
             "location": meeting.location,
             "category": meeting.category,
             "status": meeting.status,
+            "recurrence_rule": meeting.recurrence_rule,
+            "recurrence_until": (
+                meeting.recurrence_until.isoformat() if meeting.recurrence_until else None
+            ),
             "summary": meeting.summary,
             "extra_participants": meeting.extra_participants,
             "workpackage_ids": sorted(link.workpackage_id for link in meeting.workpackage_links),

@@ -120,6 +120,18 @@ MEETING_STATUSES = (
     "completed",
     "cancelled",
 )
+# Wiederholungs-Rhythmen für Termine/Meetings (Block 0052 — V1).
+# ``none`` = einmaliger Termin (Default). Eine Serie wird als EIN
+# Meeting-Datensatz gespeichert und im Kalender nur für den abgefragten
+# Zeitraum in konkrete Vorkommen expandiert (siehe CalendarService).
+MEETING_RECURRENCE_RULES = ("none", "weekly", "biweekly", "monthly")
+MEETING_RECURRENCE_LABELS_DE = {
+    "none": "keine Wiederholung",
+    "weekly": "wöchentlich",
+    "biweekly": "alle 2 Wochen",
+    "monthly": "monatlich",
+}
+
 MEETING_STATUS_LABELS_DE = {
     "planned": "geplant",
     "held": "durchgeführt",
@@ -744,6 +756,13 @@ class Meeting(Base):
     status: Mapped[str] = mapped_column(String, nullable=False, default="planned")
     summary: Mapped[str | None] = mapped_column(String, nullable=True)
     extra_participants: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Wiederholung (Block 0052 — V1): ``recurrence_rule`` aus
+    # MEETING_RECURRENCE_RULES; ``none`` = einmaliger Termin.
+    # ``recurrence_until`` begrenzt die Serie (Pflicht, wenn rule != none).
+    # Werte werden im Service validiert; die Spalte ist bewusst ohne
+    # DB-CHECK (App-validiert, konsistent mit der Migration).
+    recurrence_rule: Mapped[str] = mapped_column(String, nullable=False, default="none")
+    recurrence_until: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_by_id: Mapped[str] = mapped_column(String(36), ForeignKey("person.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_now_utc

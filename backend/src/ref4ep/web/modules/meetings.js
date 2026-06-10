@@ -68,6 +68,21 @@ function renderCreateDialog(workpackages, onSaved, onCancel) {
     type: "text",
     placeholder: "Ort, Raum oder Online-Link",
   });
+  // Wiederholung (V1): Standard „keine"; Enddatum begrenzt die Serie.
+  const recurrenceSelect = h(
+    "select",
+    {},
+    h("option", { value: "none", selected: "" }, "Keine Wiederholung"),
+    h("option", { value: "weekly" }, "Wöchentlich"),
+    h("option", { value: "biweekly" }, "Alle 2 Wochen"),
+    h("option", { value: "monthly" }, "Monatlich"),
+  );
+  const recurrenceUntilInput = h("input", { type: "date" });
+  const recurrenceHelp = h(
+    "small",
+    { class: "field-hint" },
+    "Enddatum nur bei Wiederholung nötig. Eine Serie wird als Ganzes bearbeitet/gelöscht.",
+  );
   const summaryInput = h("textarea", { rows: "3" });
   const extraInput = h("input", {
     type: "text",
@@ -94,6 +109,21 @@ function renderCreateDialog(workpackages, onSaved, onCancel) {
   async function onSubmit(ev) {
     ev.preventDefault();
     errorBox.style.display = "none";
+    const recurrence = recurrenceSelect.value;
+    const until = recurrence === "none" ? null : nullIfBlank(recurrenceUntilInput.value);
+    if (recurrence !== "none") {
+      if (!until) {
+        errorBox.textContent = "Bei einer Wiederholung bitte ein Enddatum angeben.";
+        errorBox.style.display = "";
+        return;
+      }
+      const startDate = (startsAtInput.value || "").slice(0, 10);
+      if (startDate && until <= startDate) {
+        errorBox.textContent = "Das Wiederholungs-Enddatum muss nach dem Startdatum liegen.";
+        errorBox.style.display = "";
+        return;
+      }
+    }
     const payload = {
       title: titleInput.value,
       starts_at: localInputToPayload(startsAtInput.value),
@@ -101,6 +131,8 @@ function renderCreateDialog(workpackages, onSaved, onCancel) {
       format: formatSelect.value,
       category: categorySelect.value,
       location: nullIfBlank(locationInput.value),
+      recurrence_rule: recurrence,
+      recurrence_until: until,
       summary: nullIfBlank(summaryInput.value),
       extra_participants: nullIfBlank(extraInput.value),
       workpackage_ids: selectedWpIds(),
@@ -123,6 +155,8 @@ function renderCreateDialog(workpackages, onSaved, onCancel) {
     h("label", {}, "Format", formatSelect),
     h("label", {}, "Kategorie", categorySelect),
     h("label", {}, "Ort / Online-Link", locationInput),
+    h("label", {}, "Wiederholung", recurrenceSelect),
+    h("label", {}, "Wiederholung bis (optional)", recurrenceUntilInput, recurrenceHelp),
     h("label", {}, "Zusammenfassung (optional)", summaryInput),
     h("label", {}, "Zusätzliche Teilnehmende (optional)", extraInput),
     h("label", {}, "Zugehörige Arbeitspakete", wpSelect, wpHelp),

@@ -501,6 +501,8 @@ class MeetingListItemOut(BaseModel):
     format: str
     category: str
     status: str
+    recurrence_rule: str = "none"
+    recurrence_until: date | None = None
     workpackages: list[MeetingWorkpackageOut] = Field(default_factory=list)
     open_actions: int = 0
     decisions: int = 0
@@ -516,6 +518,8 @@ class MeetingDetailOut(BaseModel):
     location: str | None = None
     category: str
     status: str
+    recurrence_rule: str = "none"
+    recurrence_until: date | None = None
     summary: str | None = None
     extra_participants: str | None = None
     created_by: MeetingPersonOut
@@ -535,6 +539,8 @@ class MeetingCreateRequest(BaseModel):
     location: str | None = None
     category: str = "other"
     status: str = "planned"
+    recurrence_rule: str = "none"
+    recurrence_until: date | None = None
     summary: str | None = None
     extra_participants: str | None = None
     workpackage_ids: list[str] = Field(default_factory=list)
@@ -548,6 +554,8 @@ class MeetingPatchRequest(BaseModel):
     location: str | None = None
     category: str | None = None
     status: str | None = None
+    recurrence_rule: str | None = None
+    recurrence_until: date | None = None
     summary: str | None = None
     extra_participants: str | None = None
     workpackage_ids: list[str] | None = None

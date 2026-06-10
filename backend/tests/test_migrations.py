@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from alembic import command
 from tests.conftest import ALEMBIC_DIR, ALEMBIC_INI
 
-CURRENT_HEAD = "0024_test_campaign_attachments"
+CURRENT_HEAD = "0025_meeting_recurrence"
 IDENTITY_TABLES = {"partner", "person", "workpackage", "membership"}
 DOCUMENT_TABLES = {"document", "document_version"}
 AUDIT_TABLES = {"audit_log"}
@@ -509,6 +509,9 @@ MEETING_COLUMNS = {
     "location",
     "category",
     "status",
+    # Block 0052 — Wiederkehrende Termine (V1).
+    "recurrence_rule",
+    "recurrence_until",
     "summary",
     "extra_participants",
     "created_by_id",
@@ -1533,3 +1536,57 @@ def test_downgrade_to_0023_drops_attachment_table(tmp_db_path: Path) -> None:
     command.downgrade(cfg, "0023_library_section_themes")
     inspector = inspect(create_engine(db_url))
     assert "test_campaign_attachment" not in set(inspector.get_table_names())
+
+
+# ---- Block 0052 — Wiederkehrende Termine (V1) -------------------------
+
+
+def test_meeting_recurrence_columns_present_and_nullable(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    command.upgrade(_make_config(db_url), "head")
+    cols = {c["name"]: c for c in inspect(create_engine(db_url)).get_columns("meeting")}
+    assert "recurrence_rule" in cols
+    assert "recurrence_until" in cols
+    # recurrence_rule ist NOT NULL (Default 'none'), recurrence_until nullable.
+    assert cols["recurrence_rule"]["nullable"] is False
+    assert cols["recurrence_until"]["nullable"] is True
+
+
+def test_existing_meetings_default_to_no_recurrence(tmp_db_path: Path) -> None:
+    """Bestandstermine, vor der Migration angelegt, bekommen
+    ``recurrence_rule='none'`` (Default) — keine Datenänderung erzwungen."""
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    # Auf den Stand VOR der Recurrence-Migration hochfahren und ein
+    # Meeting direkt per SQL anlegen.
+    command.upgrade(cfg, "0024_test_campaign_attachments")
+    engine = create_engine(db_url)
+    with engine.begin() as conn:
+        _seed_minimal_partner_and_admin(conn)
+        conn.exec_driver_sql(
+            "INSERT INTO meeting (id, title, starts_at, format, category, status, "
+            "created_by_id, created_at, updated_at) VALUES "
+            "('aaaa1111-2222-3333-4444-555566667777', 'Alt-Termin', "
+            "datetime('now'), 'online', 'other', 'planned', "
+            "'22222222-3333-4444-5555-666666666666', datetime('now'), datetime('now'))"
+        )
+    engine.dispose()
+    command.upgrade(cfg, "head")
+    engine = create_engine(db_url)
+    with engine.connect() as conn:
+        row = conn.exec_driver_sql(
+            "SELECT recurrence_rule, recurrence_until FROM meeting "
+            "WHERE id = 'aaaa1111-2222-3333-4444-555566667777'"
+        ).fetchone()
+    engine.dispose()
+    assert row == ("none", None)
+
+
+def test_downgrade_to_0024_drops_recurrence_columns(tmp_db_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_db_path}"
+    cfg = _make_config(db_url)
+    command.upgrade(cfg, "head")
+    command.downgrade(cfg, "0024_test_campaign_attachments")
+    cols = {c["name"] for c in inspect(create_engine(db_url)).get_columns("meeting")}
+    assert "recurrence_rule" not in cols
+    assert "recurrence_until" not in cols
