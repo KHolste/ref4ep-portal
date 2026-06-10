@@ -6715,3 +6715,37 @@ main#app.calendar-page .calendar-agenda-item {
     min-width: 640px;
   }
 }
+
+/* =====================================================================
+ * PROJEKTBIBLIOTHEK — dezentes Hintergrundmotiv (Phase 9, Versuch)
+ *
+ * SEHR dezenter „Schimmer" des Bibliotheksbilds hinter dem Inhalt der
+ * Projektbibliothek — nur unter ``main#app.project-library-page`` und
+ * über ein ``::before``-Layer mit negativem z-index (hinter allen
+ * Inhalten). Ein starkes helles Overlay (oben ~0.88, nach unten nahezu
+ * deckend) hält das Bild knapp wahrnehmbar; Filter/Kacheln/Dokument-
+ * karten liegen auf opaken Card-Flächen darüber und bleiben klar lesbar.
+ * Kein ``background-attachment: fixed`` (Mobile-sicher), keine Animation.
+ * Der Hero (eigener dunkler Hintergrund) überdeckt das Layer oben.
+ * ===================================================================== */
+
+main#app.project-library-page {
+  position: relative;
+  z-index: 0;
+}
+
+main#app.project-library-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(243, 245, 249, 0.88) 0%,
+      rgba(243, 245, 249, 0.97) 340px,
+      rgba(243, 245, 249, 0.995) 720px
+    ),
+    #f3f5f9 url("/static/images/library-hero.jpg") center top / cover no-repeat;
+}

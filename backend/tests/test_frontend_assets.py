@@ -3697,7 +3697,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0057"
+_NAV_PATCH_VERSION = "0058"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4358,6 +4358,22 @@ def test_library_hero_uses_local_image_and_keeps_upload() -> None:
     body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
     assert "const actionBar = isLoggedIn" in body
     assert "library-hero" in body
+
+
+def test_library_page_subtle_background_layer_is_scoped_and_local() -> None:
+    """Dezentes Hintergrundmotiv nur für die Projektbibliothek: ein
+    ``::before``-Layer hinter dem Inhalt (negativer z-index), lokales
+    Bild, starkes helles Overlay — Lesbarkeit der Karten bleibt."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert "main#app.project-library-page::before" in css
+    start = css.index("main#app.project-library-page::before")
+    block = css[start : css.index("}", start)]
+    # Hinter dem Inhalt, lokales Bild, helles Overlay.
+    assert "z-index: -1" in block
+    assert 'url("/static/images/library-hero.jpg")' in block
+    assert "rgba(243, 245, 249, 0.88)" in block
+    # Kein Fixed-Attachment (Mobile-sicher).
+    assert "fixed" not in block
 
 
 def test_app_shell_main_area_left_aligned_and_wide() -> None:
