@@ -3697,7 +3697,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0060"
+_NAV_PATCH_VERSION = "0061"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4379,6 +4379,33 @@ def test_library_tiles_have_interactive_polish_scoped() -> None:
     body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
     assert "library-tile" in body
     assert "<img" not in body
+
+
+def test_library_tiles_have_warm_accent_rotation_scoped() -> None:
+    """Dezente, gescopte Akzentvariation der Kategorie-Kacheln über
+    ``--tile-accent`` + nth-child — inkl. eines gedämpften Amber/Gold-
+    Akzents. Aktive Kachel bleibt einheitlich Teal."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    # Per-Kachel-Akzentvariable, gescopt.
+    assert "main#app.project-library-page .library-tile {" in css
+    base = css[css.index("main#app.project-library-page .library-tile {") :]
+    base = base[: base.index("}")]
+    assert "--tile-accent:" in base
+    # Warmer Amber/Gold-Akzent über die Rotation vorhanden, gescopt.
+    assert (
+        "main#app.project-library-page .library-tile:not(.library-tile-all):nth-child(5n + 4)"
+        in css
+    )
+    amber_idx = css.index(
+        "main#app.project-library-page .library-tile:not(.library-tile-all):nth-child(5n + 4)"
+    )
+    assert "--rds-accent-amber" in css[amber_idx : css.index("}", amber_idx)]
+    # Aktive Kachel weiterhin Teal (konsistentes Auswahlsignal).
+    act = css.index("main#app.project-library-page .library-tile.active::before")
+    assert "--rds-accent-teal" in css[act : css.index("}", act)]
+    # Marker nutzt die Kachel-Akzentvariable (keine feste Farbe).
+    mk = css.index("main#app.project-library-page .library-tile-title::before")
+    assert "var(--tile-accent)" in css[mk : css.index("}", mk)]
 
 
 def test_library_page_subtle_background_layer_is_scoped_and_local() -> None:

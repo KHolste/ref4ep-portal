@@ -5570,8 +5570,17 @@ main#app.project-library-page .library-tile-grid {
 }
 
 /* Hochwertige, interaktive Auswahlkarten (Phase 10) — gescopt, reine
- * CSS-Aufwertung ohne JS-/Logik-Änderung, keine externen Assets. */
+ * CSS-Aufwertung ohne JS-/Logik-Änderung, keine externen Assets.
+ *
+ * Phase 11: dezente, gedämpfte Akzentvariation pro Kachel über die
+ * lokale Variable ``--tile-accent`` + ``nth-child()``-Rotation
+ * (Teal/Blau/Amber/Gold/Grün/Neutral) — passend zum warmen
+ * Bibliotheksmotiv. Akzent erscheint nur an Marker + dünnem oberen
+ * Balken; die AKTIVE Kachel bleibt einheitlich Teal (klares
+ * Auswahlsignal), „Alle Dokumente" bleibt dunkelblau. Keine farbigen
+ * Vollflächen, keine globalen Farbänderungen. */
 main#app.project-library-page .library-tile {
+  --tile-accent: var(--rds-accent-teal);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -5588,7 +5597,27 @@ main#app.project-library-page .library-tile {
     transform 0.14s ease;
 }
 
-/* Farbiger oberer Akzentbalken (rein dekorativ, kein Icon). */
+/* „Alle Dokumente" — neutral dunkelblau (nicht in der Rotation). */
+main#app.project-library-page .library-tile-all {
+  --tile-accent: var(--rds-text-strong);
+}
+
+/* Gedämpfte Akzent-Rotation über die Kategorie-Kacheln; die erste
+ * Kachel (``library-tile-all``) ist per ``:not`` ausgenommen. */
+main#app.project-library-page .library-tile:not(.library-tile-all):nth-child(5n + 1) {
+  --tile-accent: var(--rds-text-subtle);
+}
+main#app.project-library-page .library-tile:not(.library-tile-all):nth-child(5n + 3) {
+  --tile-accent: var(--rds-link);
+}
+main#app.project-library-page .library-tile:not(.library-tile-all):nth-child(5n + 4) {
+  --tile-accent: var(--rds-accent-amber);
+}
+main#app.project-library-page .library-tile:not(.library-tile-all):nth-child(5n + 5) {
+  --tile-accent: var(--rds-accent-green);
+}
+
+/* Dünner oberer Akzentbalken in der Kachelfarbe (rein dekorativ). */
 main#app.project-library-page .library-tile::before {
   content: "";
   position: absolute;
@@ -5596,7 +5625,7 @@ main#app.project-library-page .library-tile::before {
   left: 0;
   right: 0;
   height: 3px;
-  background: var(--rds-border-strong);
+  background: var(--tile-accent);
   transition: background-color 0.14s ease;
 }
 
@@ -5607,9 +5636,11 @@ main#app.project-library-page .library-tile:hover {
 }
 
 main#app.project-library-page .library-tile:hover::before {
-  background: var(--rds-accent-teal);
+  background: var(--tile-accent);
 }
 
+/* Aktive Kachel bewusst einheitlich Teal — klares, konsistentes
+ * Auswahlsignal unabhängig vom Kategorie-Akzent. */
 main#app.project-library-page .library-tile.active {
   border-color: var(--rds-accent-teal);
   background: var(--rds-accent-teal-soft);
@@ -5617,10 +5648,6 @@ main#app.project-library-page .library-tile.active {
 
 main#app.project-library-page .library-tile.active::before {
   background: var(--rds-accent-teal);
-}
-
-main#app.project-library-page .library-tile-all::before {
-  background: var(--rds-text-strong);
 }
 
 main#app.project-library-page .library-tile-all.active {
@@ -5632,7 +5659,7 @@ main#app.project-library-page .library-tile-all.active::before {
   background: var(--rds-text-strong);
 }
 
-/* Titel mit kleinem CSS-Marker-Quadrat (kein externes Icon). */
+/* Titel mit kleinem CSS-Marker-Quadrat in der Kachelfarbe (kein Icon). */
 main#app.project-library-page .library-tile-title {
   display: flex;
   align-items: center;
@@ -5648,11 +5675,7 @@ main#app.project-library-page .library-tile-title::before {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 2px;
-  background: var(--rds-accent-teal);
-}
-
-main#app.project-library-page .library-tile-all .library-tile-title::before {
-  background: var(--rds-text-strong);
+  background: var(--tile-accent);
 }
 
 main#app.project-library-page .library-tile-description {
