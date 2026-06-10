@@ -560,6 +560,10 @@ function renderBoard(board, mode, containerWidth) {
 }
 
 export async function render(container, _ctx) {
+  // Breite Arbeitsfläche nutzen (wie die übrigen modernisierten Seiten)
+  // + Modul-Scope für den Timeline-Polish. Kein Logik-/Daten-Umbau.
+  container.classList.add("page-wide");
+  container.classList.add("gantt-page");
   container.replaceChildren(
     pageHeader("Projekt-Timeline", "Zeitleiste über Meilensteine, Testkampagnen und Meetings."),
     renderLoading("Timeline wird geladen …"),
@@ -599,8 +603,16 @@ export async function render(container, _ctx) {
   }
 
   container.replaceChildren(
-    pageHeader("Projekt-Timeline", "Zeitleiste über Meilensteine, Testkampagnen und Meetings."),
-    filterSlot,
+    // Helles Intro-/Hero-Band mit integrierter Zeitraum-Toolbar.
+    h(
+      "header",
+      { class: "gantt-hero" },
+      pageHeader(
+        "Projekt-Timeline",
+        "Zeitleiste über Meilensteine, Testkampagnen und Meetings.",
+      ),
+      filterSlot,
+    ),
     boardSlot,
     legendSlot,
     crossNav(),

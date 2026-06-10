@@ -6876,3 +6876,113 @@ main#app.project-library-page::before {
     ),
     #f3f5f9 url("/static/images/library-hero.jpg") center top / cover no-repeat;
 }
+
+/* =====================================================================
+ * ZEITPLAN / PROJEKT-TIMELINE — Board-Polish (Phase 13)
+ *
+ * Macht aus der schmalen Tabellenoptik ein modernes Timeline-Board:
+ * breite Arbeitsfläche (via page-wide am Container), helles Intro-Band
+ * mit Segmented-Toggle, hochwertiges Panel, ruhigere Balkenfarben.
+ * Alle Regeln gescopt unter main#app.gantt-page — keine globalen Tabellen-
+ * /Button-/Card-Overrides, keine SVG-Logik-/Datenaenderung. Meilenstein-
+ * Ampelfarben (fachlich) bleiben unangetastet (kein fill-Override darauf).
+ * ===================================================================== */
+
+/* ---- Helles Intro-/Hero-Band (analog Arbeitspakete, ohne Bild) ----- */
+
+main#app.gantt-page .gantt-hero {
+  background: linear-gradient(135deg, #ffffff 0%, var(--rds-accent-teal-soft) 100%);
+  border: 1px solid var(--rds-border);
+  border-left: 4px solid var(--rds-text-strong);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-sm);
+  padding: var(--rds-space-5) var(--rds-space-6);
+  margin-bottom: var(--rds-space-5);
+}
+
+main#app.gantt-page .gantt-hero .page-header {
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+main#app.gantt-page .gantt-hero .page-title {
+  font-size: 1.5rem;
+}
+
+/* ---- Zeitraum-Toolbar als Segmented-Toggle ------------------------- */
+
+main#app.gantt-page .gantt-filter-bar {
+  margin: var(--rds-space-4) 0 0;
+  align-items: center;
+}
+
+main#app.gantt-page .gantt-filter-bar > .muted {
+  font-size: var(--rds-fs-meta);
+  font-weight: 600;
+  color: var(--rds-text-muted);
+}
+
+main#app.gantt-page .gantt-range-btn {
+  margin: 0;
+  padding: 0.42rem 0.95rem;
+  font-weight: 600;
+  color: var(--rds-text-strong);
+  background: var(--rds-surface-raised);
+  border: 1px solid var(--rds-border-strong);
+  border-left-width: 0;
+  border-radius: 0;
+}
+
+main#app.gantt-page .gantt-range-btn:first-of-type {
+  border-left-width: 1px;
+  border-radius: var(--rds-radius-sm) 0 0 var(--rds-radius-sm);
+}
+
+main#app.gantt-page .gantt-range-btn:last-of-type {
+  border-radius: 0 var(--rds-radius-sm) var(--rds-radius-sm) 0;
+}
+
+main#app.gantt-page .gantt-range-btn:hover {
+  background: var(--rds-surface-soft);
+}
+
+main#app.gantt-page .gantt-range-btn-active {
+  background: var(--rds-accent-teal);
+  border-color: var(--rds-accent-teal);
+  color: #ffffff;
+}
+
+/* ---- Timeline in einem hochwertigen Panel ------------------------- */
+
+main#app.gantt-page .gantt-scroll {
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-md);
+  background: var(--rds-surface-raised);
+  padding: var(--rds-space-4);
+}
+
+/* ---- Legende als ruhiges Chip-/Panel-Band ------------------------- */
+
+main#app.gantt-page .gantt-legend {
+  margin-top: var(--rds-space-3);
+  padding: var(--rds-space-2) var(--rds-space-4);
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+  background: var(--rds-surface-soft);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-md);
+}
+
+/* ---- Balkenfarben moderner (rein dekorativ; SVG-Presentation-
+ *      Attribute werden durch CSS ueberschrieben). Meilenstein-/
+ *      Meeting-Marker bleiben unberuehrt (Ampel = fachlich). ---------- */
+
+main#app.gantt-page .gantt-wp-bar-sub {
+  fill: var(--rds-accent-teal);
+}
+
+main#app.gantt-page .gantt-wp-bar-top {
+  fill: #5f6b80;
+}

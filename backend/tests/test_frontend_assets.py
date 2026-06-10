@@ -2788,6 +2788,29 @@ def test_workpackages_filter_bar_sub_list_sections_remain() -> None:
     assert "buildHierarchy" in body or "groupedSubs" in body
 
 
+def test_gantt_timeline_board_polish_scoped() -> None:
+    """Zeitplan-Seite nutzt die breite Arbeitsfläche (page-wide) + eigenen
+    Wrapper, Hero-Band mit Toolbar und ein gescoptes Panel — bestehende
+    Gantt-/SVG-Logik und -Klassen bleiben erhalten."""
+    body = (MODULES_DIR / "gantt.js").read_text(encoding="utf-8")
+    assert 'classList.add("page-wide")' in body
+    assert 'classList.add("gantt-page")' in body
+    assert "gantt-hero" in body
+    # SVG-/Bar-Logik unveraendert vorhanden.
+    assert "gantt-svg" in body
+    assert "gantt-wp-bar" in body
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for needle in (
+        "main#app.gantt-page .gantt-hero",
+        "main#app.gantt-page .gantt-scroll",
+        "main#app.gantt-page .gantt-range-btn-active",
+    ):
+        assert needle in css, f"style.css sollte {needle!r} enthalten"
+    # Heutige Linie/Balken weiterhin im Modul (rot dashed heute-Linie).
+    assert "heute" in body
+    assert "stroke-dasharray" in body
+
+
 def test_gantt_module_exists_and_uses_svg() -> None:
     """Block 0026: Gantt-Modul rendert SVG aus /api/gantt-Daten."""
     path = MODULES_DIR / "gantt.js"
@@ -3697,7 +3720,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0063"
+_NAV_PATCH_VERSION = "0064"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
