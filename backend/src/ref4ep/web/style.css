@@ -7137,7 +7137,7 @@ main#app.meetings-page .meetings-hero {
       rgba(16, 23, 40, 0.78) 48%,
       rgba(20, 30, 54, 0.55) 100%
     ),
-    #0d1321 url("/static/images/meetings-hero.jpg") center / cover no-repeat;
+    #0d1321 url("/static/images/meetings-hero-2.jpg") center / cover no-repeat;
 }
 
 main#app.meetings-page .meetings-hero > button {
