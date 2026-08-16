@@ -117,6 +117,37 @@ auftauchen / nicht möglich sein.
 - [ ] Status auf „erreicht" ohne Istdatum: ✅ Server trägt
       automatisch das heutige Datum ein.
 
+## 7a. Kontaktverzeichnis (`/portal/contacts`, Block 0053)
+
+- [ ] Menüpunkt „Kontakte" ist in der Gruppe
+      „Zusammenarbeit" für **jede** eingeloggte Person
+      sichtbar — auch für Member ohne Lead-Rolle.
+- [ ] Die Liste zeigt Personen **aller** Einrichtungen, auch
+      solcher, mit denen die angemeldete Person weder über
+      die eigene Einrichtung noch über ein Arbeitspaket
+      verbunden ist. Das ist der Kern des Blocks.
+- [ ] Einträge sind nach Einrichtung gruppiert; je Karte
+      erscheinen E-Mail (mailto:), Telefon (tel:), Funktion,
+      Einheit und die Arbeitspaket-Chips.
+- [ ] Filter wirken sofort: Suche, Einrichtung, Funktion,
+      Arbeitspaket, „Nur Leitungen und Hauptkontakte",
+      „Zurücksetzen".
+- [ ] Eine Person, die sowohl als Partnerkontakt gepflegt
+      ist **als auch** ein Portal-Konto mit derselben
+      E-Mail-Adresse bei derselben Einrichtung hat,
+      erscheint **einmal** — mit Badge „Portal-Konto" und
+      den Arbeitspaketen des Kontos.
+- [ ] Als **Member**: kein Feld „Interne Notiz", keine
+      Checkbox „Deaktivierte einblenden"; `GET
+      /api/contacts?include_inactive=true` liefert trotzdem
+      keine deaktivierten Einträge.
+- [ ] Als **Admin**: interne Notizen sichtbar, Checkbox
+      „Deaktivierte einblenden" lädt die Liste neu und
+      markiert die Einträge mit Badge „deaktiviert".
+- [ ] Die Seite bietet **keine** Bearbeitungspfade —
+      Kontakte werden weiterhin auf der Partner-Detailseite
+      gepflegt.
+
 ## 8. Rechteprüfung — Querschnitt
 
 | Bereich               | Admin | WP-Lead (eigenes WP) | Member ohne Lead | Anonym |
@@ -129,6 +160,8 @@ auftauchen / nicht möglich sein.
 | MS4 (Gesamtprojekt)   |  ✅   |          ⛔          |        ⛔        |   ⛔   |
 | Partner-Stammdaten    |  ✅   |    ✅ (eigener)      |        ⛔        |   ⛔   |
 | Partnerkontakte CRUD  |  ✅   |    ✅ (eigener)      |    nur lesen     |   ⛔   |
+| Kontaktverzeichnis    |  ✅   |          ✅          |        ✅        |   ⛔   |
+| Deaktivierte Kontakte |  ✅   |          ⛔          |        ⛔        |   ⛔   |
 | Internal Notes lesen  |  ✅   |          ⛔          |        ⛔        |   ⛔   |
 
 ## 9. Negativtests (kurz)

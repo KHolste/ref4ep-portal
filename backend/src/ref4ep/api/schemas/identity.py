@@ -122,6 +122,49 @@ class PartnerContactPatchRequest(BaseModel):
     is_active: bool | None = None
 
 
+class ContactDirectoryPartnerOut(BaseModel):
+    id: str
+    short_name: str
+    name: str
+    unit_name: str | None = None
+
+
+class ContactDirectoryWorkpackageOut(BaseModel):
+    code: str
+    title: str
+    wp_role: str
+
+
+class ContactDirectoryEntryOut(BaseModel):
+    """Ein Eintrag des projektweiten Kontaktverzeichnisses (Block 0053).
+
+    ``sources`` benennt die Herkunft der Daten: ``contact`` für einen
+    gepflegten Partnerkontakt, ``person`` für einen Portal-Account.
+    Wurden beide zusammengeführt, stehen beide Werte drin.
+    ``internal_note`` ist — wie überall — nur für Admins gefüllt.
+    """
+
+    key: str
+    sources: list[str] = Field(default_factory=list)
+    name: str
+    partner: ContactDirectoryPartnerOut
+    title_or_degree: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    function: str | None = None
+    organization_unit: str | None = None
+    workpackage_notes: str | None = None
+    is_primary_contact: bool = False
+    is_project_lead: bool = False
+    is_partner_lead: bool = False
+    is_portal_user: bool = False
+    is_active: bool = True
+    contact_id: str | None = None
+    person_id: str | None = None
+    internal_note: str | None = None
+    workpackages: list[ContactDirectoryWorkpackageOut] = Field(default_factory=list)
+
+
 class PersonOut(BaseModel):
     id: str
     email: str

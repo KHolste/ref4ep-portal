@@ -12,7 +12,7 @@ import { api, getAdminViewMode, setAdminViewMode } from "/portal/common.js";
 // common.js oder einem Modul (web/modules/*.js) hochgezogen werden;
 // der Asset-Test ``test_index_html_uses_cache_buster_for_app_js_and_style_css``
 // erzwingt das Mitwachsen.
-export const ASSET_VERSION = "0075";
+export const ASSET_VERSION = "0076";
 
 const ROUTES = [
   { pattern: /^\/portal\/?$/, module: "cockpit" },
@@ -20,6 +20,7 @@ const ROUTES = [
   { pattern: /^\/portal\/workpackages\/([^/]+)\/?$/, module: "workpackage_detail", param: "code" },
   { pattern: /^\/portal\/documents\/([^/]+)\/?$/, module: "document_detail", param: "id" },
   { pattern: /^\/portal\/partners\/([^/]+)\/?$/, module: "partner_detail", param: "id" },
+  { pattern: /^\/portal\/contacts\/?$/, module: "contacts" },
   { pattern: /^\/portal\/milestones\/?$/, module: "milestones" },
   { pattern: /^\/portal\/meetings\/?$/, module: "meetings" },
   { pattern: /^\/portal\/meetings\/([^/]+)\/print\/?$/, module: "meeting_print", param: "id" },
@@ -144,7 +145,15 @@ async function dispatch(pathname) {
     const mod = await loadModule(matched.route.module);
     await mod.render(main, { me: currentMe, params: matched.params, navigate });
     document.querySelectorAll("#nav-main a").forEach((a) => {
-      a.classList.toggle("active", a.dataset.route === matched.route.module);
+      const isActive = a.dataset.route === matched.route.module;
+      a.classList.toggle("active", isActive);
+      // Der aktive Eintrag darf nicht nur farblich erkennbar sein —
+      // ``aria-current`` macht ihn für Screenreader eindeutig.
+      if (isActive) {
+        a.setAttribute("aria-current", "page");
+      } else {
+        a.removeAttribute("aria-current");
+      }
     });
   } catch (err) {
     main.innerHTML = `<p class="error">Fehler beim Laden: ${err.message}</p>`;

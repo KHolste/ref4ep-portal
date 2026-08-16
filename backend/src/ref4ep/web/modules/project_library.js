@@ -184,6 +184,7 @@ function renderTile(section, isActive, onPick) {
     {
       type: "button",
       class: `library-tile${isActive ? " active" : ""}`,
+      "aria-pressed": isActive ? "true" : "false",
       onclick: () => onPick(section.key),
     },
     h("div", { class: "library-tile-title" }, section.label),
@@ -198,10 +199,11 @@ function renderTileGrid(activeKey, onPick) {
     {
       type: "button",
       class: `library-tile library-tile-all${activeKey === null ? " active" : ""}`,
+      "aria-pressed": activeKey === null ? "true" : "false",
       onclick: () => onPick(null),
     },
     h("div", { class: "library-tile-title" }, "Alle Dokumente"),
-    h("div", { class: "library-tile-description muted" }, "Filter zurücksetzen."),
+    h("div", { class: "library-tile-description muted" }, "Kategoriefilter aufheben."),
   );
   return h(
     "div",
@@ -211,43 +213,134 @@ function renderTileGrid(activeKey, onPick) {
   );
 }
 
+// Kategorien liegen in einem ein- und ausklappbaren Bereich. Standardmäßig
+// zugeklappt: die Ergebnisliste beginnt dadurch auf einem 1440×900-Desktop
+// direkt unterhalb von Kopf und Filtern. Der Zustand bleibt über
+// ``state.categoriesOpen`` erhalten, die aktive Kategorie steht immer in
+// der Zusammenfassung.
+function renderCategoryPanel(state, onPick, onToggle) {
+  const activeLabel = state.section
+    ? SECTION_LABELS[state.section] || state.section
+    : "Alle Dokumente";
+  const panel = h(
+    "details",
+    { class: "library-categories" },
+    h(
+      "summary",
+      { class: "library-categories-summary" },
+      h("span", { class: "library-categories-label" }, "Kategorie"),
+      h("span", { class: "library-categories-active" }, activeLabel),
+      h(
+        "span",
+        { class: "library-categories-hint muted" },
+        `${SECTIONS.length} Bereiche zur Auswahl`,
+      ),
+    ),
+    renderTileGrid(state.section, onPick),
+  );
+  panel.open = state.categoriesOpen;
+  panel.addEventListener("toggle", () => onToggle(panel.open));
+  return panel;
+}
+
 function libBadge(text, tone) {
   return h("span", { class: `library-badge library-badge--${tone}` }, text);
 }
 
-function renderDocumentCard(doc) {
+// Sortierung läuft rein clientseitig über die bereits geladene Liste —
+// keine Backend-Erweiterung nur für die Anzeige.
+const SORT_OPTIONS = [
+  { key: "updated_desc", label: "Zuletzt aktualisiert" },
+  { key: "title_asc", label: "Titel (A–Z)" },
+];
+
+function sortDocuments(docs, key) {
+  const list = [...docs];
+  if (key === "title_asc") {
+    list.sort((a, b) => (a.title || "").localeCompare(b.title || "", "de"));
+    return list;
+  }
+  list.sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
+  return list;
+}
+
+// ``data-label`` trägt die Spaltenüberschrift; auf schmalen Bildschirmen
+// blendet das Stylesheet den Tabellenkopf aus und zeigt sie stattdessen
+// vor dem Wert an — dieselbe DOM-Struktur, Kartenoptik per CSS.
+function docCell(label, ...children) {
+  return h("td", { class: "library-doc-cell", "data-label": label }, ...children);
+}
+
+function renderDocumentRow(doc) {
   const sectionLabel = doc.library_section ? SECTION_LABELS[doc.library_section] : null;
-  const wpLabel = doc.workpackage_code
-    ? `${doc.workpackage_code}${doc.workpackage_title ? " — " + doc.workpackage_title : ""}`
-    : "ohne Arbeitspaketbezug";
-  // Status/Sichtbarkeit/Bereich/Typ als Badges statt als ein langer
-  // Fließtext — gleiche Informationen, klarere Struktur.
   const statusTone =
     doc.status === "released" ? "ok" : doc.status === "in_review" ? "warn" : "neutral";
-  const badges = [
-    libBadge(STATUS_LABELS[doc.status] || doc.status, statusTone),
-    libBadge(
-      VISIBILITY_LABELS[doc.visibility] || doc.visibility,
-      doc.visibility === "public" ? "info" : "neutral",
-    ),
-    sectionLabel ? libBadge(sectionLabel, "section") : null,
-    libBadge(`Typ: ${DOC_TYPE_LABELS[doc.document_type] || doc.document_type || "—"}`, "neutral"),
-  ].filter(Boolean);
+  const wpNode = doc.workpackage_code
+    ? h(
+        "a",
+        {
+          href: `/portal/workpackages/${doc.workpackage_code}`,
+          title: doc.workpackage_title || doc.workpackage_code,
+        },
+        doc.workpackage_code,
+      )
+    : h("span", { class: "muted" }, "ohne Arbeitspaketbezug");
   return h(
-    "article",
-    { class: "library-doc-card" },
-    h(
-      "a",
-      { class: "library-doc-title", href: `/portal/documents/${doc.id}` },
-      doc.title,
+    "tr",
+    { class: "library-doc-row library-doc-card" },
+    docCell(
+      "Titel",
+      h("a", { class: "library-doc-title", href: `/portal/documents/${doc.id}` }, doc.title),
+      doc.latest_version_label
+        ? h("span", { class: "library-doc-version muted" }, `Version ${doc.latest_version_label}`)
+        : null,
     ),
-    h("div", { class: "library-doc-badges" }, ...badges),
-    h("div", { class: "library-doc-meta muted" }, wpLabel),
-    h(
-      "div",
-      { class: "library-doc-meta muted" },
-      `Aktualisiert: ${formatDate(doc.updated_at)}`,
+    docCell(
+      "Status",
+      h(
+        "span",
+        { class: "library-doc-badges" },
+        libBadge(STATUS_LABELS[doc.status] || doc.status, statusTone),
+        libBadge(
+          VISIBILITY_LABELS[doc.visibility] || doc.visibility,
+          doc.visibility === "public" ? "info" : "neutral",
+        ),
+      ),
     ),
+    docCell(
+      "Kategorie",
+      sectionLabel ? libBadge(sectionLabel, "section") : h("span", { class: "muted" }, "—"),
+    ),
+    docCell("Typ", DOC_TYPE_LABELS[doc.document_type] || doc.document_type || "—"),
+    docCell("Arbeitspaket", wpNode),
+    docCell("Aktualisiert", formatDate(doc.updated_at)),
+    docCell(
+      "Aktion",
+      h("a", { class: "library-doc-open", href: `/portal/documents/${doc.id}` }, "Öffnen"),
+    ),
+  );
+}
+
+function renderDocumentTable(docs) {
+  return h(
+    "table",
+    { class: "library-doc-table" },
+    h(
+      "thead",
+      {},
+      h(
+        "tr",
+        {},
+        h("th", { scope: "col" }, "Titel"),
+        h("th", { scope: "col" }, "Status"),
+        h("th", { scope: "col" }, "Kategorie"),
+        h("th", { scope: "col" }, "Typ"),
+        h("th", { scope: "col" }, "Arbeitspaket"),
+        h("th", { scope: "col" }, "Aktualisiert"),
+        h("th", { scope: "col" }, "Aktion"),
+      ),
+    ),
+    h("tbody", {}, ...docs.map(renderDocumentRow)),
   );
 }
 
@@ -374,6 +467,8 @@ export async function render(container, ctx) {
     statusFilter: "",
     q: "",
     withoutWorkpackage: false,
+    sort: "updated_desc",
+    categoriesOpen: false,
   };
 
   // Bibliotheks-Upload steht jedem eingeloggten Konsortiumsmitglied
@@ -448,10 +543,71 @@ export async function render(container, ctx) {
 
   const listSlot = h("div", { class: "library-doc-list" });
   const tileSlot = h("div", {});
+  const resultSlot = h("div", { class: "library-result-bar" });
 
   function pickSection(key) {
     state.section = key;
     load();
+  }
+
+  function onCategoriesToggle(open) {
+    state.categoriesOpen = open;
+  }
+
+  // Aktive Filter als entfernbare Chips — man sieht ohne Blick in die
+  // Filterleiste, wonach gerade eingeschränkt wird.
+  function activeFilterChips() {
+    const chips = [];
+    const push = (label, clear) => {
+      const btn = h(
+        "button",
+        {
+          type: "button",
+          class: "library-filter-chip",
+          "aria-label": `Filter entfernen: ${label}`,
+        },
+        label,
+        h("span", { class: "library-filter-chip-x", "aria-hidden": "true" }, "×"),
+      );
+      btn.addEventListener("click", () => {
+        clear();
+        syncControls();
+        load();
+      });
+      chips.push(btn);
+    };
+    if (state.section) {
+      push(`Kategorie: ${SECTION_LABELS[state.section] || state.section}`, () => {
+        state.section = null;
+      });
+    }
+    if (state.q) push(`Suche: ${state.q}`, () => { state.q = ""; });
+    if (state.statusFilter) {
+      push(`Status: ${STATUS_LABELS[state.statusFilter] || state.statusFilter}`, () => {
+        state.statusFilter = "";
+      });
+    }
+    if (state.workpackage) {
+      push(`Arbeitspaket: ${state.workpackage}`, () => { state.workpackage = ""; });
+    }
+    if (state.withoutWorkpackage) {
+      push("Ohne Arbeitspaketbezug", () => { state.withoutWorkpackage = false; });
+    }
+    return chips;
+  }
+
+  function renderResultBar(count) {
+    const chips = activeFilterChips();
+    const countText = count === 1 ? "1 Dokument" : `${count} Dokumente`;
+    return [
+      h(
+        "p",
+        { class: "library-result-count", role: "status" },
+        countText,
+        chips.length ? " · gefiltert" : "",
+      ),
+      chips.length ? h("div", { class: "library-active-filters" }, ...chips) : null,
+    ].filter(Boolean);
   }
 
   async function load() {
@@ -461,29 +617,32 @@ export async function render(container, ctx) {
       docs = await api("GET", buildQuery(state));
     } catch (err) {
       listSlot.replaceChildren(renderError(err));
+      resultSlot.replaceChildren();
       return;
     }
-    docs = applyClientSideFilter(state, docs);
+    docs = sortDocuments(applyClientSideFilter(state, docs), state.sort);
+    resultSlot.replaceChildren(...renderResultBar(docs.length));
     if (!docs.length) {
       listSlot.replaceChildren(
         renderRichEmpty(
           "Keine Dokumente in dieser Auswahl",
           state.section
-            ? "Es gibt aktuell keine sichtbaren Dokumente in dieser Kachel."
+            ? "Es gibt aktuell keine sichtbaren Dokumente in dieser Kategorie."
             : "Es gibt aktuell keine sichtbaren Dokumente.",
-          isLoggedIn ? { label: "Dokument hochladen …", onClick: onUpload } : null,
+          isLoggedIn ? { label: "Dokument hochladen", onClick: onUpload } : null,
         ),
       );
     } else {
-      listSlot.replaceChildren(...docs.map(renderDocumentCard));
+      listSlot.replaceChildren(renderDocumentTable(docs));
     }
-    tileSlot.replaceChildren(renderTileGrid(state.section, pickSection));
+    tileSlot.replaceChildren(renderCategoryPanel(state, pickSection, onCategoriesToggle));
   }
 
-  // Filterleiste
+  // Filterleiste — die Suche ist das Hauptwerkzeug und steht deshalb
+  // zuerst und breit; alles Weitere schließt rechts kompakt an.
   const qInput = h("input", {
     type: "search",
-    placeholder: "Suche im Titel/Code …",
+    placeholder: "Titel oder Dokumentcode …",
     value: state.q,
   });
   qInput.addEventListener("input", () => {
@@ -510,31 +669,67 @@ export async function render(container, ctx) {
     state.workpackage = wpInput.value.trim();
     load();
   });
+  const sortSelect = h(
+    "select",
+    {},
+    ...SORT_OPTIONS.map((o) => h("option", { value: o.key }, o.label)),
+  );
+  sortSelect.addEventListener("change", () => {
+    state.sort = sortSelect.value;
+    load();
+  });
   const withoutWpToggle = h("input", { type: "checkbox" });
   withoutWpToggle.addEventListener("change", () => {
     state.withoutWorkpackage = withoutWpToggle.checked;
     load();
   });
+  const resetAllBtn = h(
+    "button",
+    { type: "button", class: "button-secondary library-filter-reset" },
+    "Alle Filter zurücksetzen",
+  );
+
+  // Bedienelemente auf den State nachziehen — nötig, wenn ein Filter
+  // über einen Chip oder den Zurücksetzen-Button entfernt wurde.
+  function syncControls() {
+    qInput.value = state.q;
+    statusSelect.value = state.statusFilter;
+    wpInput.value = state.workpackage;
+    sortSelect.value = state.sort;
+    withoutWpToggle.checked = state.withoutWorkpackage;
+  }
+
+  resetAllBtn.addEventListener("click", () => {
+    state.section = null;
+    state.q = "";
+    state.statusFilter = "";
+    state.workpackage = "";
+    state.withoutWorkpackage = false;
+    syncControls();
+    load();
+  });
 
   const filterBar = h(
     "div",
-    { class: "library-filter-bar" },
-    h("label", {}, "Suche", qInput),
-    h("label", {}, "Status", statusSelect),
-    h("label", {}, "Arbeitspaket", wpInput),
+    { class: "library-filter-bar", role: "search" },
+    h("label", { class: "library-filter-field library-filter-field--search" }, "Suche", qInput),
+    h("label", { class: "library-filter-field" }, "Status", statusSelect),
+    h("label", { class: "library-filter-field" }, "Arbeitspaket", wpInput),
+    h("label", { class: "library-filter-field" }, "Sortierung", sortSelect),
     h(
       "label",
-      { class: "checkbox-row" },
+      { class: "checkbox-row library-filter-toggle" },
       withoutWpToggle,
-      h("span", {}, "nur ohne Arbeitspaketbezug"),
+      h("span", {}, "Nur ohne Arbeitspaketbezug"),
     ),
+    resetAllBtn,
   );
 
   const actionBar = isLoggedIn
     ? h(
         "div",
         { class: "actions" },
-        h("button", { type: "button", onclick: onUpload }, "Dokument hochladen …"),
+        h("button", { type: "button", onclick: onUpload }, "Dokument hochladen"),
       )
     : null;
 
@@ -554,13 +749,15 @@ export async function render(container, ctx) {
       ),
       actionBar,
     ),
-    tileSlot,
     filterBar,
+    tileSlot,
+    resultSlot,
     listSlot,
     modalSlot,
   );
 
-  // initial render: tiles + first load
-  tileSlot.replaceChildren(renderTileGrid(state.section, pickSection));
+  // initial render: Kategorien (eingeklappt) + erster Ladevorgang
+  syncControls();
+  tileSlot.replaceChildren(renderCategoryPanel(state, pickSection, onCategoriesToggle));
   await load();
 }

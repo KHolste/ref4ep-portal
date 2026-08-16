@@ -7180,3 +7180,1543 @@ main#app.comments-page .comments-hero {
     ),
     #0d1321 url("/static/images/comments-hero-2.jpg") center / cover no-repeat;
 }
+
+/* ===================================================================== */
+/* Block 0053 — Projektweites Kontaktverzeichnis (/portal/contacts)      */
+/* ===================================================================== */
+
+/* Kopfband: gleiche Anmutung wie die Arbeitspaket-Übersicht, aber ohne
+ * eigenes Bildmotiv — die Seite lebt von Daten, nicht von Bildern. */
+main#app.contacts-page .contacts-hero {
+  overflow: hidden;
+  color: #ffffff;
+  background: linear-gradient(105deg, #0d1321 0%, #16233c 52%, #1f3050 100%);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-md);
+  padding: var(--rds-space-6);
+  margin-bottom: var(--rds-space-6);
+}
+
+main#app.contacts-page .contacts-hero .page-header {
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+main#app.contacts-page .contacts-hero .page-title {
+  font-size: var(--rds-fs-page-title);
+  color: #ffffff;
+}
+
+main#app.contacts-page .contacts-hero .page-subtitle {
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 75ch;
+}
+
+main#app.contacts-page .contacts-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rds-space-3);
+  margin: var(--rds-space-4) 0 0;
+}
+
+main#app.contacts-page .contacts-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.3rem 0.8rem;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+}
+
+main#app.contacts-page .contacts-stat-value {
+  font-weight: 700;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+main#app.contacts-page .contacts-stat-label {
+  font-size: var(--rds-fs-meta);
+  color: rgba(255, 255, 255, 0.78);
+}
+
+/* ---- Filter-Card ---------------------------------------------------- */
+
+main#app.contacts-page .contacts-filterbox {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--rds-space-4);
+  background: var(--rds-surface-raised);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-sm);
+  padding: var(--rds-space-4) var(--rds-space-5);
+  margin-bottom: var(--rds-space-6);
+}
+
+main#app.contacts-page .contacts-filterbox legend {
+  width: 100%;
+  margin: 0 0 var(--rds-space-1);
+  padding: 0;
+  font-size: var(--rds-fs-section-title);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--rds-text-muted);
+}
+
+main#app.contacts-page .contacts-filterbox label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+}
+
+main#app.contacts-page .contacts-filterbox label.checkbox-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+main#app.contacts-page .contacts-filterbox input,
+main#app.contacts-page .contacts-filterbox select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--rds-border-strong);
+  border-radius: var(--rds-radius-sm);
+  background: #ffffff;
+}
+
+main#app.contacts-page .contacts-filterbox button.secondary {
+  padding: 0.4rem 0.9rem;
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-strong);
+  background: #ffffff;
+  border: 1px solid var(--rds-border-strong);
+  border-radius: var(--rds-radius-sm);
+  cursor: pointer;
+}
+
+main#app.contacts-page .contacts-filterbox button.secondary:hover {
+  background: var(--rds-surface-strong);
+}
+
+main#app.contacts-page .contacts-filterbox .filter-reset {
+  margin-left: auto;
+  align-self: end;
+}
+
+/* ---- Gruppierung nach Einrichtung ----------------------------------- */
+
+main#app.contacts-page .contacts-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rds-space-8);
+}
+
+main#app.contacts-page .contacts-partner-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--rds-space-2) var(--rds-space-3);
+  padding-bottom: var(--rds-space-2);
+  margin-bottom: var(--rds-space-4);
+  border-bottom: 1px solid var(--rds-border);
+}
+
+main#app.contacts-page .contacts-partner-title {
+  margin: 0;
+  font-size: var(--rds-fs-card-title);
+  color: var(--rds-text-strong);
+}
+
+main#app.contacts-page .contacts-partner-subtitle {
+  margin: 0;
+  font-size: var(--rds-fs-meta);
+}
+
+main#app.contacts-page .contacts-partner-count {
+  margin-left: auto;
+  font-size: var(--rds-fs-meta);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* ---- Kontaktkarten --------------------------------------------------- */
+
+main#app.contacts-page .contacts-card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--rds-space-4);
+}
+
+@media (min-width: 720px) {
+  main#app.contacts-page .contacts-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  main#app.contacts-page .contacts-card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+main#app.contacts-page .contacts-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rds-space-3);
+  background: var(--rds-surface-raised);
+  border: 1px solid var(--rds-border);
+  border-top: 3px solid var(--rds-accent-teal);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-sm);
+  padding: var(--rds-space-5);
+}
+
+/* Deaktivierte Einträge (nur für Admins sichtbar) bleiben lesbar,
+ * treten aber optisch zurück. */
+main#app.contacts-page .contacts-card-inactive {
+  border-top-color: var(--rds-border-strong);
+  background: var(--rds-surface-soft);
+}
+
+main#app.contacts-page .contacts-card-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rds-space-1);
+}
+
+main#app.contacts-page .contacts-card-name {
+  margin: 0;
+  font-size: var(--rds-fs-card-title);
+  color: var(--rds-text-strong);
+  overflow-wrap: anywhere;
+}
+
+main#app.contacts-page .contacts-card-function {
+  margin: 0;
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+}
+
+main#app.contacts-page .contacts-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rds-space-1);
+  margin-top: var(--rds-space-1);
+}
+
+main#app.contacts-page .contacts-badge {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: var(--rds-fs-badge);
+}
+
+main#app.contacts-page .contacts-badge-lead {
+  background: var(--rds-status-info-bg);
+  color: var(--rds-status-info-fg);
+}
+
+main#app.contacts-page .contacts-badge-primary {
+  background: var(--rds-accent-teal-soft);
+  color: var(--rds-accent-teal);
+}
+
+main#app.contacts-page .contacts-badge-portal {
+  background: var(--rds-status-ok-bg);
+  color: var(--rds-status-ok-fg);
+}
+
+main#app.contacts-page .contacts-badge-inactive {
+  background: var(--rds-status-neutral-bg);
+  color: var(--rds-status-neutral-fg);
+}
+
+main#app.contacts-page .contacts-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rds-space-2);
+}
+
+main#app.contacts-page .contacts-line {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: var(--rds-space-2);
+  font-size: var(--rds-fs-data);
+}
+
+main#app.contacts-page .contacts-line-label {
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+}
+
+main#app.contacts-page .contacts-line-value {
+  overflow-wrap: anywhere;
+}
+
+main#app.contacts-page .contacts-internal-note {
+  color: var(--rds-status-warn-fg);
+}
+
+/* ---- Arbeitspaket-Chips --------------------------------------------- */
+
+main#app.contacts-page .contacts-wps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rds-space-1);
+}
+
+main#app.contacts-page .contacts-wp-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.15rem 0.55rem;
+  font-size: var(--rds-fs-meta);
+  text-decoration: none;
+  color: var(--rds-text-strong);
+  background: var(--rds-surface-strong);
+  border: 1px solid var(--rds-border);
+  border-radius: 999px;
+}
+
+main#app.contacts-page .contacts-wp-chip:hover,
+main#app.contacts-page .contacts-wp-chip:focus-visible {
+  border-color: var(--rds-accent-teal);
+  color: var(--rds-accent-teal);
+}
+
+main#app.contacts-page .contacts-wp-role {
+  font-size: var(--rds-fs-badge);
+  color: var(--rds-text-muted);
+}
+
+main#app.contacts-page .contacts-card-footer {
+  margin-top: auto;
+  padding-top: var(--rds-space-2);
+  border-top: 1px solid var(--rds-divider);
+  font-size: var(--rds-fs-meta);
+}
+
+/* =====================================================================
+ * BLOCK 0054 — UX-/DESIGN-ÜBERARBEITUNG (Cockpit, Projektbibliothek,
+ * Arbeitspakete und die gemeinsam genutzten Komponenten)
+ *
+ * Ziel: bessere Informationshierarchie, Lesbarkeit, Konsistenz und
+ * Handlungsorientierung — bei unveränderter visueller Identität
+ * (dunkles Marineblau, helle Inhaltsflächen, Petrol als Akzent).
+ *
+ * Der Block steht bewusst am Dateiende: die Selektoren spiegeln die
+ * Spezifität der jeweiligen Modul-Regeln, sodass die Überarbeitung per
+ * Quellreihenfolge gewinnt, ohne bestehende Regeln zu löschen.
+ *
+ * FARBSEMANTIK (portalweit verbindlich):
+ *   Petrol/Blau  — Interaktion, Auswahl, persönliche Zuordnung
+ *   Grün         — erfolgreich, abgeschlossen, unkritisch
+ *   Gelb/Amber   — Aufmerksamkeit erforderlich
+ *   Rot          — überfällig, kritisch, fehlerhaft
+ *   Grau         — neutral, inaktiv
+ * Statusinformation wird nie allein über Farbe transportiert: es steht
+ * immer ein Text oder ein zusätzlicher Marker daneben.
+ * ===================================================================== */
+
+:root {
+  /* Lesbarkeit: Sekundärtext und Metadaten waren zu klein und zu hell.
+   * Alle Werte erfüllen auf hellen Flächen mindestens WCAG-AA. */
+  --rds-text-muted: #4f5768; /* 7.3:1 auf #ffffff */
+  --rds-text-subtle: #5c6474; /* 6.2:1 auf #ffffff */
+  --rds-fs-section-title: 0.8125rem;
+  --rds-fs-card-title: 1.05rem;
+  --rds-fs-meta: 0.875rem;
+  --rds-fs-data: 0.95rem;
+  --rds-fs-badge: 0.75rem;
+
+  /* „Gehört mir" ist Zuordnung, kein Status: Petrol statt Grün. */
+  --rds-accent-mine: var(--rds-accent-teal);
+  --rds-accent-mine-soft: var(--rds-accent-teal-soft);
+
+  /* Mindestgröße interaktiver Flächen. */
+  --rds-control-min: 2.25rem;
+}
+
+/* ---- Grundtypografie ------------------------------------------------ */
+
+body {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+main#app {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+main#app .muted,
+.muted {
+  color: var(--rds-text-muted);
+}
+
+/* Metadaten- und Hilfstexte: nie unter 0.8125rem. */
+main#app .activity-meta,
+main#app .cockpit-milestone-meta,
+main#app .wp-card-meta,
+main#app .library-doc-meta,
+main#app .my-wp-counts {
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+}
+
+/* ---- Klickflächen und Fokus ---------------------------------------- */
+
+main#app button,
+main#app .actions button,
+main#app a.button-like,
+main#app input[type="text"],
+main#app input[type="search"],
+main#app input[type="date"],
+main#app input[type="datetime-local"],
+main#app input[type="number"],
+main#app select {
+  min-height: var(--rds-control-min);
+  font-size: 0.95rem;
+}
+
+main#app input[type="checkbox"],
+main#app input[type="radio"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: var(--rds-accent-teal);
+  cursor: pointer;
+}
+
+main#app label.checkbox-row {
+  min-height: var(--rds-control-min);
+  cursor: pointer;
+}
+
+/* Fokus deutlich sichtbarer als bisher (2px → 3px, mehr Abstand) und
+ * auch auf ``summary``/``details`` sowie auf dunklen Flächen sichtbar. */
+main#app a:focus-visible,
+main#app button:focus-visible,
+main#app summary:focus-visible,
+main#app input:focus-visible,
+main#app select:focus-visible,
+main#app textarea:focus-visible {
+  outline: 3px solid var(--rds-link);
+  outline-offset: 2px;
+  border-radius: var(--rds-radius-sm);
+}
+
+main#app .cockpit-hero a:focus-visible,
+main#app .wp-overview-hero a:focus-visible,
+main#app .library-hero button:focus-visible,
+.app-sidebar #nav-main a:focus-visible,
+.portal-header a:focus-visible,
+.portal-header button:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* ---- Gemeinsame Seitenköpfe / Hero-Bereiche ------------------------- */
+/* Gleiche Höhe, Innenabstände, Radien und Typografie über alle Module —
+ * die Motive und Gradienten der einzelnen Seiten bleiben erhalten. */
+
+main#app.cockpit-shell .cockpit-hero,
+main#app.wp-overview-page .wp-overview-hero,
+main#app.project-library-page .library-hero,
+main#app.contacts-page .contacts-hero,
+main#app.campaigns-page .campaigns-hero,
+main#app.meetings-page .meetings-hero,
+main#app.gantt-page .gantt-hero {
+  padding: var(--rds-space-6);
+  margin-bottom: var(--rds-space-6);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-md);
+}
+
+main#app.cockpit-shell .cockpit-hero .page-title,
+main#app.wp-overview-page .wp-overview-hero .page-title,
+main#app.project-library-page .library-hero .page-title,
+main#app.contacts-page .contacts-hero .page-title,
+main#app.campaigns-page .campaigns-hero .page-title {
+  font-size: 1.65rem;
+  line-height: 1.25;
+  margin: 0 0 var(--rds-space-2);
+}
+
+main#app.cockpit-shell .cockpit-hero .page-subtitle,
+main#app.wp-overview-page .wp-overview-hero .page-subtitle,
+main#app.project-library-page .library-hero .page-subtitle,
+main#app.contacts-page .contacts-hero .page-subtitle,
+main#app.campaigns-page .campaigns-hero .page-subtitle {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.55;
+  max-width: 78ch;
+}
+
+/* Die Hero-Bänder mit dunklem Motiv tragen helle Schrift … */
+main#app.wp-overview-page .wp-overview-hero .page-subtitle,
+main#app.project-library-page .library-hero .page-subtitle,
+main#app.contacts-page .contacts-hero .page-subtitle,
+main#app.campaigns-page .campaigns-hero .page-subtitle {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+/* … der Cockpit-Hero ist bewusst eine helle Fläche und behält deshalb
+ * dunkle Schrift (sonst wäre der Untertitel unlesbar). */
+main#app.cockpit-shell .cockpit-hero .page-title {
+  color: var(--rds-text-strong);
+}
+
+main#app.cockpit-shell .cockpit-hero .page-subtitle {
+  color: var(--rds-text-muted);
+}
+
+/* ---- Gemeinsame Buttons -------------------------------------------- */
+
+main#app button.button-primary,
+main#app button.button-secondary,
+main#app .actions button,
+main#app .filterbox button.button-secondary,
+main#app .library-filter-bar button.button-secondary {
+  min-height: var(--rds-control-min);
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: var(--rds-radius-sm);
+  cursor: pointer;
+}
+
+main#app button.button-secondary {
+  color: var(--rds-text-strong);
+  background: #ffffff;
+  border: 1px solid var(--rds-border-strong);
+}
+
+main#app button.button-secondary:hover {
+  background: var(--rds-surface-strong);
+  border-color: var(--rds-text-strong);
+}
+
+/* Sekundäre Hauptaktion in Karten (z. B. „Details anzeigen"): klar als
+ * Aktion erkennbar, mit ausreichender Klickfläche. */
+main#app .wp-card-action,
+main#app .library-doc-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: var(--rds-control-min);
+  padding: 0.4rem 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--rds-text-strong);
+  background: #ffffff;
+  border: 1px solid var(--rds-border-strong);
+  border-radius: var(--rds-radius-sm);
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+main#app .wp-card-action::after,
+main#app .library-doc-open::after {
+  content: "→";
+  font-weight: 400;
+}
+
+main#app .wp-card-action:hover,
+main#app .library-doc-open:hover {
+  background: var(--rds-accent-teal-soft);
+  border-color: var(--rds-accent-teal);
+  color: var(--rds-accent-teal);
+}
+
+/* ---- Gemeinsame Filterleisten -------------------------------------- */
+/* Einheitliche Kartenoptik, einheitliche Feldhöhen, einheitliche
+ * Beschriftungen — und ein Suchfeld, das mitwächst statt zu schrumpfen. */
+
+main#app .filterbox,
+main#app .library-filter-bar,
+main#app .wp-filterbox {
+  align-items: end;
+  gap: var(--rds-space-3) var(--rds-space-4);
+  padding: var(--rds-space-4) var(--rds-space-5);
+  border-radius: var(--rds-radius-lg);
+}
+
+main#app .filterbox legend,
+main#app .wp-filterbox legend {
+  font-size: var(--rds-fs-section-title);
+  letter-spacing: 0.06em;
+  color: var(--rds-text-muted);
+}
+
+/* Beschriftungen stehen linksbündig über ihrem Feld — die geerbte
+ * Zentrierung aus der Basis-Filterbox ließ Label und Feld auseinander
+ * laufen. */
+main#app .filterbox label,
+main#app .library-filter-bar label,
+main#app .wp-filterbox label {
+  align-items: stretch;
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-text-muted);
+}
+
+main#app .filterbox label.checkbox-row,
+main#app .library-filter-bar label.checkbox-row,
+main#app .wp-filterbox label.checkbox-row {
+  align-items: center;
+}
+
+/* Felder füllen ihre Beschriftungsspalte aus — sonst bleibt ein breites
+ * Suchfeld optisch schmal. */
+main#app .library-filter-bar .library-filter-field input,
+main#app .library-filter-bar .library-filter-field select,
+main#app .wp-filterbox .wp-filter-field input,
+main#app .wp-filterbox .wp-filter-field select {
+  width: 100%;
+}
+
+main#app .filterbox input,
+main#app .filterbox select,
+main#app .library-filter-bar input,
+main#app .library-filter-bar select,
+main#app .wp-filterbox input,
+main#app .wp-filterbox select {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.95rem;
+  color: var(--rds-text);
+}
+
+/* Die Suche ist das Hauptwerkzeug: sie belegt in der Bibliothek die
+ * gesamte erste Zeile, in den Arbeitspaketen den größten Teil der
+ * Zeile. Auswahlfelder bleiben so schmal wie nötig. */
+main#app .library-filter-bar .library-filter-field--search {
+  flex: 1 1 100%;
+}
+
+main#app .wp-filterbox .wp-filter-field--search {
+  flex: 4 1 20rem;
+  min-width: 14rem;
+}
+
+/* ``:not`` ist nötig, weil das Suchfeld beide Klassen trägt und die
+ * generische Regel sonst die volle Zeilenbreite wieder einkassiert. */
+main#app .library-filter-bar .library-filter-field:not(.library-filter-field--search) {
+  flex: 1 1 11rem;
+  max-width: 16rem;
+}
+
+main#app .wp-filterbox .wp-filter-field--lead {
+  flex: 1 1 12rem;
+  max-width: 18rem;
+}
+
+/* Umschalter „nur …" als eigenständig lesbares Steuerelement. */
+main#app .wp-filterbox .wp-filter-toggle,
+main#app .library-filter-bar .library-filter-toggle {
+  align-self: end;
+  gap: 0.5rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.9rem;
+  color: var(--rds-text);
+  background: var(--rds-surface-soft);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-sm);
+}
+
+main#app .wp-filterbox .wp-filter-toggle:hover,
+main#app .library-filter-bar .library-filter-toggle:hover {
+  border-color: var(--rds-accent-teal);
+}
+
+main#app .library-filter-bar .library-filter-reset,
+main#app .wp-filterbox .wp-filter-reset {
+  margin-left: auto;
+  align-self: end;
+}
+
+/* ---- Gemeinsame Badges --------------------------------------------- */
+/* Ein Radius, eine Größe, eine Groß-/Kleinschreibung. Badges tragen
+ * immer Text — die Tönung ist nur Lesehilfe. */
+
+main#app .badge,
+main#app .status-badge,
+main#app .library-badge,
+main#app .contacts-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  font-size: var(--rds-fs-badge);
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* Die Tönungen müssen nach der generischen ``.badge``-Regel stehen:
+ * beide haben dieselbe Spezifität, und die neutrale Grundfarbe hat
+ * bisher jede Statusfarbe überschrieben — alle Statusbadges waren grau. */
+main#app .status-badge--ok {
+  background: var(--rds-status-ok-bg);
+  color: var(--rds-status-ok-fg);
+}
+
+main#app .status-badge--warn {
+  background: var(--rds-status-warn-bg);
+  color: var(--rds-status-warn-fg);
+}
+
+main#app .status-badge--err {
+  background: var(--rds-status-err-bg);
+  color: var(--rds-status-err-fg);
+}
+
+main#app .status-badge--info {
+  background: var(--rds-status-info-bg);
+  color: var(--rds-status-info-fg);
+}
+
+main#app .status-badge--neutral {
+  background: var(--rds-status-neutral-bg);
+  color: var(--rds-status-neutral-fg);
+}
+
+/* ---- Sidebar-Navigation -------------------------------------------- */
+
+/* Kopfzeilen-Aktionen (Ansicht umschalten, Abmelden) waren nur 16 px
+ * hoch — als echte Bedienelemente brauchen sie eine tastatur- und
+ * zeigergerechte Fläche. */
+.portal-header .user .linklike {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.9rem;
+  border-radius: var(--rds-radius-sm);
+}
+
+.portal-header .user .linklike:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.app-sidebar .nav-group-title {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.app-sidebar #nav-main a {
+  min-height: var(--rds-control-min);
+  display: flex;
+  align-items: center;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.app-sidebar #nav-main a.active {
+  background: rgba(31, 122, 140, 0.32);
+  border-left-width: 4px;
+  font-weight: 700;
+}
+
+/* Administrative Funktionen deutlich vom Arbeitsbereich absetzen:
+ * kräftigerer Trenner und ein eigener, kühler Flächenton. */
+.app-sidebar #nav-group-admin {
+  margin-top: var(--rds-space-3);
+  padding: var(--rds-space-4) var(--rds-space-2) var(--rds-space-2);
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--rds-radius-md);
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.app-sidebar #nav-group-admin .nav-group-title {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* =====================================================================
+ * COCKPIT
+ * ===================================================================== */
+
+/* Begrüßungsband: eine Zeile, kompakt, ohne leere zweite Spalte. */
+main#app.cockpit-shell .cockpit-hero--compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--rds-space-4);
+  padding: var(--rds-space-5) var(--rds-space-6);
+}
+
+main#app.cockpit-shell .cockpit-hero--compact .cockpit-hero-main {
+  min-width: 0;
+  flex: 1 1 26rem;
+}
+
+main#app.cockpit-shell .cockpit-hero--compact .page-subtitle {
+  font-size: 0.95rem;
+}
+
+main#app.cockpit-shell .cockpit-hero--compact .cockpit-quick-actions {
+  flex: none;
+  margin: 0;
+}
+
+/* Kennzahlen: Handlungsbedarf zuerst und groß, alles Übrige kompakt. */
+main#app.cockpit-shell .cockpit-kpi-strip {
+  display: block;
+  margin-bottom: var(--rds-space-6);
+}
+
+main#app.cockpit-shell .cockpit-kpi-grid {
+  display: grid;
+  gap: var(--rds-space-4);
+  margin: 0 0 var(--rds-space-5);
+}
+
+/* ``auto-fill`` statt ``auto-fit``: ein einzelner Problemfall belegt
+ * eine Spalte statt die volle Breite — sonst entsteht eine riesige,
+ * fast leere Warnfläche. */
+main#app.cockpit-shell .cockpit-kpi-grid--attention {
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+}
+
+main#app.cockpit-shell .cockpit-kpi-grid--calm {
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+}
+
+/* Unkritische Kacheln sind kleiner und ruhiger — sie bleiben aber
+ * vollwertige Links in die jeweiligen Listen. */
+main#app.cockpit-shell .cockpit-kpi-grid--calm .cockpit-kpi {
+  gap: 0.15rem;
+  padding: var(--rds-space-3) var(--rds-space-4);
+}
+
+main#app.cockpit-shell .cockpit-kpi-grid--calm .cockpit-kpi-value {
+  font-size: 1.5rem;
+}
+
+main#app.cockpit-shell .cockpit-kpi-grid--calm .cockpit-kpi-cta {
+  display: none;
+}
+
+/* Unkritische Kacheln brauchen keine Dashboard-Höhe — ohne die
+ * erzwungenen 148 px entfällt die große Leerfläche unter der Zahl. */
+main#app.cockpit-shell .cockpit-kpi-grid--calm .cockpit-kpi {
+  min-height: 0;
+}
+
+main#app.cockpit-shell .cockpit-kpi-grid--calm .cockpit-kpi-label {
+  margin-top: 0;
+}
+
+/* Kachel-Beschriftungen waren mit 0.7 rem zu klein für Fließlektüre. */
+main#app .cockpit-page .cockpit-kpi-label {
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  color: var(--rds-text-muted);
+}
+
+/* Nullwerte: sichtbar, aber zurückgenommen. */
+main#app.cockpit-shell .cockpit-kpi-zero {
+  background: var(--rds-surface-soft);
+}
+
+main#app.cockpit-shell .cockpit-kpi-zero .cockpit-kpi-value {
+  color: var(--rds-text-subtle);
+}
+
+/* Klartext zur Tönung — Warnung/Kritik nie nur über Farbe. */
+main#app.cockpit-shell .cockpit-kpi-state {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: var(--rds-space-2);
+  font-size: var(--rds-fs-meta);
+  font-weight: 600;
+  color: var(--rds-text);
+}
+
+main#app.cockpit-shell .cockpit-section-title--sub {
+  font-size: var(--rds-fs-section-title);
+  color: var(--rds-text-muted);
+}
+
+/* Positiver Sammelzustand statt einer Reihe leerer Nullkarten. */
+main#app.cockpit-shell .cockpit-empty--ok {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: left;
+  gap: 0.55rem;
+  margin: 0 0 var(--rds-space-5);
+  padding: var(--rds-space-3) var(--rds-space-4);
+  font-size: var(--rds-fs-data);
+  color: var(--rds-status-ok-fg);
+  background: var(--rds-status-ok-bg);
+  border: 1px solid rgba(31, 90, 59, 0.22);
+  border-radius: var(--rds-radius-md);
+}
+
+/* Der positive Hinweis in der Meilensteinkarte bleibt eine Zeile. */
+main#app.cockpit-shell .cockpit-card .cockpit-empty--ok {
+  margin: 0 0 var(--rds-space-3);
+}
+
+/* Meilensteinzeile: Der Statusmarker hatte bisher keine eigene
+ * Rasterfläche und wurde automatisch platziert — dadurch rutschten
+ * Titel und Metazeile in eine implizite dritte Spalte ganz nach rechts.
+ * Der Fehler fiel erst auf, seit die Karte die volle Breite nutzt. */
+main#app .cockpit-page .cockpit-milestone-item {
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    "dot main status"
+    "dot meta status";
+}
+
+main#app .cockpit-page .cockpit-milestone-item > .cockpit-status-dot {
+  grid-area: dot;
+  align-self: center;
+}
+
+/* Offene Punkte: kompakte Vorschau statt Textwand. Der vollständige
+ * Text bleibt im ``title``-Attribut und in der WP-Detailansicht. */
+main#app.cockpit-shell .wp-issue-card {
+  padding: var(--rds-space-3) var(--rds-space-4);
+}
+
+main#app.cockpit-shell .wp-issue-head h3 {
+  font-size: var(--rds-fs-card-title);
+  margin: 0;
+}
+
+main#app.cockpit-shell .wp-issue-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+  font-size: var(--rds-fs-data);
+  line-height: 1.5;
+}
+
+main#app.cockpit-shell .wp-issue-foot {
+  margin-top: var(--rds-space-2);
+  padding-top: var(--rds-space-2);
+  border-top: 1px solid var(--rds-divider);
+}
+
+main#app.cockpit-shell .wp-issue-link {
+  font-size: var(--rds-fs-meta);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+main#app.cockpit-shell .wp-issue-link:hover {
+  text-decoration: underline;
+}
+
+/* =====================================================================
+ * ARBEITSPAKETE
+ * ===================================================================== */
+
+/* Kennzahlen im Seitenkopf sind Anzeige, kein Filter: keine Pillen-,
+ * Rahmen- oder Button-Optik mehr, sondern eine ruhige Textzeile. */
+main#app.wp-overview-page .wp-overview-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rds-space-2) var(--rds-space-6);
+  margin: var(--rds-space-5) 0 0;
+  padding: var(--rds-space-4) 0 0;
+  list-style: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+main#app.wp-overview-page .wp-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+
+main#app.wp-overview-page .wp-stat-value {
+  font-size: 1.15rem;
+}
+
+main#app.wp-overview-page .wp-stat-label {
+  font-size: var(--rds-fs-meta);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+/* Karten: keine erzwungene Mindesthöhe, saubere Umbrüche. Karten in
+ * einer Rasterzeile wachsen nicht mehr auf die Höhe der höchsten
+ * Nachbarkarte — sonst entstehen große Leerflächen. */
+main#app.wp-overview-page .wp-card-grid {
+  align-items: start;
+}
+
+main#app.wp-overview-page .wp-card {
+  min-height: 0;
+  gap: var(--rds-space-3);
+}
+
+/* Titelzeile und Badge-Zeile immer übereinander — sonst springen die
+ * Badges je nach Titellänge zwischen rechts oben und unten links. */
+main#app.wp-overview-page .wp-card-head {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--rds-space-2);
+}
+
+main#app.wp-overview-page .wp-card-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+main#app.wp-overview-page .wp-card-title-text {
+  font-weight: 600;
+  color: var(--rds-text-strong);
+}
+
+main#app.wp-overview-page .wp-card-head-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 0.3rem;
+  flex: none;
+}
+
+main#app.wp-overview-page .wp-card-head-badges:empty {
+  display: none;
+}
+
+/* Eigene Arbeitspakete: Petrol, nicht Statusgrün. Zusätzlich trägt
+ * jede eigene Karte das Badge „Meine" — die Farbe allein genügt nicht. */
+main#app.wp-overview-page .wp-card-mine {
+  border-top-color: var(--rds-accent-mine);
+}
+
+main#app .wp-mine-badge {
+  background: var(--rds-accent-mine-soft);
+  color: var(--rds-accent-teal);
+}
+
+main#app.wp-overview-page .wp-lead-badge {
+  font-size: var(--rds-fs-badge);
+  padding: 0.15rem 0.55rem;
+  color: var(--rds-text-strong);
+  background: var(--rds-surface-strong);
+  border: 1px solid var(--rds-border-strong);
+  border-radius: 999px;
+}
+
+/* Unterpakete: klar untergeordnet, aber gut lesbar. */
+main#app.wp-overview-page .wp-subpackage-list {
+  border-left: 2px solid var(--rds-divider);
+  padding-left: var(--rds-space-4);
+}
+
+main#app.wp-overview-page .wp-subpackage-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.6rem;
+  padding: 0.35rem 0;
+  font-size: var(--rds-fs-data);
+  overflow-wrap: anywhere;
+}
+
+main#app.wp-overview-page .wp-subpackage-mine {
+  border-left: 3px solid var(--rds-accent-mine);
+  margin-left: -0.6rem;
+  padding-left: 0.6rem;
+}
+
+main#app.wp-overview-page .wp-subpackage-title {
+  min-width: 0;
+}
+
+main#app.wp-overview-page .wp-subpackage-lead {
+  font-size: var(--rds-fs-meta);
+}
+
+/* „+ N weitere Unterpakete anzeigen" muss als Bedienelement lesbar sein. */
+main#app.wp-overview-page .wp-subpackage-more > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: var(--rds-control-min);
+  margin-top: var(--rds-space-1);
+  padding: 0.3rem 0.7rem;
+  font-size: var(--rds-fs-meta);
+  font-weight: 600;
+  color: var(--rds-accent-teal);
+  background: var(--rds-accent-teal-soft);
+  border-radius: var(--rds-radius-sm);
+  cursor: pointer;
+  list-style: none;
+}
+
+main#app.wp-overview-page .wp-subpackage-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+main#app.wp-overview-page .wp-subpackage-more > summary::before {
+  content: "▸";
+}
+
+main#app.wp-overview-page .wp-subpackage-more[open] > summary::before {
+  content: "▾";
+}
+
+main#app.wp-overview-page .wp-card-footer {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: auto;
+  padding-top: var(--rds-space-3);
+  border-top: 1px solid var(--rds-divider);
+}
+
+/* =====================================================================
+ * PROJEKTBIBLIOTHEK
+ * ===================================================================== */
+
+main#app.project-library-page .library-hero .actions button {
+  min-height: var(--rds-control-min);
+  padding: 0.55rem 1.15rem;
+  font-size: 0.95rem;
+}
+
+/* Kategorien: ein- und ausklappbar, standardmäßig zu — die
+ * Ergebnisliste beginnt dadurch weit oben. */
+main#app.project-library-page .library-categories {
+  margin-bottom: var(--rds-space-5);
+  background: var(--rds-surface-raised);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-lg);
+  box-shadow: var(--rds-shadow-sm);
+}
+
+main#app.project-library-page .library-categories-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  min-height: var(--rds-control-min);
+  padding: var(--rds-space-3) var(--rds-space-5);
+  cursor: pointer;
+  list-style: none;
+}
+
+main#app.project-library-page .library-categories-summary::-webkit-details-marker {
+  display: none;
+}
+
+main#app.project-library-page .library-categories-summary::before {
+  content: "▸";
+  color: var(--rds-accent-teal);
+}
+
+main#app.project-library-page .library-categories[open] .library-categories-summary::before {
+  content: "▾";
+}
+
+main#app.project-library-page .library-categories-label {
+  font-size: var(--rds-fs-section-title);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--rds-text-muted);
+}
+
+main#app.project-library-page .library-categories-active {
+  padding: 0.15rem 0.6rem;
+  font-size: var(--rds-fs-meta);
+  font-weight: 600;
+  color: var(--rds-accent-teal);
+  background: var(--rds-accent-teal-soft);
+  border-radius: 999px;
+}
+
+main#app.project-library-page .library-categories-hint {
+  margin-left: auto;
+  font-size: var(--rds-fs-meta);
+}
+
+main#app.project-library-page .library-categories .library-tile-grid {
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: var(--rds-space-3);
+  margin: 0;
+  padding: 0 var(--rds-space-5) var(--rds-space-5);
+}
+
+/* Kompaktere Kacheln: weniger Innenabstand, Beschreibung auf zwei
+ * Zeilen begrenzt. Kategoriefarben bleiben als schmaler Marker
+ * erhalten und wirken damit nicht wie Statusfarben. */
+main#app.project-library-page .library-tile {
+  min-height: var(--rds-control-min);
+  padding: var(--rds-space-4) var(--rds-space-3) var(--rds-space-3);
+}
+
+main#app.project-library-page .library-tile-title {
+  font-size: 0.95rem;
+}
+
+main#app.project-library-page .library-tile-description {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.8125rem;
+}
+
+main#app.project-library-page .library-tile-hint {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Die aktive Kachel ist zusätzlich zur Farbe an Rahmenstärke und
+ * ``aria-pressed`` erkennbar. */
+main#app.project-library-page .library-tile.active {
+  border-width: 2px;
+  box-shadow: var(--rds-shadow-md);
+}
+
+/* Ergebniszeile: Anzahl + aktive Filter als entfernbare Chips. */
+main#app.project-library-page .library-result-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--rds-space-2) var(--rds-space-4);
+  margin-bottom: var(--rds-space-3);
+}
+
+main#app.project-library-page .library-result-count {
+  margin: 0;
+  font-size: var(--rds-fs-data);
+  font-weight: 600;
+  color: var(--rds-text-strong);
+}
+
+main#app.project-library-page .library-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+main#app.project-library-page .library-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  padding: 0.2rem 0.7rem;
+  font-size: var(--rds-fs-meta);
+  color: var(--rds-accent-teal);
+  background: var(--rds-accent-teal-soft);
+  border: 1px solid var(--rds-accent-teal);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+main#app.project-library-page .library-filter-chip:hover {
+  background: #ffffff;
+}
+
+main#app.project-library-page .library-filter-chip-x {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* Dokumentliste als dichte Tabelle. */
+main#app.project-library-page .library-doc-list {
+  display: block;
+  overflow-x: auto;
+}
+
+/* ``min-width`` verhindert, dass die sieben Spalten sich gegenseitig
+ * zerquetschen: reicht der Platz nicht, scrollt der Container. */
+main#app.project-library-page .library-doc-table {
+  width: 100%;
+  min-width: 56rem;
+  margin: 0;
+  border-collapse: collapse;
+  background: var(--rds-surface-raised);
+  border: 1px solid var(--rds-border);
+  border-radius: var(--rds-radius-lg);
+  overflow: hidden;
+}
+
+main#app.project-library-page .library-doc-table th {
+  padding: 0.6rem 0.75rem;
+  font-size: var(--rds-fs-meta);
+  font-weight: 700;
+  color: var(--rds-text-muted);
+  background: var(--rds-surface-strong);
+  border-bottom: 1px solid var(--rds-border-strong);
+  white-space: nowrap;
+}
+
+main#app.project-library-page .library-doc-table td {
+  padding: 0.6rem 0.75rem;
+  font-size: var(--rds-fs-data);
+  vertical-align: top;
+  border-bottom: 1px solid var(--rds-divider);
+}
+
+main#app.project-library-page .library-doc-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+main#app.project-library-page .library-doc-table tbody tr:hover {
+  background: var(--rds-surface-soft);
+}
+
+main#app.project-library-page .library-doc-title {
+  display: block;
+  font-size: var(--rds-fs-data);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+main#app.project-library-page .library-doc-version {
+  display: block;
+  font-size: var(--rds-fs-meta);
+}
+
+main#app.project-library-page .library-doc-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0;
+}
+
+main#app.project-library-page .library-doc-open {
+  padding: 0.3rem 0.7rem;
+  min-height: 2rem;
+  font-size: var(--rds-fs-meta);
+}
+
+/* =====================================================================
+ * RESPONSIVES VERHALTEN
+ * ===================================================================== */
+
+/* Laptop (≈1280 px): Kartenraster von drei auf zwei Spalten. */
+@media (max-width: 1300px) {
+  main#app.wp-overview-page .wp-card-grid,
+  main#app.contacts-page .contacts-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Kleiner Desktop (≈1024 px): eine Spalte, Filter brechen um. */
+@media (max-width: 1080px) {
+  main#app.wp-overview-page .wp-card-grid,
+  main#app.contacts-page .contacts-card-grid {
+    grid-template-columns: 1fr;
+  }
+  main#app .filterbox,
+  main#app .library-filter-bar,
+  main#app .wp-filterbox {
+    align-items: stretch;
+  }
+  main#app .library-filter-bar .library-filter-reset,
+  main#app .wp-filterbox .wp-filter-reset {
+    margin-left: 0;
+  }
+}
+
+/* Kleiner Desktop und darunter: Die Dokumenttabelle wird zur
+ * Kartenliste. Der Umschaltpunkt liegt bei 1180 px Viewport — abzüglich
+ * der 260 px breiten Sidebar bleiben dann noch rund 900 px Inhalt, und
+ * darunter würden sich die sieben Spalten gegenseitig zerquetschen.
+ * Gleiche DOM-Struktur — die Spaltenüberschrift kommt aus ``data-label``. */
+@media (max-width: 1180px) {
+  main#app.project-library-page .library-doc-list {
+    overflow-x: visible;
+  }
+  main#app.project-library-page .library-doc-table,
+  main#app.project-library-page .library-doc-table tbody {
+    display: block;
+    min-width: 0;
+    border: none;
+    background: none;
+  }
+  /* Tabellenkopf für Sehende ausblenden, für Screenreader erhalten —
+   * ``clip-path`` verhindert zuverlässig, dass die Zellen die Seite
+   * verbreitern. */
+  main#app.project-library-page .library-doc-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  main#app.project-library-page .library-doc-table tbody tr {
+    display: block;
+    margin-bottom: var(--rds-space-3);
+    padding: var(--rds-space-4);
+    background: var(--rds-surface-raised);
+    border: 1px solid var(--rds-border);
+    border-left: 3px solid var(--rds-accent-teal);
+    border-radius: var(--rds-radius-md);
+    box-shadow: var(--rds-shadow-sm);
+  }
+  main#app.project-library-page .library-doc-table td {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+    padding: 0.2rem 0;
+    border-bottom: none;
+  }
+  main#app.project-library-page .library-doc-table td::before {
+    content: attr(data-label);
+    flex: 0 0 8rem;
+    font-size: var(--rds-fs-meta);
+    font-weight: 600;
+    color: var(--rds-text-muted);
+  }
+  main#app.project-library-page .library-doc-table td[data-label="Titel"]::before {
+    display: none;
+  }
+  main#app.project-library-page .library-doc-table td[data-label="Titel"] {
+    margin-bottom: var(--rds-space-2);
+  }
+  main#app.project-library-page .library-doc-table td[data-label="Titel"] .library-doc-title {
+    font-size: 1.02rem;
+    font-weight: 600;
+  }
+}
+
+/* Mobil: Die Chip-Navigation belegte bisher bis zu sieben Zeilen und
+ * schob den Inhalt weit nach unten. Sie bekommt jetzt eine begrenzte
+ * Höhe mit eigenem Scroll — alle Einträge bleiben erreichbar, die
+ * Zielgrößen bleiben unverändert groß. */
+@media (max-width: 900px) {
+  .app-sidebar #nav-main {
+    max-height: 8.5rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .app-sidebar #nav-main a {
+    min-height: 2.25rem;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Die Kopfzeile war die Ursache für horizontalen Seiten-Scroll auf
+ * schmalen Geräten: Name, Ansichts-Umschalter und Abmelden standen in
+ * einer nicht umbrechenden Zeile und zwangen das Dokument auf ~600 px.
+ * Sie darf jetzt umbrechen. */
+@media (max-width: 700px) {
+  .portal-header {
+    flex-wrap: wrap;
+    row-gap: 0.35rem;
+  }
+  .portal-header .user {
+    margin-left: 0;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    white-space: normal;
+    row-gap: 0.25rem;
+  }
+}
+
+/* Raster-Kinder dürfen unter ihre Inhaltsbreite schrumpfen — sonst
+ * sprengt eine breite Tabelle in einer Karte die ganze Seite. */
+main#app .cockpit-grid > *,
+main#app .my-area-grid > *,
+main#app .cockpit-side-stack > * {
+  min-width: 0;
+}
+
+/* Breite Datentabellen bekommen auf schmalen Geräten einen eigenen
+ * horizontalen Scrollbereich, statt die Seite zu verbreitern. */
+@media (max-width: 900px) {
+  main#app .cockpit-wp-health,
+  main#app .cockpit-timeline,
+  main#app .cockpit-problem-wps,
+  main#app .my-wp-table {
+    display: block;
+    overflow-x: auto;
+  }
+  main#app .cockpit-wp-health,
+  main#app .cockpit-timeline {
+    white-space: nowrap;
+  }
+}
+
+/* Mobil (≈390 px): nichts läuft über, Bedienelemente bleiben groß. */
+@media (max-width: 560px) {
+  main#app.contacts-page .contacts-filterbox {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  main#app.contacts-page .contacts-filterbox input,
+  main#app.contacts-page .contacts-filterbox select {
+    width: 100%;
+  }
+  .portal-header .brand {
+    font-size: 1.05rem;
+  }
+  /* Lange Umschalter-Beschriftungen müssen umbrechen dürfen. */
+  main#app .checkbox-row > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  /* Der lange Einrichtungsname im Cockpit-Kopf darf umbrechen. */
+  main#app.cockpit-shell .cockpit-hero--compact .cockpit-quick-actions {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  main#app .cockpit-page .cockpit-hero-partner {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  main#app.cockpit-shell .cockpit-hero--compact,
+  main#app.wp-overview-page .wp-overview-hero,
+  main#app.project-library-page .library-hero,
+  main#app.contacts-page .contacts-hero {
+    padding: var(--rds-space-5) var(--rds-space-4);
+  }
+  main#app.cockpit-shell .cockpit-kpi-grid--attention,
+  main#app.cockpit-shell .cockpit-kpi-grid--calm {
+    grid-template-columns: 1fr;
+  }
+  main#app.wp-overview-page .wp-overview-summary {
+    gap: var(--rds-space-2) var(--rds-space-4);
+  }
+  main#app .library-filter-bar .library-filter-field--search,
+  main#app .wp-filterbox .wp-filter-field--search {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  main#app.project-library-page .library-doc-table td::before {
+    flex-basis: 100%;
+  }
+  main#app.project-library-page .library-categories .library-tile-grid {
+    grid-template-columns: 1fr;
+    padding: 0 var(--rds-space-4) var(--rds-space-4);
+  }
+}

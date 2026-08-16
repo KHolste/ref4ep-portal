@@ -24,6 +24,7 @@ import {
   renderEmpty,
   renderError,
   renderLoading,
+  statusBadgeClass,
 } from "/portal/common.js";
 
 const WP_STATUS_LABELS = {
@@ -64,12 +65,38 @@ function formatDate(iso) {
   return `${d}.${m}.${y}`;
 }
 
+// Tönung der Statusbadges — die Information steht immer als Text im
+// Badge; die Farbe ist nur eine zusätzliche Lesehilfe.
+const WP_STATUS_TONES = {
+  planned: "neutral",
+  in_progress: "info",
+  waiting_for_input: "warn",
+  critical: "err",
+  completed: "ok",
+};
+
+const MS_STATUS_TONES = {
+  planned: "info",
+  achieved: "ok",
+  postponed: "neutral",
+  at_risk: "warn",
+  cancelled: "neutral",
+};
+
 function statusBadge(status) {
-  return h("span", { class: "badge" }, WP_STATUS_LABELS[status] || status);
+  return h(
+    "span",
+    { class: statusBadgeClass(WP_STATUS_TONES[status] || "neutral") },
+    WP_STATUS_LABELS[status] || status,
+  );
 }
 
 function msStatusBadge(status) {
-  return h("span", { class: "badge" }, MS_STATUS_LABELS[status] || status);
+  return h(
+    "span",
+    { class: statusBadgeClass(MS_STATUS_TONES[status] || "neutral") },
+    MS_STATUS_LABELS[status] || status,
+  );
 }
 
 function dueLabel(daysToPlanned) {
@@ -98,23 +125,53 @@ function wpLinkOrSpan(code, title) {
 // Klickbare Kacheln werden als ``<a>`` gerendert und tragen zusätzlich die
 // Klasse ``cockpit-kpi-link`` (für Hover/Focus/Cursor + dezenten Pfeil).
 
+// Klartext zur Tönung — Warnungen und kritische Zustände dürfen nie
+// allein über die Farbe transportiert werden (WCAG 1.4.1).
+const KPI_STATE_TEXT = {
+  danger: "kritisch",
+  warning: "Aufmerksamkeit nötig",
+};
+
+const KPI_STATE_DOT = {
+  danger: "err",
+  warning: "warn",
+};
+
 function renderKpiTile({ value, label, href, tone }) {
   const classes = ["cockpit-kpi"];
   if (tone === "danger") classes.push("cockpit-kpi-danger");
   if (tone === "warning") classes.push("cockpit-kpi-warning");
+  // Nullwerte bleiben lesbar, treten aber optisch zurück.
+  if (!tone && Number(value) === 0) classes.push("cockpit-kpi-zero");
   if (href) classes.push("cockpit-kpi-link");
   const valueNode = h("div", { class: "cockpit-kpi-value" }, String(value));
   const labelNode = h("div", { class: "cockpit-kpi-label" }, label);
+  const stateText = KPI_STATE_TEXT[tone] || null;
+  const stateNode = stateText
+    ? h(
+        "div",
+        { class: "cockpit-kpi-state" },
+        h("span", { class: `cockpit-status-dot cockpit-status-dot--${KPI_STATE_DOT[tone]}` }, ""),
+        stateText,
+      )
+    : null;
   if (href) {
     return h(
       "a",
-      { class: classes.join(" "), href, "aria-label": `${label}: ${value} — Anzeigen` },
+      {
+        class: classes.join(" "),
+        href,
+        "aria-label": stateText
+          ? `${label}: ${value} — ${stateText} — Anzeigen`
+          : `${label}: ${value} — Anzeigen`,
+      },
       valueNode,
       labelNode,
+      stateNode,
       h("span", { class: "cockpit-kpi-cta", "aria-hidden": "true" }, "Anzeigen →"),
     );
   }
-  return h("div", { class: classes.join(" ") }, valueNode, labelNode);
+  return h("div", { class: classes.join(" ") }, valueNode, labelNode, stateNode);
 }
 
 function renderKpiStrip(myCockpit, projectCockpit) {
@@ -126,91 +183,84 @@ function renderKpiStrip(myCockpit, projectCockpit) {
   const nextMeetings = (my.my_next_meetings || []).length;
   const overdueMs = (proj.overdue_milestones || []).length;
   const wpsWithIssues = (proj.workpackages_with_open_issues || []).length;
-  return h(
-    "section",
-    { class: "cockpit-kpi-strip", "aria-label": "Zahlen auf einen Blick" },
-    renderKpiTile({
+
+  // Alle Kennzahlen einmal beschreiben; die Gewichtung ergibt sich
+  // anschließend aus der Tönung. Nichts wird doppelt gezeigt — der
+  // frühere „Projektüberblick" im Hero ist entfallen.
+  const tiles = [
+    {
       value: overdueActions,
       label: "Überfällige Aufgaben",
       href: "/portal/actions?overdue=true",
       // Echter Problemfall — eskaliert auch farblich.
       tone: overdueActions > 0 ? "danger" : undefined,
-    }),
-    renderKpiTile({
-      value: openActions,
-      label: "Offene Aufgaben",
-      href: "/portal/actions?mine=true",
-      // Bewusst neutral — offene Aufgaben sind Normalbetrieb.
-    }),
-    renderKpiTile({
-      value: nextMeetings,
-      label: "Nächste Meetings",
-      href: "/portal/meetings",
-    }),
-    renderKpiTile({
+    },
+    {
       value: overdueMs,
       label: "Überfällige Meilensteine",
       href: "/portal/milestones",
       tone: overdueMs > 0 ? "danger" : undefined,
-    }),
-    renderKpiTile({
+    },
+    {
       value: wpsWithIssues,
       label: "WPs mit offenen Punkten",
       href: "/portal/workpackages",
       // Hinweisfarbe (warning), kein „danger" — offene Punkte sind oft
       // normaler Arbeitsstand und sollen nicht rot wirken.
       tone: wpsWithIssues > 0 ? "warning" : undefined,
-    }),
+    },
+    {
+      value: openActions,
+      label: "Offene Aufgaben",
+      href: "/portal/actions?mine=true",
+      // Bewusst neutral — offene Aufgaben sind Normalbetrieb.
+    },
+    {
+      value: nextMeetings,
+      label: "Nächste Meetings",
+      href: "/portal/meetings",
+    },
+  ];
+
+  // Zuerst das, was wirklich Handlungsbedarf auslöst; alles Übrige
+  // bleibt sichtbar und klickbar, tritt aber visuell zurück.
+  const attention = tiles.filter((t) => t.tone);
+  const rest = tiles.filter((t) => !t.tone);
+
+  const blocks = [];
+  if (attention.length) {
+    blocks.push(
+      h("h2", { class: "cockpit-section-title" }, "Handlungsbedarf"),
+      h(
+        "div",
+        { class: "cockpit-kpi-grid cockpit-kpi-grid--attention" },
+        ...attention.map(renderKpiTile),
+      ),
+    );
+  } else {
+    blocks.push(
+      h("h2", { class: "cockpit-section-title" }, "Handlungsbedarf"),
+      renderPositiveEmpty(
+        "Kein Handlungsbedarf: keine überfälligen Aufgaben oder Meilensteine, " +
+          "keine Arbeitspakete mit offenen Punkten.",
+      ),
+    );
+  }
+  blocks.push(
+    h("h2", { class: "cockpit-section-title cockpit-section-title--sub" }, "Weitere Kennzahlen"),
+    h("div", { class: "cockpit-kpi-grid cockpit-kpi-grid--calm" }, ...rest.map(renderKpiTile)),
   );
-}
-
-// ---- Hero-Überblick (rechte Kopfspalte) -------------------------------
-//
-// Kompakte Gesundheits-Zusammenfassung mit farbcodierten Status-Punkten.
-// Nutzt dieselben bereits geladenen Quellen wie der KPI-Streifen — keine
-// zusätzliche fachliche Logik, kein zusätzlicher API-Aufruf.
-
-function heroSummaryItem(tone, value, label) {
   return h(
-    "li",
-    { class: "cockpit-hero-summary-item" },
-    h("span", { class: `cockpit-status-dot cockpit-status-dot--${tone}` }, ""),
-    h("span", { class: "cockpit-hero-summary-value" }, String(value)),
-    h("span", { class: "cockpit-hero-summary-label" }, label),
+    "section",
+    { class: "cockpit-kpi-strip", "aria-label": "Zahlen auf einen Blick" },
+    ...blocks,
   );
 }
 
-function renderHeroSummary(myCockpit, projectCockpit) {
-  const my = myCockpit || {};
-  const proj = projectCockpit || {};
-  const overdueActions = (my.my_overdue_actions || []).length;
-  const wpsWithIssues = (proj.workpackages_with_open_issues || []).length;
-  const overdueMs = (proj.overdue_milestones || []).length;
-  return h(
-    "div",
-    { class: "cockpit-hero-summary-inner" },
-    h("div", { class: "cockpit-hero-summary-title" }, "Projektüberblick"),
-    h(
-      "ul",
-      { class: "cockpit-hero-summary-list" },
-      heroSummaryItem(
-        overdueActions > 0 ? "err" : "ok",
-        overdueActions,
-        "überfällige Aufgaben",
-      ),
-      heroSummaryItem(
-        wpsWithIssues > 0 ? "warn" : "ok",
-        wpsWithIssues,
-        "WPs mit offenen Punkten",
-      ),
-      heroSummaryItem(
-        overdueMs > 0 ? "err" : "ok",
-        overdueMs,
-        "überfällige Meilensteine",
-      ),
-    ),
-  );
-}
+// Hinweis: Der frühere „Projektüberblick" in der rechten Hero-Spalte ist
+// entfallen. Er wiederholte exakt die Werte des KPI-Bereichs darunter
+// (überfällige Aufgaben / WPs mit offenen Punkten / überfällige
+// Meilensteine). Es gibt jetzt genau eine Darstellung dieser Zahlen.
 
 // ---- „Mein Bereich" — kompakt -----------------------------------------
 
@@ -536,19 +586,28 @@ function renderPositiveEmpty(text) {
   );
 }
 
-function renderUpcomingCard(milestones) {
+// ``allClear`` = es gibt keine überfälligen Meilensteine. Dann entfällt
+// die separate (leere) Karte komplett; ihr positiver Zustand erscheint
+// als eine Zeile im Kopf dieser Karte, und die Karte bekommt die
+// freigewordene Breite.
+function renderUpcomingCard(milestones, allClear = false) {
+  const clearNote = allClear
+    ? renderPositiveEmpty("Keine überfälligen Meilensteine.")
+    : null;
   if (!milestones.length) {
     return h(
       "section",
-      { class: "cockpit-card" },
+      { class: allClear ? "cockpit-card cockpit-card-wide" : "cockpit-card" },
       h("h2", {}, "Nächste Meilensteine"),
+      clearNote,
       renderEmpty("Keine offenen Meilensteine in der Zukunft."),
     );
   }
   return h(
     "section",
-    { class: "cockpit-card" },
+    { class: allClear ? "cockpit-card cockpit-card-wide" : "cockpit-card" },
     h("h2", {}, "Nächste Meilensteine"),
+    clearNote,
     h(
       "ul",
       { class: "cockpit-milestone-list" },
@@ -562,15 +621,10 @@ function renderUpcomingCard(milestones) {
   );
 }
 
+// Wird nur noch aufgerufen, wenn es tatsächlich überfällige Meilensteine
+// gibt — der Leerzustand lebt kompakt in ``renderUpcomingCard``.
 function renderOverdueCard(milestones) {
-  if (!milestones.length) {
-    return h(
-      "section",
-      { class: "cockpit-card" },
-      h("h2", {}, "Überfällige Meilensteine"),
-      renderPositiveEmpty("Keine überfälligen Meilensteine."),
-    );
-  }
+  if (!milestones.length) return null;
   return h(
     "section",
     { class: "cockpit-card danger" },
@@ -583,6 +637,13 @@ function renderOverdueCard(milestones) {
   );
 }
 
+// Kompakte Vorschau: Kopfzeile (WP-Code + Kurztitel + Status), darunter
+// die beiden Textfelder auf zwei Zeilen gekürzt (CSS ``line-clamp``, der
+// vollständige Text bleibt als ``title`` und in der WP-Detailansicht),
+// darunter ein eindeutiger Link in die Detailansicht.
+//
+// Verantwortliche und Termine liefert ``/api/cockpit/project`` für offene
+// Punkte nicht — sie werden deshalb bewusst nicht dargestellt.
 function renderIssueCard(issue) {
   const head = h(
     "div",
@@ -603,7 +664,7 @@ function renderIssueCard(issue) {
       "div",
       { class: "wp-issue-section wp-issue-open" },
       h("div", { class: "wp-issue-label" }, "Offene Punkte"),
-      h("p", {}, issue.open_issues),
+      h("p", { class: "wp-issue-text", title: issue.open_issues }, issue.open_issues),
     ),
   ];
   if (issue.next_steps) {
@@ -612,12 +673,21 @@ function renderIssueCard(issue) {
         "div",
         { class: "wp-issue-section wp-issue-next" },
         h("div", { class: "wp-issue-label" }, "Nächste Schritte"),
-        h("p", {}, issue.next_steps),
+        h("p", { class: "wp-issue-text", title: issue.next_steps }, issue.next_steps),
       ),
     );
   }
   const grid = h("div", { class: "wp-issue-grid" }, ...sections);
-  return h("article", { class: "wp-issue-card" }, head, grid);
+  const foot = h(
+    "div",
+    { class: "wp-issue-foot" },
+    h(
+      "a",
+      { class: "wp-issue-link", href: `/portal/workpackages/${issue.code}` },
+      `${issue.code} im Detail ansehen →`,
+    ),
+  );
+  return h("article", { class: "wp-issue-card" }, head, grid, foot);
 }
 
 function renderOpenIssuesCard(issues) {
@@ -905,11 +975,12 @@ function renderTimeline60Card(events) {
 }
 
 function renderProjectCockpit(cockpit) {
+  const overdue = cockpit.overdue_milestones || [];
   return h(
     "div",
     { class: "cockpit-grid" },
-    renderUpcomingCard(cockpit.upcoming_milestones || []),
-    renderOverdueCard(cockpit.overdue_milestones || []),
+    renderUpcomingCard(cockpit.upcoming_milestones || [], overdue.length === 0),
+    renderOverdueCard(overdue),
     renderOpenIssuesCard(cockpit.workpackages_with_open_issues || []),
     renderStatusOverviewCard(
       cockpit.status_counts || {},
@@ -952,20 +1023,14 @@ export async function render(container, ctx) {
       "Stammdaten",
     ),
   );
-  // Rechte Hero-Spalte: kompakter Projektüberblick mit Live-Zahlen — wird
-  // nach dem Fetch gefüllt (nutzt dieselben Quellen wie der KPI-Streifen).
-  const heroSummarySlot = h(
-    "aside",
-    { class: "cockpit-hero-summary" },
-    renderLoading("Überblick wird geladen …"),
-  );
-  // Kopfzone: zweispaltige Hero-Karte (links Begrüßung/Kontext, rechts
-  // Überblick), damit der Kopf nicht leer wirkt und Desktop-Breite nutzt.
+  // Kopfzone: schmales Begrüßungsband. Bewusst ohne zweite Spalte —
+  // der frühere „Projektüberblick" rechts wiederholte nur die Zahlen
+  // aus dem KPI-Bereich und hinterließ eine große leere Fläche.
   const hero = h(
     "header",
-    { class: "cockpit-hero" },
-    h("div", { class: "cockpit-hero-main" }, greeting, quickActions),
-    heroSummarySlot,
+    { class: "cockpit-hero cockpit-hero--compact" },
+    h("div", { class: "cockpit-hero-main" }, greeting),
+    quickActions,
   );
 
   // Slots werden in einer Reihenfolge zusammengesteckt, die sich nach der
@@ -1030,7 +1095,6 @@ export async function render(container, ctx) {
   // KPI-Streifen — wir zeigen ihn auch dann, wenn nur eine Quelle erreicht
   // wurde; fehlende Werte erscheinen als 0.
   kpiSlot.replaceChildren(renderKpiStrip(myCockpit, projectCockpit));
-  heroSummarySlot.replaceChildren(renderHeroSummary(myCockpit, projectCockpit));
 
   if (myCockpit) {
     myAreaSlot.replaceChildren(renderMyArea(myCockpit));

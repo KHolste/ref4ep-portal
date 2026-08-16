@@ -3693,16 +3693,21 @@ def test_project_library_upload_uses_library_route() -> None:
 def test_project_library_upload_button_visible_for_logged_in_users() -> None:
     """Bibliotheks-Upload steht jedem eingeloggten Nutzer offen:
     ``isLoggedIn`` löst die frühere Admin-only-Sichtbarkeit ab. Der
-    Button ``Dokument hochladen …`` und die Empty-State-Aktion hängen
+    Button ``Dokument hochladen`` und die Empty-State-Aktion hängen
     beide an dieser Variable. Der frühere Hinweistext „Nur Admins."
-    wurde entfernt — sonst widerspräche er der neuen Schwelle."""
+    wurde entfernt — sonst widerspräche er der neuen Schwelle.
+
+    Block 0054: Die Beschriftung trägt keine Auslassungspunkte mehr —
+    hinter dem Button steckt kein weiteres Menü, sondern direkt der
+    Upload-Dialog."""
     body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
     assert "isLoggedIn" in body
     assert "ctx?.me?.person" in body
     # Sichtbarkeits-Schalter für Action-Bar und Empty-State greifen auf
     # isLoggedIn zu, nicht mehr auf isAdmin.
     assert "const actionBar = isLoggedIn" in body
-    assert 'isLoggedIn ? { label: "Dokument hochladen …"' in body
+    assert 'isLoggedIn ? { label: "Dokument hochladen"' in body
+    assert "Dokument hochladen …" not in body
     # Die alte Admin-only-Sichtbarkeit ist verschwunden.
     assert 'platform_role === "admin"' not in body
     assert "isAdmin ?" not in body
@@ -3740,7 +3745,7 @@ def test_project_library_styles_present() -> None:
 # ---- Block 0035-fix — Cache-Buster + Nav/Router-Konsistenz ------------
 
 
-_NAV_PATCH_VERSION = "0075"
+_NAV_PATCH_VERSION = "0076"
 
 
 def test_index_html_uses_cache_buster_for_app_js_and_style_css() -> None:
@@ -4659,3 +4664,326 @@ def test_app_shell_main_area_left_aligned_and_wide() -> None:
     assert "max-width: 1560px" in pw_block
     # Die alte breitere Variante bleibt als Basisregel erhalten.
     assert "main#app.page-wide" in css
+
+
+# ---- Block 0053 — Projektweites Kontaktverzeichnis -------------------
+
+
+def test_index_html_has_contacts_nav_visible_for_everyone() -> None:
+    """Der Menüpunkt „Kontakte" ist für alle eingeloggten Nutzer da —
+    also **ohne** ``hidden``-Marker und ohne Rollen-Gate in app.js."""
+    body = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    assert 'href="/portal/contacts"' in body
+    assert ">Kontakte<" in body
+    nav_line = next(line for line in body.splitlines() if "/portal/contacts" in line)
+    assert "hidden" not in nav_line, "Kontakte darf nicht rollenabhängig ausgeblendet sein"
+    # Kein Eintrag in der Sichtbarkeitslogik für Lead-/Admin-Bereiche.
+    app_js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    unhide_block = app_js[app_js.index("function applyRoleVisibility") :]
+    assert "contacts" not in unhide_block
+
+
+def test_app_js_registers_contacts_route() -> None:
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    assert "contacts\\/?" in body
+    assert 'module: "contacts"' in body
+
+
+def test_contacts_module_uses_central_helpers_and_cross_nav() -> None:
+    body = (MODULES_DIR / "contacts.js").read_text(encoding="utf-8")
+    for helper in ("renderLoading", "renderError", "renderEmpty", "crossNav("):
+        assert helper in body, f"contacts.js sollte {helper!r} verwenden"
+
+
+def test_contacts_module_reads_project_wide_endpoint_only() -> None:
+    """Die Seite lädt genau eine projektweite Liste — kein Filtern nach
+    eigener Einrichtung oder eigenen Arbeitspaketen."""
+    body = (MODULES_DIR / "contacts.js").read_text(encoding="utf-8")
+    assert "/api/contacts" in body
+    # Keine Membership-Vorfilterung aus ``ctx.me``.
+    assert "me.memberships" not in body
+    assert "mineOnly" not in body
+    # Reine Lese-Ansicht: keine Schreiboperationen.
+    for method in ('api("POST"', 'api("PATCH"', 'api("DELETE"'):
+        assert method not in body, f"contacts.js sollte {method!r} nicht verwenden"
+
+
+def test_contacts_module_offers_search_and_filters() -> None:
+    body = (MODULES_DIR / "contacts.js").read_text(encoding="utf-8")
+    assert "Kontakte filtern" in body
+    for label in (
+        "Alle Einrichtungen",
+        "Alle Funktionen",
+        "Alle Arbeitspakete",
+        "Nur Leitungen und Hauptkontakte",
+    ):
+        assert label in body, f"contacts.js sollte Filter {label!r} anbieten"
+    assert "contacts-filterbox" in body
+    assert "filterbox" in body
+
+
+def test_contacts_module_renders_contact_details_and_links() -> None:
+    body = (MODULES_DIR / "contacts.js").read_text(encoding="utf-8")
+    for label in ("E-Mail", "Telefon", "Einheit", "Im Projekt"):
+        assert label in body, f"contacts.js sollte Feld {label!r} zeigen"
+    # Direktwahl-/Mail-Links und Quernavigation.
+    assert "mailto:" in body
+    assert "tel:" in body
+    assert "/portal/partners/" in body
+    assert "/portal/workpackages/" in body
+    # Badges für Rollen und Portal-Zugang.
+    for badge_text in ("Projektleitung", "Hauptkontakt", "Portal-Konto"):
+        assert badge_text in body, f"contacts.js sollte Badge {badge_text!r} kennen"
+
+
+def test_contacts_module_gates_inactive_toggle_on_admin() -> None:
+    """Deaktivierte Einträge bleiben Admin-Sache — der Umschalter wird
+    nur für echte Plattform-Admins gebaut."""
+    body = (MODULES_DIR / "contacts.js").read_text(encoding="utf-8")
+    assert 'platform_role === "admin"' in body
+    assert "include_inactive" in body
+    assert "Deaktivierte einblenden" in body
+
+
+def test_contacts_styles_are_present() -> None:
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for cls in (
+        ".contacts-hero",
+        ".contacts-summary",
+        ".contacts-filterbox",
+        ".contacts-card-grid",
+        ".contacts-card",
+        ".contacts-badges",
+        ".contacts-line",
+        ".contacts-wp-chip",
+    ):
+        assert cls in css, f"style.css sollte {cls} enthalten"
+    # Karten-Grid skaliert wie die übrigen Übersichtsseiten.
+    assert "main#app.contacts-page .contacts-card-grid" in css
+
+
+# ---- Block 0054 — UX-/Design-Überarbeitung ---------------------------
+
+
+def test_cockpit_has_no_duplicate_project_overview() -> None:
+    """Der „Projektüberblick" in der rechten Hero-Spalte wiederholte die
+    Zahlen des KPI-Bereichs. Er ist entfallen — die Werte erscheinen
+    genau einmal."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    assert "renderHeroSummary" not in body
+    assert "heroSummaryItem" not in body
+    assert "cockpit-hero-summary" not in body
+    # Nur als Erklärung im Kommentar erlaubt, nicht mehr als Überschrift.
+    assert '"Projektüberblick"' not in body
+    # Der Begrüßungsbereich bleibt, aber kompakt.
+    assert "cockpit-hero--compact" in body
+    assert "cockpit-quick-actions" in body
+
+
+def test_cockpit_weights_attention_above_zero_values() -> None:
+    """Kennzahlen mit Handlungsbedarf stehen in einer eigenen, prominenten
+    Gruppe; Nullwerte bleiben sichtbar, treten aber zurück."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    assert "Handlungsbedarf" in body
+    assert "Weitere Kennzahlen" in body
+    assert "cockpit-kpi-grid--attention" in body
+    assert "cockpit-kpi-grid--calm" in body
+    assert "cockpit-kpi-zero" in body
+    # Aufteilung anhand der Tönung.
+    assert "tiles.filter((t) => t.tone)" in body
+    assert "tiles.filter((t) => !t.tone)" in body
+
+
+def test_cockpit_warning_is_not_colour_only() -> None:
+    """Warnung/Kritik tragen zusätzlich Klartext und einen Statuspunkt."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    assert "KPI_STATE_TEXT" in body
+    assert "kritisch" in body
+    assert "Aufmerksamkeit nötig" in body
+    assert "cockpit-kpi-state" in body
+    assert "cockpit-status-dot" in body
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert "main#app.cockpit-shell .cockpit-kpi-state" in css
+
+
+def test_cockpit_overdue_milestones_empty_state_is_compact() -> None:
+    """Ohne überfällige Meilensteine entfällt die leere Karte; der
+    positive Zustand steht als Zeile in der Nachbarkarte, die dafür die
+    freie Breite bekommt."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    assert "renderUpcomingCard(cockpit.upcoming_milestones || [], overdue.length === 0)" in body
+    # Die Überfällig-Karte wird bei leerer Liste gar nicht erst gebaut.
+    assert "if (!milestones.length) return null;" in body
+    assert "Keine überfälligen Meilensteine." in body
+    assert "cockpit-card-wide" in body
+
+
+def test_cockpit_open_issues_are_scannable() -> None:
+    """Offene Punkte: gekürzte Vorschau plus eindeutiger Detaillink.
+    Der vollständige Text bleibt über ``title`` und die WP-Detailseite
+    erreichbar."""
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    assert "wp-issue-text" in body
+    assert "title: issue.open_issues" in body
+    assert "wp-issue-foot" in body
+    assert "im Detail ansehen" in body
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert "main#app.cockpit-shell .wp-issue-text" in css
+    assert "-webkit-line-clamp: 2" in css
+
+
+def test_cockpit_status_badges_carry_a_tone() -> None:
+    body = (MODULES_DIR / "cockpit.js").read_text(encoding="utf-8")
+    assert "statusBadgeClass" in body
+    assert "WP_STATUS_TONES" in body
+    assert "MS_STATUS_TONES" in body
+
+
+def test_status_badge_tones_win_over_neutral_base() -> None:
+    """Regression: ``main#app .badge`` stand nach den Tönungsregeln und
+    hat jede Statusfarbe auf Grau zurückgesetzt. Die Tönungen müssen
+    danach erneut gesetzt werden."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    base = css.rindex("main#app .badge,")
+    for tone in ("--ok", "--warn", "--err", "--info", "--neutral"):
+        assert css.rindex(f"main#app .status-badge{tone}") > base, (
+            f"Tönung {tone} muss nach der generischen .badge-Regel stehen"
+        )
+
+
+def test_library_search_is_the_primary_filter() -> None:
+    body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
+    assert "library-filter-field--search" in body
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    start = css.index("main#app .library-filter-bar .library-filter-field--search")
+    assert "flex: 1 1 100%" in css[start : css.index("}", start)]
+
+
+def test_library_offers_sorting_result_count_and_reset() -> None:
+    body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
+    assert "SORT_OPTIONS" in body
+    assert "Zuletzt aktualisiert" in body
+    assert "Titel (A–Z)" in body
+    assert "sortDocuments" in body
+    assert "library-result-count" in body
+    assert "Alle Filter zurücksetzen" in body
+    # Aktive Filter sind einzeln entfernbar.
+    assert "library-filter-chip" in body
+    assert "activeFilterChips" in body
+    # Sortierung bleibt clientseitig — keine neue Backend-Abfrage.
+    assert "sort=" not in body
+
+
+def test_library_categories_are_collapsible_with_visible_active_state() -> None:
+    body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
+    assert "renderCategoryPanel" in body
+    assert "library-categories" in body
+    assert "library-categories-active" in body
+    assert "categoriesOpen" in body
+    # Aktivzustand nicht nur farblich.
+    assert '"aria-pressed"' in body
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert "main#app.project-library-page .library-categories-summary" in css
+
+
+def test_library_documents_render_as_dense_table() -> None:
+    body = (MODULES_DIR / "project_library.js").read_text(encoding="utf-8")
+    assert "renderDocumentTable" in body
+    assert "renderDocumentRow" in body
+    assert "library-doc-table" in body
+    # Alle vorhandenen Metadaten sind Spalten.
+    for column in ("Titel", "Status", "Kategorie", "Typ", "Arbeitspaket", "Aktualisiert"):
+        assert f'"{column}"' in body, f"Spalte {column!r} fehlt"
+    # Öffnen-Aktion bleibt sichtbar.
+    assert "library-doc-open" in body
+    assert '"Öffnen"' in body
+    # Karten-Umbruch auf schmalen Bildschirmen über data-label.
+    assert '"data-label"' in body
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert "content: attr(data-label)" in css
+
+
+def test_workpackages_summary_is_not_button_like() -> None:
+    """Die Kopfkennzahlen lösen keinen Filter aus — sie dürfen deshalb
+    nicht wie Chips oder Buttons aussehen."""
+    body = (MODULES_DIR / "workpackages.js").read_text(encoding="utf-8")
+    assert '"ul",\n    { class: "wp-overview-summary" }' in body
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    start = css.rindex("main#app.wp-overview-page .wp-stat {")
+    block = css[start : css.index("}", start)]
+    assert "background: none" in block
+    assert "border: none" in block
+
+
+def test_workpackages_mine_marker_uses_teal_not_success_green() -> None:
+    """„Meine Arbeitspakete" ist Zuordnung, kein Status: Petrol statt
+    Grün, zusätzlich ein Textbadge."""
+    body = (MODULES_DIR / "workpackages.js").read_text(encoding="utf-8")
+    assert "mineBadge" in body
+    assert '"Meine"' in body
+    # Kein wiederholtes „· meine" mehr in jeder Unterpaketzeile.
+    assert '" · meine"' not in body
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert "--rds-accent-mine" in css
+    start = css.rindex("main#app.wp-overview-page .wp-card-mine {")
+    assert "var(--rds-accent-mine)" in css[start : css.index("}", start)]
+
+
+def test_workpackages_details_action_is_a_real_secondary_action() -> None:
+    body = (MODULES_DIR / "workpackages.js").read_text(encoding="utf-8")
+    assert "wp-card-action" in body
+    assert "Details anzeigen" in body
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    start = css.index("main#app .wp-card-action,")
+    block = css[start : css.index("}", start)]
+    assert "min-height: var(--rds-control-min)" in block
+
+
+def test_workpackages_filter_fields_have_explicit_proportions() -> None:
+    body = (MODULES_DIR / "workpackages.js").read_text(encoding="utf-8")
+    assert "wp-filter-field--search" in body
+    assert "wp-filter-field--lead" in body
+    assert "wp-filter-toggle" in body
+    assert "button-secondary wp-filter-reset" in body
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert "main#app .wp-filterbox .wp-filter-field--search" in css
+    assert "main#app .wp-filterbox .wp-filter-field--lead" in css
+
+
+def test_portalwide_typography_and_target_sizes() -> None:
+    """Grundschrift, Metadaten und Klickflächen sind angehoben."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    assert "--rds-control-min" in css
+    assert "--rds-fs-meta: 0.875rem" in css
+    assert "--rds-fs-badge: 0.75rem" in css
+    # Fokusring deutlich sichtbar.
+    start = css.rindex("main#app a:focus-visible,")
+    block = css[start : css.index("}", start)]
+    assert "outline: 3px solid" in block
+    assert "outline-offset: 2px" in block
+
+
+def test_navigation_marks_active_entry_for_screenreaders() -> None:
+    body = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    assert 'setAttribute("aria-current", "page")' in body
+    assert 'removeAttribute("aria-current")' in body
+
+
+def test_responsive_breakpoints_cover_required_widths() -> None:
+    """Kartenraster 3 → 2 → 1, Dokumenttabelle wird zur Kartenliste,
+    Kopfzeile darf umbrechen (sonst horizontaler Seiten-Scroll)."""
+    css = (WEB_DIR / "style.css").read_text(encoding="utf-8")
+    for query in (
+        "@media (max-width: 1300px)",
+        "@media (max-width: 1180px)",
+        "@media (max-width: 1080px)",
+        "@media (max-width: 900px)",
+        "@media (max-width: 700px)",
+        "@media (max-width: 560px)",
+    ):
+        assert query in css, f"Breakpoint {query} fehlt"
+    # Die Kopfzeile war die Ursache des horizontalen Scrolls auf 390 px.
+    start = css.rindex("@media (max-width: 700px)")
+    block = css[start : start + 500]
+    assert ".portal-header" in block
+    assert "flex-wrap: wrap" in block

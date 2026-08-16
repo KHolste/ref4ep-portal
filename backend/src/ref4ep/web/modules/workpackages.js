@@ -133,14 +133,16 @@ function renderSummary({ tops, groupedSubs, total, mineCount, mineAvailable }) {
     { value: subTotal, label: "Unterpakete" },
   ];
   if (mineAvailable) {
-    stats.push({ value: mineCount, label: "meiner WPs" });
+    stats.push({ value: mineCount, label: "meine WPs" });
   }
+  // Reine Kennzahlen-Anzeige, kein Filter: deshalb eine Liste und
+  // bewusst keine Button-/Chip-Optik (siehe CSS ``wp-overview-summary``).
   return h(
-    "div",
+    "ul",
     { class: "wp-overview-summary" },
     ...stats.map((s) =>
       h(
-        "span",
+        "li",
         { class: "wp-stat" },
         h("span", { class: "wp-stat-value" }, String(s.value)),
         h("span", { class: "wp-stat-label" }, s.label),
@@ -156,15 +158,23 @@ function renderFilterBox({
   resetBtn,
   mineAvailable,
 }) {
+  // Feldbreiten sind bewusst unterschiedlich gewichtet: die Suche ist
+  // das Hauptwerkzeug und wächst mit, die Lead-Auswahl bleibt so schmal
+  // wie nötig (siehe ``wp-filter-field--*`` im Stylesheet).
   const labels = [
-    h("label", {}, "Suche nach Code/Titel", searchInput),
-    h("label", {}, "Lead-Partner", leadSelect),
+    h(
+      "label",
+      { class: "wp-filter-field wp-filter-field--search" },
+      "Suche nach Code/Titel",
+      searchInput,
+    ),
+    h("label", { class: "wp-filter-field wp-filter-field--lead" }, "Lead-Partner", leadSelect),
   ];
   if (mineAvailable) {
     labels.push(
       h(
         "label",
-        { class: "checkbox-row" },
+        { class: "checkbox-row wp-filter-toggle" },
         mineCheckbox,
         h("span", {}, "Nur meine Arbeitspakete"),
       ),
@@ -179,6 +189,12 @@ function renderFilterBox({
   );
 }
 
+// Einheitliche Kennzeichnung „gehört mir" — Petrol/Blau, nicht Grün:
+// Grün ist portalweit für „erfolgreich/unkritisch" reserviert.
+function mineBadge() {
+  return h("span", { class: "badge wp-mine-badge" }, "Meine");
+}
+
 function leadBadge(short_name, full_name) {
   return h(
     "span",
@@ -188,20 +204,21 @@ function leadBadge(short_name, full_name) {
 }
 
 function renderSubItem(sub, isMine) {
+  // „Meine" erscheint als kompaktes Badge statt als wiederholtes Wort
+  // am Zeilenende — die Zeile bleibt scanbar.
   return h(
     "li",
     { class: isMine ? "wp-subpackage-item wp-subpackage-mine" : "wp-subpackage-item" },
     h("a", { class: "wp-subpackage-code", href: `/portal/workpackages/${sub.code}` }, sub.code),
-    " — ",
     h("span", { class: "wp-subpackage-title" }, sub.title),
     sub.lead_partner
       ? h(
           "span",
           { class: "muted wp-subpackage-lead" },
-          ` · Lead: ${sub.lead_partner.short_name}`,
+          `Lead: ${sub.lead_partner.short_name}`,
         )
       : null,
-    isMine ? h("span", { class: "wp-subpackage-mine-marker" }, " · meine") : null,
+    isMine ? h("span", { class: "wp-subpackage-mine-marker" }, mineBadge()) : null,
   );
 }
 
@@ -260,24 +277,31 @@ function renderTopCard(top, subs, mineSet, totalSubsForTop) {
         "h2",
         { class: "wp-card-title" },
         h("a", { href: `/portal/workpackages/${top.code}` }, top.code),
-        " — ",
-        h("span", {}, top.title),
+        h("span", { class: "wp-card-title-text" }, top.title),
       ),
-      top.lead_partner
-        ? leadBadge(top.lead_partner.short_name, top.lead_partner.name)
-        : null,
+      h(
+        "div",
+        { class: "wp-card-head-badges" },
+        isMineTop ? mineBadge() : null,
+        top.lead_partner
+          ? leadBadge(top.lead_partner.short_name, top.lead_partner.name)
+          : null,
+      ),
     ),
-    h(
-      "div",
-      { class: "wp-card-meta muted" },
-      subsCountLabel,
-      isMineTop ? " · meine" : "",
-    ),
+    h("div", { class: "wp-card-meta muted" }, subsCountLabel),
     renderSubList(subs, mineSet, totalSubsForTop),
     h(
       "div",
       { class: "wp-card-footer" },
-      h("a", { href: `/portal/workpackages/${top.code}` }, "Details anzeigen →"),
+      h(
+        "a",
+        {
+          class: "wp-card-action",
+          href: `/portal/workpackages/${top.code}`,
+          "aria-label": `Details zu ${top.code} anzeigen`,
+        },
+        "Details anzeigen",
+      ),
     ),
   );
 }
@@ -361,7 +385,7 @@ export async function render(container, ctx) {
   const mineCheckbox = h("input", { type: "checkbox" });
   const resetBtn = h(
     "button",
-    { type: "button", class: "secondary wp-filter-reset" },
+    { type: "button", class: "button-secondary wp-filter-reset" },
     "Zurücksetzen",
   );
 
