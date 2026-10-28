@@ -13,7 +13,8 @@ Eine Übersicht des aktuellen Funktionsumfangs steht in der
 cd backend
 python -m venv .venv
 source .venv/bin/activate         # Windows: .venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
+pip install -r requirements-dev.txt   # exakte Versionen (Lock-Datei)
+pip install -e . --no-deps
 mkdir -p ../data
 alembic upgrade head
 uvicorn ref4ep.api.asgi:app --reload --port 8000
@@ -71,7 +72,7 @@ sonst das Session-Cookie nicht speichert. In Production
 ## PostgreSQL-Gegenprobe (optional)
 
 ```bash
-pip install -e ".[dev,postgres]"
+pip install -r requirements-dev.txt   # enthält bereits den PostgreSQL-Treiber
 export REF4EP_DATABASE_URL="postgresql+psycopg://ref4ep:ref4ep@localhost:5432/ref4ep"
 alembic upgrade head
 pytest

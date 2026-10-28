@@ -145,7 +145,8 @@ Siehe [`backend/README.md`](backend/README.md). In Kurzform:
 cd backend
 python -m venv .venv
 source .venv/bin/activate         # Windows: .venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
+pip install -r requirements-dev.txt   # exakte Versionen (Lock-Datei)
+pip install -e . --no-deps
 mkdir -p ../data
 alembic upgrade head
 uvicorn ref4ep.api.asgi:app --reload --port 8000

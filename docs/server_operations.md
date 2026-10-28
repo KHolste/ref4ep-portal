@@ -61,8 +61,10 @@ cd /opt/ref4ep-portal/backend
 # 7. Umgebungsvariablen aus .env laden
 set -a && source /opt/ref4ep-portal/.env && set +a
 
-# 8. Python-Paket aktualisieren (editable install im venv)
-.venv/bin/pip install -e .
+# 8. Abhängigkeiten exakt nach Lock-Datei, dann das Paket selbst
+#    (ohne weitere Abhängigkeiten — sonst holt pip neueste Versionen)
+.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install -e . --no-deps
 
 # 9. Alembic-Migration anwenden
 .venv/bin/alembic upgrade head
@@ -82,6 +84,33 @@ Nach Schritt 12 sollte `/api/health` ein JSON mit
 `"status": "ok"` und `"db": "ok"` zurückgeben. Falls nicht:
 sofort Logs prüfen (siehe §3) und im Zweifel über das Backup
 zurückkehren.
+
+---
+
+## 2a. Paketversionen aktualisieren
+
+Alle Abhängigkeiten sind in `backend/requirements.txt` (Server) und
+`backend/requirements-dev.txt` (CI, lokal) auf exakte Versionen
+festgelegt. Ein Update auf dem Server installiert damit genau das, was
+die CI vorher getestet hat — nie „was gerade neu ist".
+
+Neue Versionen kommen bewusst, auf dem Entwicklungsrechner:
+
+```bash
+cd backend
+pip install uv                                # einmalig
+scripts/lock_dependencies.sh --upgrade        # Lock-Dateien auf neueste Versionen
+git diff requirements.txt                     # was ändert sich?
+# committen, pushen, CI abwarten — erst bei grüner CI ausliefern
+```
+
+Nach einer Änderung an `dependencies` in `pyproject.toml` (neues Paket)
+ohne `--upgrade` aufrufen: dann kommt nur das neue Paket dazu, alle
+übrigen Versionen bleiben. Die CI prüft, dass die Lock-Dateien zu
+`pyproject.toml` passen.
+
+Geht nach einem Update etwas schief: alten Stand von `requirements.txt`
+auschecken und Schritt 8 wiederholen.
 
 ---
 
