@@ -30,7 +30,12 @@ auftauchen / nicht möglich sein.
       Fehlermeldung (`.error`-Box).
 - [ ] Eingeloggte Person sieht oben rechts ihren Namen
       und das Partner-Kürzel.
-- [ ] Logout-Button im Header funktioniert.
+- [ ] Logout-Button im Header führt zurück auf `/login` und zeigt
+      dort „Du wurdest abgemeldet." (Block 0055).
+- [ ] Von der Login-Seite aus sind Projektseite, Downloads, Impressum
+      und Datenschutz über die Kopfnavigation erreichbar.
+- [ ] `/` leitet auf die öffentliche Projektseite um; der alte
+      Sprint-0-Platzhaltertext erscheint nirgends mehr.
 
 ## 2. Projektcockpit (`/portal/`)
 

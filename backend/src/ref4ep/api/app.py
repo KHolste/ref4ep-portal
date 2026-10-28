@@ -99,6 +99,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     templates_dir = _resource_dir("templates")
     app.state.templates = Jinja2Templates(directory=str(templates_dir))
+    # Adresse der öffentlichen Projektseite steht allen Templates zur
+    # Verfügung (Kopfnavigation, Login-Seite) — ohne sie durch jeden
+    # einzelnen Render-Aufruf zu reichen.
+    app.state.templates.env.globals["project_site_url"] = settings.project_site_url
 
     # API
     app.include_router(health_router)

@@ -3,20 +3,28 @@
 {% block title %}Projekt{% endblock %}
 
 {% block content %}
+  {#
+    Ersatzseite: Sie erscheint nur, wenn ``REF4EP_PROJECT_SITE_URL`` leer
+    ist (lokale Entwicklung). Im Regelbetrieb leitet ``/`` direkt auf die
+    öffentliche Projektseite um — deshalb steht hier bewusst keine
+    zweite, konkurrierende Projektbeschreibung.
+  #}
   <article>
-    <h1>Ref4EP — Referenzdiagnostik für elektrische Raumfahrtantriebe</h1>
+    <h1>Ref4EP-Portal</h1>
     <p>
-      Dies ist die öffentliche Projektseite des DLR-geförderten
-      Forschungsprojekts Ref4EP. Inhalte folgen — Sprint-0-Platzhalter.
+      Dies ist der Einstieg in das interne Projektportal des
+      DLR-geförderten Forschungsprojekts Ref4EP — Referenzdiagnostik für
+      elektrische Raumfahrtantriebe.
+    </p>
+    <p class="public-actions">
+      <a class="public-button" href="/portal/">Zum Projektportal</a>
+      <a class="public-button public-button--secondary" href="/downloads">
+        Öffentliche Downloads
+      </a>
     </p>
     <p>
-      Das Konsortium besteht aus den Partnern JLU Gießen, IOM Leipzig,
-      CAU Kiel, THM Mittelhessen und TU Dresden. Projektlaufzeit:
-      März 2026 bis Februar 2029.
-    </p>
-    <p>
-      Der vollständige Projektsteckbrief sowie eine Liste freigegebener
-      öffentlicher Deliverables werden ab Sprint 4 hier eingepflegt.
+      Die inhaltliche Darstellung des Projekts — Ziele, Konsortium,
+      Arbeitsfelder — liegt auf der öffentlichen Projektseite.
     </p>
   </article>
 {% endblock %}

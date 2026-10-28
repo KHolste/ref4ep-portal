@@ -7,6 +7,10 @@ Session- und CSRF-Cookies. Anschließend Redirect:
 
 - ``/portal/account``, falls ``must_change_password = True``
 - ``/portal/`` sonst.
+
+POST /logout löscht beide Cookies und führt zurück auf
+``/login?logged_out=1`` — mit sichtbarer Bestätigung und der
+Möglichkeit, sich in einem Schritt erneut anzumelden.
 """
 
 from __future__ import annotations
@@ -57,12 +61,17 @@ def _set_cookies(response: RedirectResponse, settings: Settings, token: str) -> 
 
 
 @router.get("/login", response_class=HTMLResponse)
-def login_form(request: Request, error: str | None = None) -> HTMLResponse:
+def login_form(
+    request: Request,
+    error: str | None = None,
+    logged_out: bool = False,
+) -> HTMLResponse:
+    """``logged_out=1`` kommt vom Abmelden und blendet eine Bestätigung ein."""
     templates = request.app.state.templates
     return templates.TemplateResponse(
         request=request,
         name="login.html",
-        context={"title": "Login", "error": error},
+        context={"title": "Login", "error": error, "logged_out": logged_out},
     )
 
 
@@ -97,7 +106,15 @@ def logout_form(
     settings: SettingsDep,
     _: Annotated[Person, Depends(get_current_person)],
 ) -> RedirectResponse:
-    response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    # Zurück zur Anmeldung statt auf die Startseite: auf geteilten
+    # Rechnern meldet sich direkt danach meist jemand anders an, und die
+    # Bestätigung „abgemeldet" gehört sichtbar dorthin, wo man sie
+    # erwartet. Der Weg zur öffentlichen Projektseite steht in der
+    # Kopfnavigation der Login-Seite.
+    response = RedirectResponse(
+        url="/login?logged_out=1",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
     for name in (SESSION_COOKIE, CSRF_COOKIE):
         response.set_cookie(
             name,

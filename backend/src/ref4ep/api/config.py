@@ -50,6 +50,17 @@ class Settings(BaseSettings):
     storage_dir: str = "../data/storage"
     max_upload_mb: int = 100
     public_base_url: str = "http://localhost:8000"
+    # Öffentliche Projektseite des Konsortiums. Die Portal-Startseite
+    # ``/`` leitet dorthin um, statt eine zweite (veraltende)
+    # Projektbeschreibung zu pflegen; Impressum, Datenschutz,
+    # Partnerliste und die öffentlichen Downloads bleiben unter ihren
+    # bisherigen URLs erreichbar.
+    #
+    # Leerer Wert (``REF4EP_PROJECT_SITE_URL=``) schaltet die Umleitung
+    # ab und liefert stattdessen die eingebaute Übersichtsseite aus —
+    # gedacht für lokale Entwicklung und für den Fall, dass die
+    # Projektseite einmal nicht erreichbar ist.
+    project_site_url: str = "https://www.ref4ep.de"
     log_format: Literal["text", "json"] = "text"
     # Verzeichnis, in dem das Hostsystem die Backups ablegt
     # (siehe systemd-Setup). Pfad muss nicht existieren — der

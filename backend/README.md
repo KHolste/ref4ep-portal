@@ -21,7 +21,11 @@ uvicorn ref4ep.api.asgi:app --reload --port 8000
 
 Dann im Browser (Auswahl):
 
-- http://localhost:8000/ — öffentlicher Projektsteckbrief
+- http://localhost:8000/ — leitet auf die öffentliche Projektseite
+  (`REF4EP_PROJECT_SITE_URL`, Standard `https://www.ref4ep.de`) um.
+  Für lokale Entwicklung mit `REF4EP_PROJECT_SITE_URL=` abschaltbar;
+  dann erscheint stattdessen eine schlichte Einstiegsseite.
+- http://localhost:8000/downloads — öffentliche Download-Bibliothek
 - http://localhost:8000/legal/imprint — Impressum
 - http://localhost:8000/legal/privacy — Datenschutzhinweis
 - http://localhost:8000/portal/ — internes Portal (Login erforderlich)

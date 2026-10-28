@@ -10,16 +10,18 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from ref4ep.api.deps import get_session
+from ref4ep.api.config import Settings
+from ref4ep.api.deps import get_session, get_settings
 from ref4ep.services.partner_service import PartnerService
 from ref4ep.services.public_document_service import PublicDocumentService
 
 router = APIRouter()
 
 SessionDep = Annotated[Session, Depends(get_session)]
+SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
 def _humanize_bytes(n: int) -> str:
@@ -30,8 +32,24 @@ def _humanize_bytes(n: int) -> str:
     return f"{n / (1024 * 1024):.2f} MiB"
 
 
-@router.get("/", response_class=HTMLResponse)
-def home(request: Request) -> HTMLResponse:
+@router.get("/", response_model=None)
+def home(request: Request, settings: SettingsDep) -> HTMLResponse | RedirectResponse:
+    """Einstieg auf ``portal.ref4ep.de``.
+
+    Die inhaltliche Projektdarstellung lebt auf der öffentlichen
+    Projektseite (``settings.project_site_url``); hier wird dorthin
+    umgeleitet, statt eine zweite Beschreibung zu pflegen. Ist die
+    Adresse nicht konfiguriert, greift die eingebaute Übersichtsseite.
+
+    Bewusst ``302`` statt ``301``: Browser cachen einen permanenten
+    Redirect hartnäckig, und die Zieladresse ist eine Einstellung, die
+    sich ändern darf.
+    """
+    if settings.project_site_url:
+        return RedirectResponse(
+            url=settings.project_site_url,
+            status_code=status.HTTP_302_FOUND,
+        )
     templates = request.app.state.templates
     return templates.TemplateResponse(
         request=request,

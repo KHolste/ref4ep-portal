@@ -1,12 +1,25 @@
 {% extends "_base.html" %}
 
-{% block title %}Login{% endblock %}
+{% block title %}Anmelden{% endblock %}
 
 {% block content %}
   <article class="login">
     <h1>Anmelden</h1>
+    <p class="login-lead">
+      Interner Bereich des Ref4EP-Konsortiums.
+    </p>
+    {% if logged_out %}
+      {# Bestätigung nach dem Abmelden — Text plus Marker, nicht nur Farbe. #}
+      <p class="notice notice-ok" role="status">
+        <span class="notice-marker" aria-hidden="true">✓</span>
+        Du wurdest abgemeldet.
+      </p>
+    {% endif %}
     {% if error %}
-      <p class="error" role="alert">{{ error }}</p>
+      <p class="notice notice-error" role="alert">
+        <span class="notice-marker" aria-hidden="true">!</span>
+        {{ error }}
+      </p>
     {% endif %}
     <form method="post" action="/login" autocomplete="on">
       <label>
@@ -22,5 +35,12 @@
     <p class="hint">
       Noch kein Konto? Wende dich an deinen Konsortialadministrator.
     </p>
+    {% if project_site_url %}
+      <p class="hint">
+        <a class="login-site-link" href="{{ project_site_url }}">
+          Zur Projektseite ref4ep.de
+        </a>
+      </p>
+    {% endif %}
   </article>
 {% endblock %}
