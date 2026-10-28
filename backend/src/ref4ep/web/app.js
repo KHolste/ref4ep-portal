@@ -12,7 +12,7 @@ import { api, getAdminViewMode, setAdminViewMode } from "/portal/common.js";
 // common.js oder einem Modul (web/modules/*.js) hochgezogen werden;
 // der Asset-Test ``test_index_html_uses_cache_buster_for_app_js_and_style_css``
 // erzwingt das Mitwachsen.
-export const ASSET_VERSION = "0076";
+export const ASSET_VERSION = "0077";
 
 const ROUTES = [
   { pattern: /^\/portal\/?$/, module: "cockpit" },
@@ -218,7 +218,46 @@ function applyRoleVisibility() {
   }
 }
 
+// Hell / Dunkel: der dunkle Modus hängt an ``data-theme="dark"`` auf
+// <html> (siehe theme-dark.css). Die Wahl gilt pro Browser; das kleine
+// Skript im <head> von index.html setzt sie vor dem ersten Zeichnen.
+const THEME_KEY = "ref4ep.theme";
+
+function attachThemeToggle() {
+  const root = document.documentElement;
+  const btn = document.getElementById("theme-toggle");
+  const sync = () => {
+    const dark = root.getAttribute("data-theme") === "dark";
+    if (btn) {
+      btn.setAttribute("aria-pressed", dark ? "true" : "false");
+      btn.title = dark ? "Hellen Modus einschalten" : "Dunklen Modus einschalten";
+    }
+  };
+  btn?.addEventListener("click", () => {
+    const dark = root.getAttribute("data-theme") !== "dark";
+    if (dark) root.setAttribute("data-theme", "dark");
+    else root.removeAttribute("data-theme");
+    try {
+      localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
+    } catch {
+      // Ohne Speicher gilt die Wahl nur bis zum Neuladen.
+    }
+    sync();
+  });
+  // Gedruckt wird immer hell (Protokolle, Listen).
+  let printedFromDark = false;
+  window.addEventListener("beforeprint", () => {
+    printedFromDark = root.getAttribute("data-theme") === "dark";
+    if (printedFromDark) root.removeAttribute("data-theme");
+  });
+  window.addEventListener("afterprint", () => {
+    if (printedFromDark) root.setAttribute("data-theme", "dark");
+  });
+  sync();
+}
+
 async function bootstrap() {
+  attachThemeToggle();
   try {
     currentMe = await api("GET", "/api/me");
   } catch {

@@ -1,0 +1,508 @@
+/* Ref4EP-Portal — Erscheinungsbild „hell, Marineblau und Petrol"
+   ════════════════════════════════════════════════════════════════
+   Eigene Ebene ÜBER style.css (wird danach geladen). Sie legt das
+   Grundgerüst fest: Schrift, Farben, Kopfzeile, Seitenleiste mit
+   Symbolen, ruhigere Kopfbänder, Knöpfe, Karten, Eingabefelder.
+
+   Aufbau wie im Labormanagement-Tool, Farben bleiben die von Ref4EP
+   (Marineblau als Markenfarbe, Petrol als Akzent für Interaktion).
+
+   style.css bleibt unverändert und enthält weiterhin Layout und die
+   modul-spezifischen Regeln. Neue Farben und Maße ausschließlich über
+   die --t-Tokens unten; die älteren --rds-Tokens werden hier auf die
+   neuen Werte umgebogen, damit bestehende Regeln mitziehen.
+
+   Der dunkle Modus (theme-dark.css) wird aus style.css und dieser
+   Datei erzeugt: nach Änderungen hier oder in style.css
+   ``python scripts/build_dark_theme.py`` (im Ordner backend) ausführen.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Schriften liegen lokal (kein Abruf bei Dritten). IBM Plex, SIL Open
+   Font License — siehe fonts/LICENSE-IBM-Plex.txt. */
+@font-face { font-family: "IBM Plex Sans"; font-weight: 400; font-style: normal; font-display: swap;
+  src: url("/portal/fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 500; font-style: normal; font-display: swap;
+  src: url("/portal/fonts/ibm-plex-sans-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 600 700; font-style: normal; font-display: swap;
+  src: url("/portal/fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 400; font-style: normal; font-display: swap;
+  src: url("/portal/fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 500 700; font-style: normal; font-display: swap;
+  src: url("/portal/fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2"); }
+
+:root {
+  /* Flächen und Linien */
+  --t-bg: #f3f5f9;
+  --t-surface: #ffffff;
+  --t-soft: #f6f8fc;
+  --t-raised: #eef2f7;
+  --t-side: #eaeef4;
+  --t-line: #dde3ee;
+  --t-line-strong: #cdd6e4;
+  --t-divider: #eef2f7;
+  /* Schrift */
+  --t-fg: #1a2237;
+  --t-strong: #1c2c4c;          /* Marineblau: Titel, Marke */
+  --t-muted: #4f5768;
+  --t-subtle: #5c6474;
+  --t-faint: #8691a3;
+  --t-link: #265b8e;
+  /* Akzent: Petrol = Interaktion, Auswahl, „gehört mir" */
+  --t-accent: #1f7a8c;
+  --t-accent-hover: #186575;
+  --t-accent-soft: #e7f3f5;
+  --t-on-accent: #ffffff;
+  /* Signalfarben */
+  --t-amber: #b7791f;
+  --t-amber-soft: #fbf3df;
+  --t-green: #2f7a3a;
+  --t-green-soft: #e6f1eb;
+  --t-red: #c0392b;
+  --t-red-soft: #fbe9e7;
+  --t-ok-bg: #e6f1eb;      --t-ok-fg: #1f5a3b;
+  --t-warn-bg: #fbf1d6;    --t-warn-fg: #6e530c;
+  --t-err-bg: #fbe7e6;     --t-err-fg: #7a1c19;
+  --t-info-bg: #e8f1fa;    --t-info-fg: #1f4977;
+  --t-neutral-bg: #eceff5; --t-neutral-fg: #3a4258;
+  /* Form */
+  --t-radius: 8px;
+  --t-shadow: 0 4px 14px rgba(28, 44, 76, .08);
+  --t-sans: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --t-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+
+  /* Ältere Tokens aus style.css auf das neue Erscheinungsbild umbiegen. */
+  --rds-surface-canvas: var(--t-bg);
+  --rds-surface-raised: var(--t-surface);
+  --rds-surface-soft: var(--t-soft);
+  --rds-surface-strong: var(--t-raised);
+  --rds-border: var(--t-line);
+  --rds-border-strong: var(--t-line-strong);
+  --rds-divider: var(--t-divider);
+  --rds-text: var(--t-fg);
+  --rds-text-muted: var(--t-muted);
+  --rds-text-subtle: var(--t-subtle);
+  --rds-text-strong: var(--t-strong);
+  --rds-link: var(--t-link);
+  --rds-status-ok-bg: var(--t-ok-bg);           --rds-status-ok-fg: var(--t-ok-fg);
+  --rds-status-warn-bg: var(--t-warn-bg);       --rds-status-warn-fg: var(--t-warn-fg);
+  --rds-status-err-bg: var(--t-err-bg);         --rds-status-err-fg: var(--t-err-fg);
+  --rds-status-info-bg: var(--t-info-bg);       --rds-status-info-fg: var(--t-info-fg);
+  --rds-status-neutral-bg: var(--t-neutral-bg); --rds-status-neutral-fg: var(--t-neutral-fg);
+  --rds-accent-teal: var(--t-accent);
+  --rds-accent-teal-soft: var(--t-accent-soft);
+  --rds-accent-amber: var(--t-amber);
+  --rds-accent-amber-soft: var(--t-amber-soft);
+  --rds-accent-green: var(--t-green);
+  --rds-accent-green-soft: var(--t-green-soft);
+  --rds-accent-red: var(--t-red);
+  --rds-accent-red-soft: var(--t-red-soft);
+  --rds-radius-lg: var(--t-radius);
+  /* Karten tragen eine feine Linie statt Schatten. */
+  --rds-shadow-sm: none;
+  --rds-shadow-md: none;
+  --cockpit-card-shadow: none;
+  --cockpit-card-shadow-hover: var(--t-shadow);
+  --portal-card-shadow: none;
+  --portal-card-shadow-hover: var(--t-shadow);
+
+  /* Symbole (Strichzeichnungen) als Masken — eingefärbt über currentColor. */
+  --ico-home: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z'/%3E%3C/svg%3E");
+  --ico-layers: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3.5l9 4.8-9 4.8-9-4.8z'/%3E%3Cpath d='M3 12.5l9 4.8 9-4.8'/%3E%3Cpath d='M3 16.5l9 4.8 9-4.8'/%3E%3C/svg%3E");
+  --ico-flag: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 21V4'/%3E%3Cpath d='M5 4.5h12l-2.500 4 2.500 4H5'/%3E%3C/svg%3E");
+  --ico-gantt: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.500 4v16.500H20'/%3E%3Crect x='6.500' y='6' width='7' height='3' rx='1'/%3E%3Crect x='10' y='11' width='8' height='3' rx='1'/%3E%3Crect x='8' y='16' width='5' height='2' rx='1'/%3E%3C/svg%3E");
+  --ico-cal: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='5' width='16' height='15' rx='2'/%3E%3Cpath d='M4 10h16M8 3v4M16 3v4'/%3E%3C/svg%3E");
+  --ico-people: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='9' r='3.2'/%3E%3Cpath d='M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M16 6.2a3 3 0 0 1 0 5.6M18 14.8c1.9.7 3 2.4 3 5.2'/%3E%3C/svg%3E");
+  --ico-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='4' width='16' height='16' rx='3'/%3E%3Cpath d='M8.500 12.300l2.500 2.500 4.500-5'/%3E%3C/svg%3E");
+  --ico-chat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 5.500a1.500 1.500 0 0 1 1.500-1.500h13A1.500 1.500 0 0 1 20 5.500v9a1.500 1.500 0 0 1-1.500 1.500H10l-4.500 4v-4H5.500A1.500 1.500 0 0 1 4 14.500z'/%3E%3Cpath d='M8 9h8M8 12h5'/%3E%3C/svg%3E");
+  --ico-card: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='14' rx='2'/%3E%3Ccircle cx='9' cy='11' r='2.200'/%3E%3Cpath d='M5.500 16c.6-1.600 1.900-2.400 3.500-2.400s2.900.8 3.500 2.400M15 10h3.500M15 13.500h3.500'/%3E%3C/svg%3E");
+  --ico-book: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z'/%3E%3Cpath d='M5 17a3 3 0 0 1 3-3h11'/%3E%3C/svg%3E");
+  --ico-rocket: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3c3 2 5 5.5 5 9l-2 4H9l-2-4c0-3.5 2-7 5-9z'/%3E%3Ccircle cx='12' cy='10' r='1.6'/%3E%3Cpath d='M10 19l2 2 2-2'/%3E%3C/svg%3E");
+  --ico-user: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8.500' r='3.600'/%3E%3Cpath d='M5 20c0-3.600 3.100-6 7-6s7 2.400 7 6'/%3E%3C/svg%3E");
+  --ico-shield: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9.500' cy='8.500' r='3.300'/%3E%3Cpath d='M3.500 20c0-3.400 2.700-5.600 6-5.600.9 0 1.800.2 2.600.5'/%3E%3Cpath d='M17.500 12.500l3.500 1.400v2.600c0 2.200-1.500 3.700-3.500 4.500-2-.8-3.500-2.300-3.500-4.500v-2.600z'/%3E%3C/svg%3E");
+  --ico-building: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20.500V5.500L12 3v17.500M12 8.500h7.500a.5.5 0 0 1 .5.5v11.500M2.500 20.500h19'/%3E%3Cpath d='M7.500 8v.5M7.500 12v.5M7.500 16v.5M16 12v.5M16 16v.5'/%3E%3C/svg%3E");
+  --ico-list: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6h11M9 12h11M9 18h11M4.500 6h.5M4.500 12h.5M4.500 18h.5'/%3E%3C/svg%3E");
+  --ico-pulse: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12h4l2.500-6 4 12 2.500-6h5'/%3E%3C/svg%3E");
+  --ico-moon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 14.500A8 8 0 0 1 9.500 4a8 8 0 1 0 10.500 10.500z'/%3E%3C/svg%3E");
+  --ico-sun: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3Cpath d='M12 2.500v2.500M12 19v2.500M2.500 12H5M19 12h2.500M5.300 5.300l1.800 1.800M16.900 16.900l1.800 1.800M5.300 18.700l1.800-1.800M16.900 7.100l1.800-1.800'/%3E%3C/svg%3E");
+}
+
+/* ── Grundfläche und Schrift ─────────────────────────────────────
+   Das frühere Hintergrundbild entfällt: die Arbeitsfläche ist eine
+   ruhige, einfarbige Fläche. */
+body {
+  font-family: var(--t-sans);
+  color: var(--t-fg);
+  background: var(--t-bg);
+}
+button, input, select, textarea { font-family: inherit; }
+code, kbd, pre, .mono { font-family: var(--t-mono); }
+
+/* ── Kopfzeile: hell, mit feiner Kante ─────────────────────────── */
+.portal-header {
+  background: var(--t-surface);
+  color: var(--t-fg);
+  box-shadow: none;
+  border-bottom: 1px solid var(--t-line);
+  padding: 0.55rem 1.5rem;
+  gap: 0.75rem;
+}
+.portal-header .brand { color: var(--t-strong); font-weight: 600; letter-spacing: -.005em; }
+.portal-header .brand::before { background: var(--t-accent); }
+.portal-header .user { color: var(--t-muted); font-size: 0.9rem; }
+.portal-header .user .linklike { color: var(--t-fg); text-decoration: none; opacity: 1; }
+.portal-header .user .linklike:hover { background: var(--t-bg); color: var(--t-strong); text-decoration: none; }
+.portal-header a:focus-visible,
+.portal-header button:focus-visible,
+.app-sidebar #nav-main a:focus-visible {
+  outline: 2px solid var(--t-accent);
+  outline-offset: 2px;
+}
+
+/* Umschalter Hell / Dunkel. */
+.theme-toggle {
+  width: 32px; height: 32px; padding: 0; cursor: pointer; flex: 0 0 auto;
+  background: var(--t-surface); color: var(--t-muted);
+  border: 1px solid var(--t-line); border-radius: var(--t-radius);
+  display: inline-grid; place-items: center;
+}
+.theme-toggle:hover { color: var(--t-fg); background: var(--t-bg); }
+.theme-toggle::before {
+  content: ""; width: 17px; height: 17px; background: currentColor;
+  -webkit-mask: var(--ico-moon) center / contain no-repeat;
+          mask: var(--ico-moon) center / contain no-repeat;
+}
+:root[data-theme="dark"] .theme-toggle::before {
+  -webkit-mask-image: var(--ico-sun); mask-image: var(--ico-sun);
+}
+
+/* Hinweisbalken „Nutzeransicht aktiv". */
+.admin-view-banner {
+  background: var(--t-warn-bg); color: var(--t-warn-fg);
+  border-bottom: 1px solid var(--t-line);
+}
+
+/* ── Seitenleiste: helle Fläche, Symbole, ruhiger Aktiv-Zustand ── */
+.app-sidebar {
+  background: var(--t-side);
+  color: var(--t-muted);
+  border-right: 1px solid var(--t-line);
+  box-shadow: none;
+  padding: var(--rds-space-4) 10px;
+}
+.app-sidebar #nav-main { gap: var(--rds-space-3); }
+.app-sidebar .nav-group:not(:first-child) {
+  margin-top: 0;
+  padding-top: var(--rds-space-3);
+  border-top: 1px solid var(--t-line);
+}
+.app-sidebar .nav-group-title {
+  color: var(--t-faint);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  margin-bottom: 4px;
+  padding: 0 10px;
+}
+.app-sidebar .nav-group-title::before { display: none; }
+.app-sidebar #nav-main a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 2.25rem;
+  padding: 7px 10px;
+  border-left: 0;
+  border-radius: 6px;
+  color: var(--t-muted);
+  font-size: 0.93rem;
+  font-weight: 500;
+}
+.app-sidebar #nav-main a::before {
+  content: ""; flex: 0 0 auto; width: 18px; height: 18px;
+  background: currentColor;
+  -webkit-mask: var(--ico, var(--ico-home)) center / contain no-repeat;
+          mask: var(--ico, var(--ico-home)) center / contain no-repeat;
+}
+.app-sidebar #nav-main a:hover { background: var(--t-surface); color: var(--t-fg); }
+.app-sidebar #nav-main a.active {
+  background: var(--t-surface);
+  color: var(--t-accent);
+  font-weight: 600;
+  border-left: 0;
+  box-shadow: inset 0 0 0 1px var(--t-line);
+}
+/* Verwaltung: eigener, leicht abgesetzter Bereich. */
+.app-sidebar #nav-group-admin {
+  margin-top: var(--rds-space-2);
+  padding: var(--rds-space-3) 4px 4px;
+  border-top: 1px solid var(--t-line-strong);
+  border-radius: 0;
+  background: transparent;
+}
+.app-sidebar #nav-group-admin .nav-group-title { color: var(--t-faint); }
+
+#nav-main a[data-route="cockpit"]           { --ico: var(--ico-home); }
+#nav-main a[data-route="workpackages"]      { --ico: var(--ico-layers); }
+#nav-main a[data-route="milestones"]        { --ico: var(--ico-flag); }
+#nav-main a[data-route="gantt"]             { --ico: var(--ico-gantt); }
+#nav-main a[data-route="calendar"]          { --ico: var(--ico-cal); }
+#nav-main a[data-route="meetings"]          { --ico: var(--ico-people); }
+#nav-main a[data-route="actions"]           { --ico: var(--ico-check); }
+#nav-main a[data-route="document_comments"] { --ico: var(--ico-chat); }
+#nav-main a[data-route="contacts"]          { --ico: var(--ico-card); }
+#nav-main a[data-route="project_library"]   { --ico: var(--ico-book); }
+#nav-main a[data-route="campaigns"]         { --ico: var(--ico-rocket); }
+#nav-main a[data-route="account"]           { --ico: var(--ico-user); }
+#nav-main a[data-route="lead_team"]         { --ico: var(--ico-people); }
+#nav-main a[data-route="admin_users"]       { --ico: var(--ico-shield); }
+#nav-main a[data-route="admin_partners"]    { --ico: var(--ico-building); }
+#nav-main a[data-route="audit"]             { --ico: var(--ico-list); }
+#nav-main a[data-route="system_status"]     { --ico: var(--ico-pulse); }
+
+/* Schmale Fenster: Leiste als Chip-Reihe oben. */
+@media (max-width: 900px) {
+  .app-sidebar { border-right: 0; border-bottom: 1px solid var(--t-line); padding: var(--rds-space-3) var(--rds-space-4); }
+  .app-sidebar #nav-main a { min-height: 2rem; padding: 4px 10px; gap: 6px; font-size: 0.88rem; }
+  .app-sidebar #nav-main a::before { width: 15px; height: 15px; }
+  .app-sidebar #nav-main a.active { box-shadow: inset 0 0 0 1px var(--t-accent); }
+  .app-sidebar #nav-group-admin { margin: 0; padding: 0; border: 0; }
+}
+
+/* ── Seitentitel und Kopfbänder ────────────────────────────────── */
+main#app .page-header > .page-title { color: var(--t-strong); }
+
+/* Bild-Kopfbänder bleiben (Raumfahrtbezug), werden aber flacher:
+   weniger Innenabstand, kein Schatten, kleinere Titel. */
+main#app.cockpit-shell .cockpit-hero,
+main#app .cockpit-page .cockpit-hero,
+main#app.wp-overview-page .wp-overview-hero,
+main#app.project-library-page .library-hero,
+main#app.contacts-page .contacts-hero,
+main#app.campaigns-page .campaigns-hero,
+main#app.meetings-page .meetings-hero,
+main#app.actions-page .actions-hero,
+main#app.comments-page .comments-hero,
+main#app.milestones-page .milestones-hero,
+main#app.calendar-page .calendar-hero,
+main#app.gantt-page .gantt-hero {
+  padding: var(--rds-space-5) var(--rds-space-6);
+  margin-bottom: var(--rds-space-5);
+  border-radius: var(--t-radius);
+  box-shadow: none;
+}
+main#app.wp-overview-page .wp-overview-hero .page-title,
+main#app.project-library-page .library-hero .page-title,
+main#app.contacts-page .contacts-hero .page-title,
+main#app.campaigns-page .campaigns-hero .page-title,
+main#app.meetings-page .meetings-hero .page-title,
+main#app.actions-page .actions-hero .page-title,
+main#app.comments-page .comments-hero .page-title,
+main#app.milestones-page .milestones-hero .page-title,
+main#app.calendar-page .calendar-hero .page-title,
+main#app.gantt-page .gantt-hero .page-title,
+main#app.cockpit-shell .cockpit-hero .page-title {
+  font-size: 1.55rem;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+/* Cockpit und Zeitplan haben kein Bild: schlichte Fläche mit Petrol-Kante. */
+main#app.cockpit-shell .cockpit-hero,
+main#app .cockpit-page .cockpit-hero,
+main#app.gantt-page .gantt-hero {
+  background: var(--t-surface);
+  border: 1px solid var(--t-line);
+  border-left: 4px solid var(--t-accent);
+}
+main#app.cockpit-shell .cockpit-hero .page-title,
+main#app.gantt-page .gantt-hero .page-title { color: var(--t-strong); }
+main#app.cockpit-shell .cockpit-hero .page-subtitle,
+main#app.gantt-page .gantt-hero .page-subtitle { color: var(--t-muted); }
+
+/* ── Knöpfe ────────────────────────────────────────────────────── */
+/* Eine Hauptaktion: Petrol. Zweitaktionen: helle Fläche mit Linie. */
+button.button-primary,
+main#app button.button-primary,
+form.stacked button,
+button[type="submit"] {
+  background: var(--t-accent);
+  border-color: var(--t-accent);
+  color: var(--t-on-accent);
+  box-shadow: none;
+}
+button.button-primary:hover,
+main#app button.button-primary:hover,
+form.stacked button:hover,
+button[type="submit"]:hover {
+  background: var(--t-accent-hover);
+  border-color: var(--t-accent-hover);
+}
+button.button-secondary,
+main#app button.button-secondary,
+main#app .wp-card-action,
+main#app .library-doc-open {
+  background: var(--t-surface);
+  color: var(--t-strong);
+  border-color: var(--t-line-strong);
+}
+button.button-secondary:hover,
+main#app button.button-secondary:hover {
+  background: var(--t-soft);
+  border-color: var(--t-accent);
+  color: var(--t-accent);
+}
+button.button-danger,
+main#app button.button-danger { background: var(--t-red); border-color: var(--t-red); color: #ffffff; }
+
+/* Fokus: Petrol statt Blau, etwas schlanker. */
+main#app a:focus-visible,
+main#app button:focus-visible,
+main#app summary:focus-visible,
+main#app input:focus-visible,
+main#app select:focus-visible,
+main#app textarea:focus-visible {
+  outline: 2px solid var(--t-accent);
+  outline-offset: 2px;
+}
+
+/* ── Eingabefelder ─────────────────────────────────────────────── */
+main#app input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+main#app select,
+main#app textarea {
+  background-color: var(--t-surface);
+  color: var(--t-fg);
+  border-color: var(--t-line-strong);
+}
+main#app input::placeholder,
+main#app textarea::placeholder { color: var(--t-faint); }
+main#app input[type="checkbox"],
+main#app input[type="radio"] { accent-color: var(--t-accent); }
+
+/* ── Karten ────────────────────────────────────────────────────── */
+/* Karten tragen eine feine Linie; der kräftige Farbbalken oben
+   entfällt, beim Überfahren zeigt die Kante den Akzent. */
+main#app.wp-overview-page .wp-card,
+main#app.campaigns-page .campaign-card,
+main#app.contacts-page .contacts-card {
+  border-top: 1px solid var(--t-line);
+  box-shadow: none;
+}
+main#app.wp-overview-page .wp-card:hover,
+main#app.campaigns-page .campaign-card:hover,
+main#app.contacts-page .contacts-card:hover {
+  border-color: var(--t-accent);
+  box-shadow: none;
+}
+main#app .section-card,
+main#app .filterbox,
+main#app .library-filter-bar,
+main#app .wp-filterbox {
+  background: var(--t-surface);
+  border-color: var(--t-line);
+  box-shadow: none;
+}
+
+/* ── Tabellen: ruhiger Kopf, klare Zeilen ───────────────────────── */
+main#app th {
+  background: transparent;
+  color: var(--t-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  border-bottom: 1px solid var(--t-line-strong);
+}
+main#app td { border-bottom-color: var(--t-line); }
+
+/* Knöpfe ohne eigene Klasse (Dialoge, Verwaltungsseiten) sahen aus wie
+   Browser-Standard: sie bekommen die Optik der Zweitaktion. */
+main#app button:not([class]):not([type="submit"]) {
+  background: var(--t-surface);
+  color: var(--t-strong);
+  border: 1px solid var(--t-line-strong);
+  border-radius: 4px;
+  padding: 0.45rem 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+main#app button:not([class]):not([type="submit"]):hover {
+  background: var(--t-soft);
+  border-color: var(--t-accent);
+  color: var(--t-accent);
+}
+
+/* Helle Knöpfe auf Bild-Kopfbändern: feste Farben, weil das Bild in
+   beiden Modi dunkel bleibt. */
+main#app.project-library-page .library-hero .actions button,
+main#app.meetings-page .meetings-hero > button {
+  background: #ffffff;
+  color: #1c2c4c;
+  border-color: #ffffff;
+}
+main#app.project-library-page .library-hero .actions button:hover,
+main#app.meetings-page .meetings-hero > button:hover {
+  background: #e7f3f5;
+}
+
+/* Projektbibliothek: kein Bild mehr hinter der Arbeitsfläche. */
+main#app.project-library-page::before { display: none; }
+
+/* Häufige Knopf-Klassen der Module, die bisher Browser-Optik trugen. */
+main#app button.secondary,
+main#app button.backup-trigger-button {
+  background: var(--t-surface);
+  color: var(--t-strong);
+  border: 1px solid var(--t-line-strong);
+  border-radius: 4px;
+  padding: 0.45rem 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+main#app button.secondary:hover,
+main#app button.backup-trigger-button:hover:not(:disabled) {
+  background: var(--t-soft);
+  border-color: var(--t-accent);
+  color: var(--t-accent);
+}
+main#app button.danger:not(.linklike) {
+  background: var(--t-surface);
+  color: var(--t-red);
+  border: 1px solid var(--t-line-strong);
+  border-radius: 4px;
+  padding: 0.45rem 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+main#app button.danger:not(.linklike):hover {
+  background: var(--t-red-soft);
+  border-color: var(--t-red);
+}
+/* „linklike": Knopf, der wie ein Verweis aussieht. */
+main#app button.linklike {
+  background: none;
+  border: 0;
+  padding: 0;
+  min-height: 0;
+  color: var(--t-link);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+main#app button.linklike.danger { color: var(--t-red); }
+main#app button.linklike:hover { color: var(--t-accent); }
+
+/* Anlege-Knopf im Testkampagnen-Kopfband: festes Petrol auf dem Bild. */
+main#app.campaigns-page .campaigns-hero-actions button {
+  background: #1f7a8c;
+  border-color: #1f7a8c;
+  color: #ffffff;
+}
+main#app.campaigns-page .campaigns-hero-actions button:hover {
+  background: #186575;
+}
+
+/* Schmale Fenster: Umschalter oben rechts neben dem Portalnamen,
+   Nutzerbereich darunter. */
+@media (max-width: 700px) {
+  .portal-header .theme-toggle { order: 1; margin-left: auto; }
+  .portal-header .user { order: 2; }
+}
