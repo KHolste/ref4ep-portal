@@ -41,7 +41,7 @@ jobs:
       - name: Lock-Dateien passen zu pyproject.toml
         run: |
           pip install "uv==0.13.6"
-          scripts/lock_dependencies.sh --check
+          bash scripts/lock_dependencies.sh --check
       - name: Lint (ruff)
         run: ruff check src tests
       - name: Format check (ruff)
