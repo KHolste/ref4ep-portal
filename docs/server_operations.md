@@ -195,6 +195,15 @@ Der Validator akzeptiert nur absolute Pfade ohne Shell-Metazeichen.
 
 ---
 
+### Zweite Kopie
+
+Ein Rechner an der JLU holt die Backups täglich per SSH ab und hebt sie
+ebenfalls 14 Tage auf — so gehen Portal und Backups nicht gemeinsam
+verloren. Einrichtung, Prüfung und Zurückspielen:
+[`infra/backup-pull/README.md`](../infra/backup-pull/README.md).
+
+---
+
 ## 5. Restore
 
 **Restore nicht nebenbei ausführen.** Vorgehen:
