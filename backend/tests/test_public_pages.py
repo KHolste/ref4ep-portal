@@ -34,10 +34,23 @@ def test_home_renders_fallback_when_project_site_is_unset(tmp_path) -> None:
         assert "Sprint-0-Platzhalter" not in response.text
 
 
-def test_imprint_renders(client: TestClient) -> None:
-    response = client.get("/legal/imprint")
-    assert response.status_code == 200
-    assert "Impressum" in response.text
+def test_imprint_redirects_to_project_site_imprint(client: TestClient) -> None:
+    """Block 0079: Das Impressum der Projektseite gilt auch fürs Portal."""
+    response = client.get("/legal/imprint", follow_redirects=False)
+    assert response.status_code == 302
+    assert response.headers["location"] == "https://www.ref4ep.de/impressum.html"
+
+
+def test_imprint_renders_when_project_site_is_unset(tmp_path) -> None:
+    settings = make_test_settings(
+        database_url=f"sqlite:///{tmp_path / 'imprint.db'}",
+        storage_dir=str(tmp_path),
+        project_site_url="",
+    )
+    with TestClient(create_app(settings=settings)) as client:
+        response = client.get("/legal/imprint", follow_redirects=False)
+        assert response.status_code == 200
+        assert "Impressum" in response.text
 
 
 def test_privacy_renders(client: TestClient) -> None:
@@ -49,7 +62,7 @@ def test_privacy_renders(client: TestClient) -> None:
 def test_public_header_links_to_project_site(client: TestClient) -> None:
     """Die Kopfnavigation der Public-Zone verweist auf die Projektseite
     und macht die öffentlichen Downloads erreichbar."""
-    response = client.get("/legal/imprint")
+    response = client.get("/legal/privacy")
     assert 'href="https://www.ref4ep.de"' in response.text
     assert 'href="/downloads"' in response.text
     assert 'href="/portal/"' in response.text

@@ -1,6 +1,7 @@
 """Öffentlich erreichbare, serverseitig gerenderte Pages (Jinja2).
 
 Sprint 0: Steckbrief, Impressum, Datenschutz (Platzhalter).
+Block 0079: Impressum leitet auf das der Projektseite weiter.
 Sprint 1: zusätzlich öffentliche Partnerliste.
 Sprint 4: zusätzlich öffentliche Download-Bibliothek.
 """
@@ -58,8 +59,16 @@ def home(request: Request, settings: SettingsDep) -> HTMLResponse | RedirectResp
     )
 
 
-@router.get("/legal/imprint", response_class=HTMLResponse)
-def imprint(request: Request) -> HTMLResponse:
+@router.get("/legal/imprint", response_model=None)
+def imprint(request: Request, settings: SettingsDep) -> HTMLResponse | RedirectResponse:
+    """Impressum: das der öffentlichen Projektseite gilt auch fürs Portal
+    (gleicher Betreiber) — Weiterleitung statt einer zweiten Fassung.
+    Ohne konfigurierte Projektseite (lokal) greift die eingebaute Seite."""
+    if settings.project_site_url:
+        return RedirectResponse(
+            url=f"{settings.project_site_url.rstrip('/')}/impressum.html",
+            status_code=status.HTTP_302_FOUND,
+        )
     templates = request.app.state.templates
     return templates.TemplateResponse(
         request=request,
