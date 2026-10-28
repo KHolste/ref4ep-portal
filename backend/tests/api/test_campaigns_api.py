@@ -312,13 +312,12 @@ def test_no_hard_delete_endpoint() -> None:
     from tests.conftest import make_test_settings
 
     app = create_app(settings=make_test_settings(storage_dir="/tmp/x"))
-    delete_routes = [
-        r
-        for r in app.routes
-        if getattr(r, "path", "") == "/api/campaigns/{campaign_id}"
-        and "DELETE" in getattr(r, "methods", set())
-    ]
-    assert delete_routes == []
+    # Über das OpenAPI-Schema statt ``app.routes``: neuere FastAPI-
+    # Versionen legen eingebundene Router nicht mehr flach in ``app.routes``
+    # — die alte Prüfung lief dort ins Leere und war immer grün.
+    methods = app.openapi()["paths"]["/api/campaigns/{campaign_id}"]
+    assert "get" in methods  # Pfad ist bekannt, die Prüfung greift
+    assert "delete" not in methods
 
 
 # ---- Teilnehmende ------------------------------------------------------

@@ -264,13 +264,10 @@ def test_delete_meeting_route_is_admin_only_route_exists() -> None:
     from tests.conftest import make_test_settings
 
     app = create_app(settings=make_test_settings(storage_dir="/tmp/x"))
-    delete_meeting = [
-        r
-        for r in app.routes
-        if getattr(r, "path", "") == "/api/meetings/{meeting_id}"
-        and "DELETE" in getattr(r, "methods", set())
-    ]
-    assert len(delete_meeting) == 1
+    # Über das OpenAPI-Schema statt ``app.routes``: neuere FastAPI-
+    # Versionen legen eingebundene Router nicht mehr flach in ``app.routes``.
+    methods = app.openapi()["paths"]["/api/meetings/{meeting_id}"]
+    assert "delete" in methods
 
 
 # ---- Hard-Delete (Block 0016) -----------------------------------------
