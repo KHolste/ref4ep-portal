@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     # Projektseite einmal nicht erreichbar ist.
     project_site_url: str = "https://www.ref4ep.de"
     log_format: Literal["text", "json"] = "text"
+    # Block 0079 — Speicherfrist für IP-Adressen im Änderungsprotokoll
+    # (steht so in der Datenschutzerklärung). 0 schaltet das Löschen ab.
+    audit_ip_retention_days: int = Field(default=90, ge=0)
     # Verzeichnis, in dem das Hostsystem die Backups ablegt
     # (siehe systemd-Setup). Pfad muss nicht existieren — der
     # SystemStatusService meldet ein Fehlen als Warning.

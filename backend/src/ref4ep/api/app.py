@@ -11,11 +11,15 @@ Sprint-1-Umfang:
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager, suppress
 from importlib import resources
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -47,6 +51,7 @@ from ref4ep.api.routes.partners import router as partners_router
 from ref4ep.api.routes.public_documents import router as public_documents_router
 from ref4ep.api.routes.public_pages import router as public_pages_router
 from ref4ep.api.routes.stammdaten import router as stammdaten_router
+from ref4ep.services.audit_retention import run_ip_retention
 from ref4ep.storage.local import LocalFileStorage
 
 
@@ -85,11 +90,47 @@ def _register_portal_spa(app: FastAPI, web_dir: Path) -> None:
         return FileResponse(index_path, media_type="text/html")
 
 
+_RETENTION_INTERVAL_SECONDS = 24 * 60 * 60
+
+
+async def _run_ip_retention_once(app: FastAPI) -> None:
+    """Löscht alte IP-Adressen aus dem Änderungsprotokoll. Fehler werden
+    protokolliert, nie weitergereicht — das Portal soll davon nicht abhängen."""
+    days = app.state.settings.audit_ip_retention_days
+    if days <= 0:
+        return
+    try:
+        await run_in_threadpool(run_ip_retention, app.state.engine, days)
+    except Exception:  # Hintergrundaufgabe darf nie abbrechen
+        logging.getLogger("ref4ep.retention").exception(
+            "Löschen alter IP-Adressen im Änderungsprotokoll fehlgeschlagen"
+        )
+
+
+async def _ip_retention_loop(app: FastAPI) -> None:
+    while True:
+        await asyncio.sleep(_RETENTION_INTERVAL_SECONDS)
+        await _run_ip_retention_once(app)
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # Einmal beim Start (abgewartet), danach täglich im Hintergrund.
+    await _run_ip_retention_once(app)
+    task = asyncio.create_task(_ip_retention_loop(app))
+    try:
+        yield
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     _configure_logging(settings)
 
-    app = FastAPI(title="Ref4EP-Portal", version=__version__)
+    app = FastAPI(title="Ref4EP-Portal", version=__version__, lifespan=_lifespan)
 
     engine = create_engine(settings.database_url, future=True)
     app.state.engine = engine

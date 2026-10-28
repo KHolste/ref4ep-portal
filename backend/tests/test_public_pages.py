@@ -53,16 +53,30 @@ def test_imprint_renders_when_project_site_is_unset(tmp_path) -> None:
         assert "Impressum" in response.text
 
 
-def test_privacy_renders(client: TestClient) -> None:
-    response = client.get("/legal/privacy")
-    assert response.status_code == 200
-    assert "Datenschutz" in response.text
+def test_privacy_redirects_to_project_site_portal_section(client: TestClient) -> None:
+    """Block 0079: Die Datenschutzerklärung der Projektseite hat einen
+    Abschnitt zum Portal; dorthin wird weitergeleitet."""
+    response = client.get("/legal/privacy", follow_redirects=False)
+    assert response.status_code == 302
+    assert response.headers["location"] == "https://www.ref4ep.de/datenschutz.html#projektportal"
+
+
+def test_privacy_renders_when_project_site_is_unset(tmp_path) -> None:
+    settings = make_test_settings(
+        database_url=f"sqlite:///{tmp_path / 'privacy.db'}",
+        storage_dir=str(tmp_path),
+        project_site_url="",
+    )
+    with TestClient(create_app(settings=settings)) as client:
+        response = client.get("/legal/privacy", follow_redirects=False)
+        assert response.status_code == 200
+        assert "Datenschutz" in response.text
 
 
 def test_public_header_links_to_project_site(client: TestClient) -> None:
     """Die Kopfnavigation der Public-Zone verweist auf die Projektseite
     und macht die öffentlichen Downloads erreichbar."""
-    response = client.get("/legal/privacy")
+    response = client.get("/downloads")
     assert 'href="https://www.ref4ep.de"' in response.text
     assert 'href="/downloads"' in response.text
     assert 'href="/portal/"' in response.text
