@@ -3,8 +3,8 @@ import { api, crossNav, h, pageHeader, renderError, renderLoading } from "/porta
 function row(entry) {
   const detailsBtn = h(
     "button",
-    { type: "button", class: "linklike" },
-    "Details",
+    { type: "button", class: "linklike", "aria-expanded": "false" },
+    "Details anzeigen",
   );
   const detailsBox = h("pre", { class: "audit-details", hidden: true });
   detailsBtn.addEventListener("click", () => {
@@ -14,6 +14,8 @@ function row(entry) {
     } else {
       detailsBox.hidden = true;
     }
+    detailsBtn.textContent = detailsBox.hidden ? "Details anzeigen" : "Details ausblenden";
+    detailsBtn.setAttribute("aria-expanded", detailsBox.hidden ? "false" : "true");
   });
   const actor = entry.actor.email
     ? entry.actor.email
@@ -23,8 +25,14 @@ function row(entry) {
     {},
     h("td", {}, new Date(entry.created_at).toLocaleString("de-DE")),
     h("td", {}, actor),
-    h("td", {}, entry.action),
-    h("td", {}, `${entry.entity_type} ${entry.entity_id.slice(0, 8)}…`),
+    h("td", {}, h("code", {}, entry.action)),
+    h(
+      "td",
+      {},
+      h("code", {}, entry.entity_type),
+      " ",
+      h("span", { class: "muted", title: entry.entity_id }, `${entry.entity_id.slice(0, 8)}…`),
+    ),
     h("td", {}, detailsBtn, detailsBox),
   );
 }
@@ -45,15 +53,17 @@ export async function render(container, ctx) {
     return;
   }
 
-  const actorInput = h("input", { type: "text", placeholder: "Akteur-E-Mail" });
-  const entityInput = h("input", { type: "text", placeholder: "entity_type (z. B. document)" });
-  const actionInput = h("input", { type: "text", placeholder: "action (z. B. document.release)" });
-  const reload = h("button", { type: "button" }, "Filtern");
+  // Objektart und Aktion sind technische Schlüssel aus dem Protokoll —
+  // die Beispiele zeigen, wie sie aussehen.
+  const actorInput = h("input", { type: "text", placeholder: "name@beispiel.de" });
+  const entityInput = h("input", { type: "text", placeholder: "z. B. document" });
+  const actionInput = h("input", { type: "text", placeholder: "z. B. document.release" });
+  const reload = h("button", { type: "submit", class: "button-primary" }, "Filtern");
 
   const tableBody = h("tbody", {});
   const table = h(
     "table",
-    {},
+    { class: "audit-table" },
     h(
       "thead",
       {},
@@ -61,9 +71,9 @@ export async function render(container, ctx) {
         "tr",
         {},
         h("th", {}, "Zeit"),
-        h("th", {}, "Akteur"),
+        h("th", {}, "Wer"),
         h("th", {}, "Aktion"),
-        h("th", {}, "Entity"),
+        h("th", {}, "Objekt"),
         h("th", {}, "Details"),
       ),
     ),
@@ -93,7 +103,7 @@ export async function render(container, ctx) {
         h(
           "tr",
           {},
-          h("td", { colspan: "5", class: "empty muted" }, "(keine Einträge)"),
+          h("td", { colspan: "5", class: "empty muted" }, "Keine Einträge für diese Filter."),
         ),
       );
     } else {
@@ -101,7 +111,6 @@ export async function render(container, ctx) {
     }
   }
 
-  reload.addEventListener("click", refresh);
 
   container.replaceChildren(
     pageHeader(
@@ -109,12 +118,22 @@ export async function render(container, ctx) {
       "Veränderungsprotokoll für Admin-Recherche — schreibgeschützt.",
     ),
     h(
-      "div",
-      { class: "audit-filters" },
-      actorInput,
-      entityInput,
-      actionInput,
-      reload,
+      "form",
+      {
+        onsubmit: (ev) => {
+          ev.preventDefault();
+          refresh();
+        },
+      },
+      h(
+        "fieldset",
+        { class: "audit-filterbox filterbox" },
+        h("legend", {}, "Protokoll filtern"),
+        h("label", {}, "Person (E-Mail)", actorInput),
+        h("label", {}, "Objektart", entityInput),
+        h("label", {}, "Aktion", actionInput),
+        reload,
+      ),
     ),
     statusSlot,
     table,

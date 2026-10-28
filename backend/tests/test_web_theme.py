@@ -171,3 +171,66 @@ def test_gantt_svg_colours_have_dark_rules() -> None:
     for colour in ("#cdd5e0", "#eef2f7"):
         assert colour in js
         assert f'.gantt-svg [fill="{colour}" i]' in css
+
+
+# ---- Öffentliche Zone ------------------------------------------------------
+
+STATIC = BACKEND / "src" / "ref4ep" / "static"
+TEMPLATES = BACKEND / "src" / "ref4ep" / "templates"
+
+
+def test_public_zone_has_dark_tokens_for_every_light_token() -> None:
+    css = (STATIC / "style.css").read_text(encoding="utf-8")
+    light = css[css.index(":root {") :]
+    light = light[: light.index("}")]
+    dark = css[css.index(':root[data-theme="dark"] {') :]
+    dark = dark[: dark.index("}")]
+    for token in re.findall(r"(--pub-[a-z-]+):\s*#", light):
+        assert token + ":" in dark, token
+    # Außerhalb der Token-Blöcke keine fest notierten Farben — sonst
+    # bliebe im dunklen Modus etwas hell.
+    rest = re.sub(r":root[^{]*\{[^}]*\}", "", re.sub(r"/\*.*?\*/", "", css, flags=re.S))
+    assert not re.findall(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", rest)
+
+
+def test_public_zone_shares_the_theme_choice_with_the_portal() -> None:
+    base = (TEMPLATES / "_base.html").read_text(encoding="utf-8")
+    head = base[: base.index("</head>")]
+    assert "localStorage.getItem('ref4ep.theme')==='dark'" in head
+    assert 'id="theme-toggle"' in base
+    assert 'localStorage.setItem("ref4ep.theme"' in base
+    assert "beforeprint" in base
+
+
+def test_login_page_renders_theme_toggle(client: TestClient) -> None:
+    html = client.get("/login").text
+    assert 'id="theme-toggle"' in html
+    assert 'href="/portal/" aria-current="page"' in html
+
+
+# ---- Cockpit-Ampel und Verwaltungsseiten -------------------------------------
+
+
+def test_cockpit_traffic_light_shows_only_attention_by_default() -> None:
+    body = (WEB / "modules" / "cockpit.js").read_text(encoding="utf-8")
+    i = body.index("function renderWorkpackageHealthCard(")
+    card = body[i : body.index("function renderProjectKpisCard(")]
+    # Offen stehen nur rot und gelb …
+    assert 'e.traffic_light === "red" || e.traffic_light === "yellow"' in card
+    # … der Rest klappt auf, die Zählung steht oben.
+    assert '"details"' in card and "Arbeitspakete anzeigen" in card
+    assert "cockpit-health-summary" in card
+    for label in ("kritisch", "Aufmerksamkeit", "im Plan", "ohne Bewertung"):
+        assert label in body
+
+
+def test_admin_pages_use_german_terms() -> None:
+    partners = (WEB / "modules" / "admin_partners.js").read_text(encoding="utf-8")
+    assert '"Soft-Delete …"' not in partners and '"soft-deleted"' not in partners
+    assert '"Entfernen …"' in partners
+    audit = (WEB / "modules" / "audit.js").read_text(encoding="utf-8")
+    for old in ('"Entity"', '"Akteur"', "entity_type (z. B.", "(keine Einträge)"):
+        assert old not in audit, old
+    assert 'h("legend", {}, "Protokoll filtern")' in audit
+    account = (WEB / "modules" / "account.js").read_text(encoding="utf-8")
+    assert '"Rolle im Portal"' in account and "Administration" in account

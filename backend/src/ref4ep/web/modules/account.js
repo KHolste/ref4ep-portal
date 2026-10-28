@@ -2,7 +2,7 @@ import { api, crossNav, h, pageHeader } from "/portal/common.js";
 
 export async function render(container, ctx) {
   const me = ctx.me;
-  const status = h("p", {}, "");
+  const status = h("p", { role: "status" }, "");
 
   function field(labelText, type, name) {
     const input = h("input", {
@@ -57,24 +57,37 @@ export async function render(container, ctx) {
 
   // Wenn must_change_password gesetzt ist, expandieren wir die Sektion
   // automatisch. Sonst bleibt sie eingeklappt — die Kontoansicht öffnet
-  // dann nur einen einzelnen Button „Passwort ändern …".
+  // dann nur die Zeile „Neues Passwort festlegen".
   const mustChange = !!me.person.must_change_password;
   const passwordSection = h(
     "details",
     { class: "collapsible", id: "password-section", ...(mustChange ? { open: "" } : {}) },
-    h("summary", { id: "password-toggle" }, "Passwort ändern …"),
+    h("summary", { id: "password-toggle" }, "Neues Passwort festlegen"),
     form,
     status,
   );
 
+  const ROLE_LABELS = { admin: "Administration", member: "Mitglied" };
+  const facts = [
+    ["Name", me.person.display_name],
+    ["E-Mail", me.person.email],
+    ["Partner", `${me.person.partner.name} (${me.person.partner.short_name})`],
+    ["Rolle im Portal", ROLE_LABELS[me.person.platform_role] || me.person.platform_role],
+  ];
   const profile = h(
     "section",
-    {},
-    h("h2", {}, "Profil"),
-    h("p", {}, `Name: ${me.person.display_name}`),
-    h("p", {}, `E-Mail: ${me.person.email}`),
-    h("p", {}, `Partner: ${me.person.partner.name} (${me.person.partner.short_name})`),
-    h("p", {}, `Rolle: ${me.person.platform_role}`),
+    { class: "section-card account-card" },
+    h("h2", { class: "account-card-title" }, "Profil"),
+    h(
+      "dl",
+      { class: "account-facts" },
+      ...facts.flatMap(([label, value]) => [h("dt", {}, label), h("dd", {}, value)]),
+    ),
+    h(
+      "p",
+      { class: "muted account-hint" },
+      "Änderungen an Name, E-Mail oder Partner nimmt die Administration vor.",
+    ),
   );
 
   const notice = mustChange
@@ -89,7 +102,12 @@ export async function render(container, ctx) {
     pageHeader("Konto", "Profil und Passwortverwaltung."),
     notice || h("div", {}),
     profile,
-    h("section", {}, h("h2", {}, "Passwort"), passwordSection),
+    h(
+      "section",
+      { class: "section-card account-card" },
+      h("h2", { class: "account-card-title" }, "Passwort"),
+      passwordSection,
+    ),
     crossNav(),
   );
 }

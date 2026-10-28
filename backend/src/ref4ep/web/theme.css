@@ -506,3 +506,67 @@ main#app.campaigns-page .campaigns-hero-actions button:hover {
   .portal-header .theme-toggle { order: 1; margin-left: auto; }
   .portal-header .user { order: 2; }
 }
+
+/* ── Cockpit: Arbeitspaket-Ampel ───────────────────────────────────
+   Kopfzeile mit Zählung, darunter nur Auffälliges (rot, gelb); die
+   vollständige Liste klappt auf. */
+.cockpit-health-summary {
+  display: flex; flex-wrap: wrap; gap: 6px 18px;
+  list-style: none; margin: 0 0 12px; padding: 0;
+  font-size: 0.93rem; color: var(--t-muted);
+}
+.cockpit-health-count { display: inline-flex; align-items: center; gap: 6px; }
+.cockpit-health-count strong {
+  color: var(--t-fg); font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.cockpit-health-count.is-zero { opacity: .6; }
+.cockpit-health-calm {
+  margin: 0; padding: 10px 14px;
+  background: var(--t-ok-bg); color: var(--t-ok-fg);
+  border-radius: 6px;
+}
+.cockpit-health-all { margin-top: 12px; }
+.cockpit-health-all > summary {
+  cursor: pointer; color: var(--t-link); font-weight: 500; padding: 6px 0;
+}
+.cockpit-health-all > summary:hover { color: var(--t-accent); }
+.cockpit-wp-health-code { white-space: nowrap; }
+.traffic-dot-green  { color: var(--t-green); }
+.traffic-dot-yellow { color: var(--t-amber); }
+.traffic-dot-red    { color: var(--t-red); }
+.traffic-dot-gray   { color: var(--t-faint); }
+
+/* ── Konto: Profil und Passwort als Karten ─────────────────────────── */
+main#app .account-card { max-width: 46rem; margin-bottom: var(--rds-space-5); }
+main#app .account-card-title {
+  margin: 0 0 var(--rds-space-3); font-size: 1.1rem; font-weight: 600; color: var(--t-strong);
+}
+main#app .account-facts {
+  display: grid; grid-template-columns: minmax(8rem, max-content) 1fr;
+  gap: 8px 24px; margin: 0;
+}
+main#app .account-facts dt { color: var(--t-muted); font-size: 0.9rem; }
+main#app .account-facts dd { margin: 0; color: var(--t-fg); font-weight: 500; overflow-wrap: anywhere; }
+main#app .account-hint { margin: var(--rds-space-4) 0 0; font-size: 0.88rem; }
+main#app .account-card details.collapsible > summary { color: var(--t-link); font-weight: 600; }
+@media (max-width: 560px) {
+  main#app .account-facts { grid-template-columns: 1fr; gap: 2px; }
+  main#app .account-facts dd { margin-bottom: 8px; }
+}
+
+/* ── Audit-Log ─────────────────────────────────────────────────────── */
+main#app .audit-filterbox {
+  display: flex; flex-wrap: wrap; align-items: end;
+  gap: var(--rds-space-3) var(--rds-space-4);
+}
+main#app .audit-filterbox label {
+  display: flex; flex-direction: column; gap: 4px;
+  flex: 1 1 12rem; font-size: 0.875rem; color: var(--t-muted);
+}
+main#app .audit-details {
+  margin: 8px 0 0; padding: 10px 12px; max-width: 60ch; overflow-x: auto;
+  font-size: 0.8rem; background: var(--t-soft); color: var(--t-fg);
+  border: 1px solid var(--t-line); border-radius: 6px;
+}
+main#app td code { font-family: var(--t-mono); font-size: 0.85rem; }
+main#app .audit-table td { vertical-align: top; }

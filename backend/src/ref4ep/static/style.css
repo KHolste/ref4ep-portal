@@ -1,125 +1,496 @@
-/* Ref4EP — Public-Zone. Schlichte, lesbare Typografie. */
+/* Ref4EP — Public-Zone (Login, Impressum, Datenschutz, Downloads).
+ *
+ * Block 0055: an das Design-System des Portals angeglichen — Marineblau,
+ * Petrol als Akzent, dieselbe serifenlose Typografie und dieselben
+ * Fokus-/Kontrastregeln wie im Portal.
+ * 0077: dasselbe helle Erscheinungsbild wie /portal/theme.css (helle
+ * Kopfzeile, IBM Plex, Petrol-Knöpfe) und ein dunkler Modus.
+ *
+ * Bewusst eigenständig und klein: die Public-Zone ist server-gerendert
+ * und braucht kein Design-System für Karten, Raster oder Badges. Alle
+ * Farben laufen über die --pub-Tokens; der dunkle Modus setzt nur deren
+ * Werte neu (unten, :root[data-theme="dark"]). Die Wahl teilt sich die
+ * Public-Zone mit dem Portal (localStorage ``ref4ep.theme``).
+ */
 
-*, *::before, *::after {
+/* Schriften liegen lokal im Portal (kein Abruf bei Dritten). IBM Plex,
+   SIL Open Font License — siehe /portal/fonts/LICENSE-IBM-Plex.txt. */
+@font-face { font-family: "IBM Plex Sans"; font-weight: 400; font-style: normal; font-display: swap;
+  src: url("/portal/fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 500; font-style: normal; font-display: swap;
+  src: url("/portal/fonts/ibm-plex-sans-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 600 700; font-style: normal; font-display: swap;
+  src: url("/portal/fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2"); }
+
+:root {
+  --pub-navy: #1c2c4c;
+  --pub-teal: #1f7a8c;
+  --pub-teal-hover: #186575;
+  --pub-teal-soft: #e7f3f5;
+  --pub-on-teal: #ffffff;
+  --pub-canvas: #f3f5f9;
+  --pub-surface: #ffffff;
+  --pub-soft: #f6f8fc;
+  --pub-border: #dde3ee;
+  --pub-border-strong: #cdd6e4;
+  --pub-divider: #eef2f7;
+  --pub-text: #1a2237;
+  --pub-text-muted: #4f5768; /* 7.3:1 auf Weiß */
+  --pub-link: #265b8e;
+  --pub-ok-fg: #1f5a3b;
+  --pub-ok-bg: #e6f1eb;
+  --pub-err-fg: #7a1c19;
+  --pub-err-bg: #fbe7e6;
+  --pub-radius: 8px;
+  --pub-radius-sm: 4px;
+  --pub-control-min: 2.25rem;
+  --pub-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --ico-moon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 14.500A8 8 0 0 1 9.500 4a8 8 0 1 0 10.500 10.500z'/%3E%3C/svg%3E");
+  --ico-sun: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3Cpath d='M12 2.500v2.500M12 19v2.500M2.500 12H5M19 12h2.500M5.300 5.300l1.800 1.800M16.900 16.900l1.800 1.800M5.300 18.700l1.800-1.800M16.900 7.100l1.800-1.800'/%3E%3C/svg%3E");
+}
+
+/* Dunkler Modus: nur andere Token-Werte (Werte wie im Portal). */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --pub-navy: #f0f4f9;          /* Überschriften werden hell */
+  --pub-teal: #5cc0d2;
+  --pub-teal-hover: #7fd0de;
+  --pub-teal-soft: #143239;
+  --pub-on-teal: #06232a;
+  --pub-canvas: #0f141b;
+  --pub-surface: #171e28;
+  --pub-soft: #1b2330;
+  --pub-border: #273244;
+  --pub-border-strong: #34415a;
+  --pub-divider: #1f2835;
+  --pub-text: #e5eaf1;
+  --pub-text-muted: #a3afbf;
+  --pub-link: #8cc3ee;
+  --pub-ok-fg: #8fdba8;
+  --pub-ok-bg: #162f20;
+  --pub-err-fg: #ffa39a;
+  --pub-err-bg: #3a1f1c;
+}
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
-  line-height: 1.6;
-  color: #1a1a1a;
-  background: #fafafa;
-}
-
-header {
-  border-bottom: 1px solid #ddd;
-  padding: 1rem 1.5rem;
+  min-height: 100vh;
   display: flex;
-  align-items: baseline;
-  gap: 2rem;
-  background: #fff;
+  flex-direction: column;
+  font-family: var(--pub-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--pub-text);
+  background: var(--pub-canvas);
 }
 
-header .brand {
-  font-weight: 700;
-  font-size: 1.25rem;
-  color: #1c2c4c;
+/* ---- Kopfbereich: hell, mit feiner Kante ---------------------------- */
+
+header.public-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  padding: 0.55rem 1.5rem;
+  color: var(--pub-text);
+  background: var(--pub-surface);
+  border-bottom: 1px solid var(--pub-border);
+}
+
+header.public-header .brand {
+  display: inline-flex;
+  align-items: center;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--pub-navy);
   text-decoration: none;
+  white-space: nowrap;
 }
 
-header nav a {
-  margin-right: 1rem;
-  color: #1c2c4c;
+/* Wortmarke wie im Portal: kleines Petrol-Quadrat, kein externes Icon. */
+header.public-header .brand::before {
+  content: "";
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-right: 0.55rem;
+  border-radius: 2px;
+  background: var(--pub-teal);
+}
+
+header.public-header nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+}
+
+header.public-header nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--pub-control-min);
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--pub-text-muted);
   text-decoration: none;
+  transition: background-color 0.12s ease, color 0.12s ease;
 }
 
-header nav a:hover {
-  text-decoration: underline;
+header.public-header nav a:hover {
+  background: var(--pub-canvas);
+  color: var(--pub-text);
 }
+
+header.public-header nav a[aria-current="page"] {
+  color: var(--pub-teal);
+  font-weight: 600;
+  background: var(--pub-canvas);
+}
+
+/* Umschalter Hell / Dunkel (wie im Portal). */
+.theme-toggle {
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  padding: 0;
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--pub-text-muted);
+  background: var(--pub-surface);
+  border: 1px solid var(--pub-border);
+  border-radius: var(--pub-radius);
+}
+
+.theme-toggle:hover {
+  color: var(--pub-text);
+  background: var(--pub-canvas);
+}
+
+.theme-toggle::before {
+  content: "";
+  width: 17px;
+  height: 17px;
+  background: currentColor;
+  -webkit-mask: var(--ico-moon) center / contain no-repeat;
+  mask: var(--ico-moon) center / contain no-repeat;
+}
+
+:root[data-theme="dark"] .theme-toggle::before {
+  -webkit-mask-image: var(--ico-sun);
+  mask-image: var(--ico-sun);
+}
+
+/* ---- Inhalt --------------------------------------------------------- */
 
 main {
-  max-width: 720px;
+  flex: 1;
+  width: 100%;
+  max-width: 900px;
   margin: 0 auto;
-  padding: 2rem 1.5rem;
+  padding: 2rem 1.5rem 3rem;
+}
+
+article {
+  background: var(--pub-surface);
+  border: 1px solid var(--pub-border);
+  border-radius: var(--pub-radius);
+  padding: 1.75rem;
 }
 
 article h1 {
-  font-size: 1.75rem;
-  margin-top: 0;
+  margin: 0 0 0.75rem;
+  font-size: 1.55rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--pub-navy);
+}
+
+article h2 {
+  margin: 1.75rem 0 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--pub-navy);
 }
 
 article p {
-  margin: 0 0 1rem 0;
+  margin: 0 0 1rem;
+  max-width: 75ch;
 }
+
+article p:last-child {
+  margin-bottom: 0;
+}
+
+a {
+  color: var(--pub-link);
+}
+
+a:hover {
+  color: var(--pub-teal);
+}
+
+.muted {
+  color: var(--pub-text-muted);
+}
+
+/* ---- Buttons -------------------------------------------------------- */
+/* Eine Hauptaktion: Petrol. Zweitaktion: helle Fläche mit Linie. */
+
+.public-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.public-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--pub-control-min);
+  padding: 0.5rem 1.05rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--pub-on-teal);
+  background: var(--pub-teal);
+  border: 1px solid var(--pub-teal);
+  border-radius: var(--pub-radius-sm);
+  text-decoration: none;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.public-button:hover {
+  background: var(--pub-teal-hover);
+  border-color: var(--pub-teal-hover);
+  color: var(--pub-on-teal);
+}
+
+.public-button--secondary {
+  color: var(--pub-navy);
+  background: var(--pub-surface);
+  border-color: var(--pub-border-strong);
+}
+
+.public-button--secondary:hover {
+  background: var(--pub-soft);
+  border-color: var(--pub-teal);
+  color: var(--pub-teal);
+}
+
+/* ---- Tabellen (öffentliche Downloads) ------------------------------- */
 
 table {
   border-collapse: collapse;
   width: 100%;
   margin-top: 1rem;
+  font-size: 0.95rem;
 }
 
-th, td {
+th,
+td {
   text-align: left;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--pub-divider);
 }
 
 th {
-  background: #f0f0f0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--pub-text-muted);
+  background: transparent;
+  border-bottom: 1px solid var(--pub-border-strong);
+  white-space: nowrap;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr:hover {
+  background: var(--pub-soft);
+}
+
+/* ---- Anmeldung ------------------------------------------------------ */
+
+/* Die Anmeldekarte sitzt mittig statt oben angeklebt. ``:has`` wird von
+ * allen aktuellen Browsern unterstützt; fällt es aus, bleibt die Karte
+ * schlicht oben — kein Funktionsverlust. */
+main:has(article.login) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 article.login {
-  max-width: 360px;
+  width: 100%;
+  max-width: 26rem;
+  margin: 0 auto;
+  border-top: 4px solid var(--pub-teal);
+}
+
+.login-lead {
+  color: var(--pub-text-muted);
+  font-size: 0.95rem;
 }
 
 article.login form {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 1rem;
+  gap: 0.85rem;
+  margin-top: 1.25rem;
 }
 
 article.login label {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.3rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--pub-text-muted);
 }
 
 article.login input {
-  padding: 0.4rem 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 3px;
+  min-height: var(--pub-control-min);
+  padding: 0.5rem 0.6rem;
+  font: inherit;
   font-size: 1rem;
+  color: var(--pub-text);
+  border: 1px solid var(--pub-border-strong);
+  border-radius: var(--pub-radius-sm);
+  background: var(--pub-surface);
+}
+
+article.login input:hover {
+  border-color: var(--pub-teal);
 }
 
 article.login button {
-  padding: 0.5rem 0.75rem;
-  background: #1c2c4c;
-  color: #fff;
-  border: none;
-  border-radius: 3px;
+  min-height: var(--pub-control-min);
+  margin-top: 0.25rem;
+  padding: 0.55rem 1rem;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--pub-on-teal);
+  background: var(--pub-teal);
+  border: 1px solid var(--pub-teal);
+  border-radius: var(--pub-radius-sm);
   cursor: pointer;
-  font-size: 1rem;
+  transition: background-color 0.12s ease;
 }
 
+article.login button:hover {
+  background: var(--pub-teal-hover);
+}
+
+.login-site-link {
+  font-weight: 600;
+}
+
+/* ---- Hinweise ------------------------------------------------------- */
+/* Status steht immer als Text da; Farbe und Marker sind Zugabe. */
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.95rem;
+  border-radius: var(--pub-radius-sm);
+}
+
+.notice-marker {
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.notice-ok {
+  color: var(--pub-ok-fg);
+  background: var(--pub-ok-bg);
+  border: 1px solid var(--pub-border);
+}
+
+.notice-error,
 .error {
-  color: #b30000;
-  background: #fff0f0;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #f0c0c0;
-  border-radius: 3px;
+  color: var(--pub-err-fg);
+  background: var(--pub-err-bg);
+  border: 1px solid var(--pub-border);
+}
+
+/* Bestandsklasse aus älteren Templates — gleiche Optik wie .notice-error. */
+.error {
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--pub-radius-sm);
 }
 
 .hint {
-  color: #555;
+  margin: 1rem 0 0;
+  color: var(--pub-text-muted);
   font-size: 0.875rem;
 }
 
+/* ---- Fuß ------------------------------------------------------------ */
+
 footer {
-  border-top: 1px solid #ddd;
-  padding: 1rem 1.5rem;
+  padding: 1.25rem 1.5rem;
   text-align: center;
-  color: #666;
-  background: #fff;
+  color: var(--pub-text-muted);
+  background: var(--pub-surface);
+  border-top: 1px solid var(--pub-border);
+}
+
+/* ---- Fokus ---------------------------------------------------------- */
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--pub-teal);
+  outline-offset: 2px;
+  border-radius: var(--pub-radius-sm);
+}
+
+/* ---- Schmale Ansichten ---------------------------------------------- */
+
+@media (max-width: 640px) {
+  header.public-header {
+    padding: 0.6rem 1rem;
+  }
+  /* Umschalter oben rechts neben der Wortmarke, Navigation darunter. */
+  .theme-toggle {
+    order: 1;
+  }
+  header.public-header nav {
+    order: 2;
+    flex-basis: 100%;
+  }
+  main {
+    padding: 1.25rem 1rem 2rem;
+  }
+  article {
+    padding: 1.25rem;
+  }
+  /* Downloads-Tabelle scrollt in sich, statt die Seite zu verbreitern. */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
+/* Gedruckt wird hell. */
+@media print {
+  header.public-header .theme-toggle {
+    display: none;
+  }
 }

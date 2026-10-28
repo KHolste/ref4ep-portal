@@ -1,7 +1,7 @@
 // Admin-Partnerverwaltung — Liste + Anlegen.
 //
 // Bearbeitung läuft über die Detailseite (Klick auf den Namen).
-// Hier auf der Liste nur noch: Soft-Delete und Anlegen.
+// Hier auf der Liste nur noch: Entfernen (Soft-Delete) und Anlegen.
 
 import {
   api,
@@ -98,7 +98,7 @@ function rowFor(partner, onDelete) {
   const cls = partner.is_deleted ? "muted" : "";
   let statusBadge;
   if (partner.is_deleted) {
-    statusBadge = h("span", { class: "badge badge-draft" }, "soft-deleted");
+    statusBadge = h("span", { class: "badge badge-draft" }, "entfernt");
   } else if (!partner.is_active) {
     statusBadge = h("span", { class: "badge badge-draft" }, "inaktiv");
   } else {
@@ -127,7 +127,7 @@ function rowFor(partner, onDelete) {
         : h(
             "button",
             { type: "button", class: "danger", onclick: () => onDelete(partner) },
-            "Soft-Delete …",
+            "Entfernen …",
           ),
     ),
   );
@@ -165,8 +165,11 @@ export async function render(container, ctx) {
   }
 
   async function onDelete(partner) {
-    if (!confirm(`Partner ${partner.short_name} soft-löschen? (Reaktivierung nicht möglich)`))
-      return;
+    const question =
+      `Partner ${partner.short_name} entfernen? ` +
+      "Der Partner wird ausgeblendet, seine Daten bleiben gespeichert. " +
+      "Eine Reaktivierung ist nicht möglich.";
+    if (!confirm(question)) return;
     try {
       await api("DELETE", `/api/admin/partners/${partner.id}`);
       reload();

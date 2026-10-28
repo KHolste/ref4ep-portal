@@ -4,18 +4,27 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{% block title %}{{ title }}{% endblock %} — Ref4EP</title>
-    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="/static/style.css?v=0077" />
     <link rel="icon" href="/static/favicon.ico" />
+    {# Hell/Dunkel: dieselbe gemerkte Wahl wie im Portal, gesetzt bevor
+       die Seite gezeichnet wird (kein helles Aufblitzen). #}
+    <script>try{if(localStorage.getItem('ref4ep.theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
   </head>
   <body>
-    <header>
-      <a href="/" class="brand">Ref4EP</a>
-      <nav>
-        <a href="/">Projekt</a>
-        <a href="/portal/">Portal</a>
-        <a href="/legal/imprint">Impressum</a>
-        <a href="/legal/privacy">Datenschutz</a>
+    {% set current_path = request.url.path if request is defined else "" %}
+    <header class="public-header">
+      <a href="{{ project_site_url or '/' }}" class="brand">Ref4EP</a>
+      <nav aria-label="Bereiche">
+        {# „Projekt" führt auf die öffentliche Projektseite; die
+           Portal-Startseite leitet ohnehin dorthin um. #}
+        <a href="{{ project_site_url or '/' }}">Projekt</a>
+        <a href="/downloads"{% if current_path.startswith("/downloads") %} aria-current="page"{% endif %}>Downloads</a>
+        <a href="/portal/"{% if current_path == "/login" %} aria-current="page"{% endif %}>Portal</a>
+        <a href="/legal/imprint"{% if current_path == "/legal/imprint" %} aria-current="page"{% endif %}>Impressum</a>
+        <a href="/legal/privacy"{% if current_path == "/legal/privacy" %} aria-current="page"{% endif %}>Datenschutz</a>
       </nav>
+      <button type="button" class="theme-toggle" id="theme-toggle"
+              title="Hell / Dunkel umschalten" aria-label="Hell / Dunkel umschalten"></button>
     </header>
     <main>
       {% block content %}{% endblock %}
@@ -24,5 +33,33 @@
       <small>Ref4EP — Referenzdiagnostik für elektrische Raumfahrtantriebe.
       Gefördert durch das DLR.</small>
     </footer>
+    <script>
+      (function () {
+        var root = document.documentElement;
+        var btn = document.getElementById("theme-toggle");
+        function sync() {
+          var dark = root.getAttribute("data-theme") === "dark";
+          btn.setAttribute("aria-pressed", dark ? "true" : "false");
+          btn.title = dark ? "Hellen Modus einschalten" : "Dunklen Modus einschalten";
+        }
+        btn.addEventListener("click", function () {
+          var dark = root.getAttribute("data-theme") !== "dark";
+          if (dark) root.setAttribute("data-theme", "dark");
+          else root.removeAttribute("data-theme");
+          try { localStorage.setItem("ref4ep.theme", dark ? "dark" : "light"); } catch (e) {}
+          sync();
+        });
+        // Gedruckt wird immer hell.
+        var printedFromDark = false;
+        window.addEventListener("beforeprint", function () {
+          printedFromDark = root.getAttribute("data-theme") === "dark";
+          if (printedFromDark) root.removeAttribute("data-theme");
+        });
+        window.addEventListener("afterprint", function () {
+          if (printedFromDark) root.setAttribute("data-theme", "dark");
+        });
+        sync();
+      })();
+    </script>
   </body>
 </html>

@@ -817,15 +817,18 @@ function trafficDot(light) {
   );
 }
 
-function renderWorkpackageHealthCard(entries) {
-  if (!entries.length) {
-    return h(
-      "section",
-      { class: "cockpit-card cockpit-card-wide" },
-      h("h2", {}, "Arbeitspaket-Ampel"),
-      renderEmpty("Noch keine Arbeitspakete vorhanden."),
-    );
-  }
+// Reihenfolge der Schwere — Auffälliges zuerst.
+const TRAFFIC_SEVERITY = { red: 0, yellow: 1, green: 2, gray: 3 };
+
+// Klartext je Ampelwert: Status steht nie allein über die Farbe.
+const TRAFFIC_LIGHT_SUMMARY = {
+  red: "kritisch",
+  yellow: "Aufmerksamkeit",
+  green: "im Plan",
+  gray: "ohne Bewertung",
+};
+
+function renderWorkpackageHealthTable(entries) {
   const rows = entries.map((entry) => {
     const next = entry.next_milestone;
     const docs = entry.document_counts || {};
@@ -834,10 +837,15 @@ function renderWorkpackageHealthCard(entries) {
       {},
       h(
         "td",
-        {},
+        { class: "cockpit-wp-health-code" },
         trafficDot(entry.traffic_light),
         " ",
         h("a", { href: `/portal/workpackages/${entry.code}` }, entry.code),
+        h(
+          "span",
+          { class: "sr-only" },
+          ` (${TRAFFIC_LIGHT_LABELS[entry.traffic_light] || entry.traffic_light})`,
+        ),
       ),
       h("td", {}, entry.title),
       h(
@@ -857,26 +865,87 @@ function renderWorkpackageHealthCard(entries) {
     );
   });
   return h(
+    "table",
+    { class: "cockpit-wp-health" },
+    h(
+      "thead",
+      {},
+      h(
+        "tr",
+        {},
+        h("th", {}, "WP"),
+        h("th", {}, "Titel"),
+        h("th", {}, "Dokumente"),
+        h("th", {}, "Nächster Meilenstein"),
+      ),
+    ),
+    h("tbody", {}, ...rows),
+  );
+}
+
+function renderWorkpackageHealthCard(entries) {
+  if (!entries.length) {
+    return h(
+      "section",
+      { class: "cockpit-card cockpit-card-wide" },
+      h("h2", {}, "Arbeitspaket-Ampel"),
+      renderEmpty("Noch keine Arbeitspakete vorhanden."),
+    );
+  }
+  // Zählung je Ampelwert — als Kopfzeile, damit die Lage auf einen
+  // Blick erkennbar ist, ohne 35 Zeilen zu lesen.
+  const counts = { red: 0, yellow: 0, green: 0, gray: 0 };
+  for (const e of entries) {
+    if (e.traffic_light in counts) counts[e.traffic_light] += 1;
+  }
+  const summary = h(
+    "ul",
+    { class: "cockpit-health-summary", "aria-label": "Ampel-Übersicht" },
+    ...["red", "yellow", "green", "gray"].map((light) =>
+      h(
+        "li",
+        { class: `cockpit-health-count${counts[light] ? "" : " is-zero"}` },
+        trafficDot(light),
+        h("strong", {}, String(counts[light])),
+        ` ${TRAFFIC_LIGHT_SUMMARY[light]}`,
+      ),
+    ),
+  );
+
+  // Nur Auffälliges (rot, gelb) steht offen da; alles andere klappt auf.
+  const attention = entries
+    .filter((e) => e.traffic_light === "red" || e.traffic_light === "yellow")
+    .sort(
+      (a, b) =>
+        TRAFFIC_SEVERITY[a.traffic_light] - TRAFFIC_SEVERITY[b.traffic_light] ||
+        a.code.localeCompare(b.code, "de", { numeric: true }),
+    );
+  const attentionBlock = attention.length
+    ? renderWorkpackageHealthTable(attention)
+    : h(
+        "p",
+        { class: "cockpit-health-calm" },
+        trafficDot("green"),
+        " Kein Arbeitspaket mit kritischem oder bald fälligem Meilenstein.",
+      );
+
+  const all = [...entries].sort((a, b) =>
+    a.code.localeCompare(b.code, "de", { numeric: true }),
+  );
+  const allBlock = h(
+    "details",
+    { class: "cockpit-health-all" },
+    h("summary", {}, `Alle ${entries.length} Arbeitspakete anzeigen`),
+    renderWorkpackageHealthTable(all),
+  );
+
+  return h(
     "section",
     { class: "cockpit-card cockpit-card-wide" },
     h("h2", {}, "Arbeitspaket-Ampel"),
-    h(
-      "table",
-      { class: "cockpit-wp-health" },
-      h(
-        "thead",
-        {},
-        h(
-          "tr",
-          {},
-          h("th", {}, "WP"),
-          h("th", {}, "Titel"),
-          h("th", {}, "Dokumente"),
-          h("th", {}, "Nächster Meilenstein"),
-        ),
-      ),
-      h("tbody", {}, ...rows),
-    ),
+    summary,
+    attentionBlock,
+    allBlock,
   );
 }
 

@@ -726,6 +726,21 @@
 :root[data-theme="dark"] main#app button.linklike:hover { color: var(--t-accent); }
 :root[data-theme="dark"] main#app.campaigns-page .campaigns-hero-actions button { background: #1f7a8c; border-color: #1f7a8c; color: #ffffff; }
 :root[data-theme="dark"] main#app.campaigns-page .campaigns-hero-actions button:hover { background: #186575; }
+:root[data-theme="dark"] .cockpit-health-summary { color: var(--t-muted); }
+:root[data-theme="dark"] .cockpit-health-count strong { color: var(--t-fg); }
+:root[data-theme="dark"] .cockpit-health-calm { background: var(--t-ok-bg); color: var(--t-ok-fg); }
+:root[data-theme="dark"] .cockpit-health-all > summary { color: var(--t-link); }
+:root[data-theme="dark"] .cockpit-health-all > summary:hover { color: var(--t-accent); }
+:root[data-theme="dark"] .traffic-dot-green { color: var(--t-green); }
+:root[data-theme="dark"] .traffic-dot-yellow { color: var(--t-amber); }
+:root[data-theme="dark"] .traffic-dot-red { color: var(--t-red); }
+:root[data-theme="dark"] .traffic-dot-gray { color: var(--t-faint); }
+:root[data-theme="dark"] main#app .account-card-title { color: var(--t-strong); }
+:root[data-theme="dark"] main#app .account-facts dt { color: var(--t-muted); }
+:root[data-theme="dark"] main#app .account-facts dd { color: var(--t-fg); }
+:root[data-theme="dark"] main#app .account-card details.collapsible > summary { color: var(--t-link); }
+:root[data-theme="dark"] main#app .audit-filterbox label { color: var(--t-muted); }
+:root[data-theme="dark"] main#app .audit-details { background: var(--t-soft); color: var(--t-fg); border: 1px solid var(--t-line); }
 
 /* ── 3. Fest im Zeitplan-SVG notierte Farben ── */
 :root[data-theme="dark"] .gantt-svg [fill="#1565c0" i] { fill: #4990e2; }
